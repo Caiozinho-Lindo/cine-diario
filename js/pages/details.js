@@ -94,7 +94,7 @@ function render() {
     </div>
 
     <div class="details-actions">
-      <a class="btn btn-secondary" href="catalog.html?tab=adicionar&edit=${t.id}">Editar</a>
+      <a class="btn btn-secondary" href="add.html?edit=${t.id}">Editar</a>
       <button class="btn btn-danger" id="delete-btn" type="button">Excluir</button>
     </div>
   `;

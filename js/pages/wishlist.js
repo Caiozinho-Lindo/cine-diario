@@ -296,7 +296,7 @@ function mostrarVencedor(t) {
         <div class="wishlist-card-meta">${t.ano || '—'} · ${t.tipo === 'filme' ? 'Filme' : 'Série'}</div>
         ${t.sinopse ? `<p>${escapeHtml(t.sinopse)}</p>` : ''}
         <div style="display:flex; gap:10px; margin-top: 14px;">
-          <a href="catalog.html?tab=adicionar&edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
+          <a href="add.html?edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
           <button type="button" class="btn btn-secondary" id="spin-again-btn">Girar de novo</button>
         </div>
       </div>

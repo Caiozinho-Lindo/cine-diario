@@ -36,6 +36,7 @@ export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, o
       <div class="navbar-links">
         <a href="${root}pages/home.html" data-page="home">Início</a>
         <a href="${root}pages/catalog.html" data-page="catalog">Catálogo</a>
+        <a href="${root}pages/add.html" data-page="add">Adicionar</a>
         <a href="${root}pages/wishlist.html" data-page="wishlist">🎡 Para assistir</a>
       </div>
 
