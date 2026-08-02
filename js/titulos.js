@@ -74,10 +74,25 @@ export async function criarTitulo(dadosTitulo, usuarioId) {
       backdrop_url: dadosTitulo.backdrop_url,
       sinopse: dadosTitulo.sinopse,
       data_assistido: dadosTitulo.data_assistido || null,
-      criado_por: usuarioId
+      criado_por: usuarioId,
+      quero_assistir: dadosTitulo.quero_assistir || false
     })
     .select()
     .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Retorna os títulos marcados como "quero assistir" (lista de desejos do casal).
+ */
+export async function getListaDesejos() {
+  const { data, error } = await supabase
+    .from('titulos')
+    .select('*')
+    .eq('quero_assistir', true)
+    .order('criado_em', { ascending: false });
 
   if (error) throw error;
   return data;

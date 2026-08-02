@@ -228,7 +228,8 @@ async function onSubmit(e) {
     sinopse: document.getElementById('f-sinopse').value.trim(),
     capa_url: document.getElementById('f-capa').value.trim() || null,
     backdrop_url: dadosSelecionados.backdrop_url || null,
-    data_assistido: document.getElementById('f-data-assistido').value || null
+    data_assistido: document.getElementById('f-data-assistido').value || null,
+    quero_assistir: false // ao avaliar, o título sai da lista "para assistir"
   };
 
   const usuarioId = getUserId(sessionAtual);
