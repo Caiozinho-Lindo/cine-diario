@@ -2,111 +2,15 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Adicionar título — Diário Cinematográfico do Casal</title>
-<link rel="stylesheet" href="../css/global.css" />
-<link rel="stylesheet" href="../css/themes.css" />
-<link rel="stylesheet" href="../css/components.css" />
-<link rel="stylesheet" href="../css/responsive.css" />
+<title>Redirecionando…</title>
+<script>
+  // Esta página foi incorporada como a aba "Adicionar" dentro do Catálogo.
+  var params = new URLSearchParams(window.location.search);
+  var editId = params.get('edit');
+  window.location.replace('catalog.html?tab=adicionar' + (editId ? '&edit=' + encodeURIComponent(editId) : ''));
+</script>
 </head>
-<body class="theme-casal" data-page="add">
-
-  <nav class="navbar" id="navbar"></nav>
-
-  <main class="container" style="padding-top: 24px; padding-bottom: 60px; max-width: 760px;">
-    <div class="section-title"><h2 id="page-heading">Adicionar filme ou série</h2></div>
-
-    <!-- Etapa de busca -->
-    <div id="search-step">
-      <div class="search-box">
-        <input type="search" id="search-input" placeholder="Digite o nome do filme ou série..." autocomplete="off" />
-      </div>
-      <div id="search-results" class="search-results"></div>
-    </div>
-
-    <!-- Formulário (aparece após seleção) -->
-    <form id="title-form" hidden>
-      <div class="selected-title-preview" id="selected-preview"></div>
-
-      <div class="form-section">
-        <h3>📋 Dados do título</h3>
-        <div class="field">
-          <label for="f-nome">Nome</label>
-          <input type="text" id="f-nome" required />
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="f-nome-original">Nome original</label>
-            <input type="text" id="f-nome-original" />
-          </div>
-          <div class="field">
-            <label for="f-ano">Ano</label>
-            <input type="number" id="f-ano" min="1888" max="2100" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="f-tipo">Tipo</label>
-            <select id="f-tipo">
-              <option value="filme">Filme</option>
-              <option value="serie">Série</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="f-data-assistido">Data em que assistimos (opcional)</label>
-            <input type="date" id="f-data-assistido" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="f-generos">Gêneros (separados por vírgula)</label>
-          <input type="text" id="f-generos" placeholder="Drama, Ficção científica..." />
-        </div>
-        <div class="field">
-          <label for="f-sinopse">Sinopse</label>
-          <textarea id="f-sinopse" rows="3"></textarea>
-        </div>
-        <div class="field">
-          <label for="f-capa">URL da capa</label>
-          <input type="text" id="f-capa" />
-        </div>
-      </div>
-
-      <div class="form-section" id="own-review-section">
-        <h3 id="own-review-title">⭐ Sua avaliação</h3>
-        <div class="person-form-block">
-          <div class="field">
-            <label>Nota (0 a 10)</label>
-            <div class="rating-input-group">
-              <input type="range" id="f-nota" min="0" max="10" step="0.5" value="7" />
-              <span class="rating-value" id="f-nota-display">7,0</span>
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-observacao">Sua observação</label>
-            <textarea id="f-observacao" rows="3" placeholder="O que você achou?"></textarea>
-          </div>
-          <div class="field">
-            <label for="f-data-avaliacao">Data da sua avaliação</label>
-            <input type="date" id="f-data-avaliacao" />
-          </div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h3 id="other-review-title">Avaliação da outra pessoa</h3>
-        <div class="person-form-block" id="other-review-display">
-          <p class="review-pending">Aguardando avaliação.</p>
-        </div>
-      </div>
-
-      <div style="display:flex; gap:10px; margin-top: 10px;">
-        <button type="submit" class="btn btn-primary" id="save-btn">Salvar</button>
-        <a href="catalog.html" class="btn btn-secondary">Cancelar</a>
-      </div>
-    </form>
-  </main>
-
-  <script src="../config.js"></script>
-  <script type="module" src="../js/pages/add.js"></script>
+<body>
+  <p>Redirecionando para o <a href="catalog.html?tab=adicionar">Catálogo</a>…</p>
 </body>
 </html>

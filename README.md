@@ -48,14 +48,13 @@ Site estático (HTML + CSS + JavaScript puro, sem build step), com [Supabase](ht
 │   └── pages/               → um script por página
 │       ├── login.js
 │       ├── home.js
-│       ├── catalog.js
-│       ├── details.js
-│       └── add.js
+│       ├── catalog.js      (inclui as abas Todos / Pendentes / Adicionar)
+│       └── details.js
 └── pages/
     ├── home.html
-    ├── catalog.html
+    ├── catalog.html         (Todos / Pendentes / Adicionar em abas, sem trocar de URL)
     ├── details.html
-    └── add.html
+    └── add.html              (redirect legado para catalog.html?tab=adicionar)
 ```
 
 > A tela de login está em `index.html` (raiz), pois é o ponto de entrada do site no GitHub Pages.

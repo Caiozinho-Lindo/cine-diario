@@ -15,49 +15,163 @@
 
   <main class="container">
     <div class="section-title" style="margin-top:24px;">
-      <h2>Catálogo</h2>
+      <h2 id="catalog-heading">Catálogo</h2>
     </div>
 
-    <div class="filters-bar">
-      <input type="search" id="f-busca" placeholder="Buscar pelo nome..." />
-
-      <select id="f-tipo">
-        <option value="todos">Todos</option>
-        <option value="filme">Filmes</option>
-        <option value="serie">Séries</option>
-      </select>
-
-      <select id="f-avaliacao">
-        <option value="">Qualquer avaliação</option>
-        <option value="assistiriamos">Assistiríamos novamente</option>
-        <option value="nao_assistiriamos">Não assistiríamos novamente</option>
-        <option value="pendentes">Avaliações pendentes</option>
-        <option value="maior_igual_7">Nota ≥ 7</option>
-        <option value="menor_7">Nota &lt; 7</option>
-        <option value="faixa_9_10">Nota 9 a 10</option>
-        <option value="faixa_8_89">Nota 8 a 8,9</option>
-        <option value="faixa_7_79">Nota 7 a 7,9</option>
-        <option value="abaixo_7">Nota abaixo de 7</option>
-      </select>
-
-      <select id="f-genero"><option value="">Todos os gêneros</option></select>
-      <select id="f-ano"><option value="">Todos os anos</option></select>
-
-      <select id="f-ordenacao">
-        <option value="recentes">Mais recentes</option>
-        <option value="antigos">Mais antigos</option>
-        <option value="maior_nota">Maior nota</option>
-        <option value="menor_nota">Menor nota</option>
-        <option value="alfabetica">Ordem alfabética</option>
-      </select>
+    <div class="sub-tabs" id="sub-tabs" role="tablist">
+      <button type="button" class="sub-tab" data-tab="todos" role="tab">Todos</button>
+      <button type="button" class="sub-tab" data-tab="pendentes" role="tab">Pendentes <span class="tab-count" id="pendentes-count"></span></button>
+      <button type="button" class="sub-tab" data-tab="adicionar" role="tab">+ Adicionar</button>
     </div>
 
-    <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
+    <!-- ===================== ABA: TODOS ===================== -->
+    <section id="view-todos" class="tab-view">
+      <div class="filters-bar">
+        <input type="search" id="f-busca" placeholder="Buscar pelo nome..." />
 
-    <div id="cards-grid" class="cards-grid"></div>
+        <select id="f-tipo">
+          <option value="todos">Todos</option>
+          <option value="filme">Filmes</option>
+          <option value="serie">Séries</option>
+        </select>
+
+        <select id="f-avaliacao">
+          <option value="">Qualquer avaliação</option>
+          <option value="assistiriamos">Assistiríamos novamente</option>
+          <option value="nao_assistiriamos">Não assistiríamos novamente</option>
+          <option value="pendentes">Avaliações pendentes (qualquer um)</option>
+          <option value="maior_igual_7">Nota ≥ 7</option>
+          <option value="menor_7">Nota &lt; 7</option>
+          <option value="faixa_9_10">Nota 9 a 10</option>
+          <option value="faixa_8_89">Nota 8 a 8,9</option>
+          <option value="faixa_7_79">Nota 7 a 7,9</option>
+          <option value="abaixo_7">Nota abaixo de 7</option>
+        </select>
+
+        <select id="f-genero"><option value="">Todos os gêneros</option></select>
+        <select id="f-ano"><option value="">Todos os anos</option></select>
+
+        <select id="f-ordenacao">
+          <option value="recentes">Mais recentes</option>
+          <option value="antigos">Mais antigos</option>
+          <option value="maior_nota">Maior nota</option>
+          <option value="menor_nota">Menor nota</option>
+          <option value="alfabetica">Ordem alfabética</option>
+        </select>
+
+        <label class="checkbox-filter">
+          <input type="checkbox" id="f-so-minhas-pendentes" />
+          <span id="f-so-minhas-pendentes-label">Só pendentes para mim</span>
+        </label>
+      </div>
+
+      <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
+
+      <div id="cards-grid" class="cards-grid"></div>
+    </section>
+
+    <!-- ===================== ABA: PENDENTES ===================== -->
+    <section id="view-pendentes" class="tab-view" hidden>
+      <div id="pendentes-subtitle" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
+      <div id="pendentes-grid" class="cards-grid"></div>
+    </section>
+
+    <!-- ===================== ABA: ADICIONAR ===================== -->
+    <section id="view-adicionar" class="tab-view" hidden>
+      <div style="max-width: 760px;">
+        <h3 id="adicionar-heading" style="margin-bottom: 16px;">Adicionar filme ou série</h3>
+
+        <!-- Etapa de busca -->
+        <div id="search-step">
+          <div class="search-box">
+            <input type="search" id="search-input" placeholder="Digite o nome do filme ou série..." autocomplete="off" />
+          </div>
+          <div id="search-results" class="search-results"></div>
+        </div>
+
+        <!-- Formulário (aparece após seleção) -->
+        <form id="title-form" hidden>
+          <div class="selected-title-preview" id="selected-preview"></div>
+
+          <div class="form-section">
+            <h3>📋 Dados do título</h3>
+            <div class="field">
+              <label for="f-nome">Nome</label>
+              <input type="text" id="f-nome" required />
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="f-nome-original">Nome original</label>
+                <input type="text" id="f-nome-original" />
+              </div>
+              <div class="field">
+                <label for="f-ano-titulo">Ano</label>
+                <input type="number" id="f-ano-titulo" min="1888" max="2100" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="f-tipo-titulo">Tipo</label>
+                <select id="f-tipo-titulo">
+                  <option value="filme">Filme</option>
+                  <option value="serie">Série</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-data-assistido">Data em que assistimos (opcional)</label>
+                <input type="date" id="f-data-assistido" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-generos">Gêneros (separados por vírgula)</label>
+              <input type="text" id="f-generos" placeholder="Drama, Ficção científica..." />
+            </div>
+            <div class="field">
+              <label for="f-sinopse">Sinopse</label>
+              <textarea id="f-sinopse" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label for="f-capa">URL da capa</label>
+              <input type="text" id="f-capa" />
+            </div>
+          </div>
+
+          <div class="form-section" id="own-review-section">
+            <h3 id="own-review-title">⭐ Sua avaliação</h3>
+            <div class="person-form-block">
+              <div class="field">
+                <label>Nota (0 a 10)</label>
+                <div class="rating-input-group">
+                  <input type="range" id="f-nota" min="0" max="10" step="0.5" value="7" />
+                  <span class="rating-value" id="f-nota-display">7,0</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="f-observacao">Sua observação</label>
+                <textarea id="f-observacao" rows="3" placeholder="O que você achou?"></textarea>
+              </div>
+              <div class="field">
+                <label for="f-data-avaliacao">Data da sua avaliação</label>
+                <input type="date" id="f-data-avaliacao" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 id="other-review-title">Avaliação da outra pessoa</h3>
+            <div class="person-form-block" id="other-review-display">
+              <p class="review-pending">Aguardando avaliação.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top: 10px;">
+            <button type="submit" class="btn btn-primary" id="save-btn">Salvar</button>
+            <button type="button" class="btn btn-secondary" id="cancelar-adicionar-btn">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </section>
   </main>
-
-  <a href="add.html" class="fab" title="Adicionar filme ou série" aria-label="Adicionar filme ou série">+</a>
 
   <script src="../config.js"></script>
   <script type="module" src="../js/pages/catalog.js"></script>

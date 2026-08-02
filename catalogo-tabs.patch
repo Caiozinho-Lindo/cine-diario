@@ -1,0 +1,1238 @@
+diff --git a/README.md b/README.md
+index 4789cd3..8d67e00 100644
+--- a/README.md
++++ b/README.md
+@@ -48,14 +48,13 @@ Site estático (HTML + CSS + JavaScript puro, sem build step), com [Supabase](ht
+ │   └── pages/               → um script por página
+ │       ├── login.js
+ │       ├── home.js
+-│       ├── catalog.js
+-│       ├── details.js
+-│       └── add.js
++│       ├── catalog.js      (inclui as abas Todos / Pendentes / Adicionar)
++│       └── details.js
+ └── pages/
+     ├── home.html
+-    ├── catalog.html
++    ├── catalog.html         (Todos / Pendentes / Adicionar em abas, sem trocar de URL)
+     ├── details.html
+-    └── add.html
++    └── add.html              (redirect legado para catalog.html?tab=adicionar)
+ ```
+ 
+ > A tela de login está em `index.html` (raiz), pois é o ponto de entrada do site no GitHub Pages.
+diff --git a/css/components.css b/css/components.css
+index 9393292..2beadfd 100644
+--- a/css/components.css
++++ b/css/components.css
+@@ -149,6 +149,54 @@
+ .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+ .section-title h2 { margin: 0; font-size: 1.3rem; }
+ 
++/* ---------- Sub-tabs (Todos / Pendentes / Adicionar) ---------- */
++.sub-tabs {
++  display: flex;
++  gap: 6px;
++  border-bottom: 1px solid var(--card-border);
++  margin-bottom: 22px;
++}
++.sub-tab {
++  padding: 10px 18px;
++  font-size: 0.92rem;
++  color: var(--text-secondary);
++  border-bottom: 2px solid transparent;
++  margin-bottom: -1px;
++  transition: color 150ms ease, border-color 150ms ease;
++}
++.sub-tab:hover { color: var(--text-primary); }
++.sub-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
++.tab-count {
++  display: inline-block;
++  min-width: 18px;
++  padding: 0 5px;
++  margin-left: 4px;
++  border-radius: 999px;
++  background: #e0a83f;
++  color: #241a06;
++  font-size: 0.68rem;
++  font-weight: 700;
++  line-height: 18px;
++  text-align: center;
++}
++.tab-count:empty { display: none; }
++.tab-view { animation: fadeInTab 180ms ease; }
++@keyframes fadeInTab { from { opacity: 0; } to { opacity: 1; } }
++
++.checkbox-filter {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++  font-size: 0.85rem;
++  color: var(--text-secondary);
++  cursor: pointer;
++  user-select: none;
++}
++.checkbox-filter input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
++
++.pending-card-actions { padding: 0 14px 14px; }
++.pending-card-actions .btn { width: 100%; }
++
+ /* ---------- Filters bar ---------- */
+ .filters-bar {
+   display: flex;
+diff --git a/js/pages/add.js b/js/pages/add.js
+deleted file mode 100644
+index 04998e2..0000000
+--- a/js/pages/add.js
++++ /dev/null
+@@ -1,263 +0,0 @@
+-// js/pages/add.js
+-import { requireSession, getProfileFromSession, getUserId } from '../auth.js';
+-import { searchMulti, getDetails } from '../tmdb.js';
+-import { criarTitulo, atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
+-import { getModoAtivo, aplicarTema } from '../themes.js';
+-import { renderNavbar, placeholderCapa, escapeHtml, showToast } from '../ui.js';
+-
+-let sessionAtual = null;
+-let perfilLogado = null; // 'caio' | 'noemy'
+-let dadosSelecionados = null; // dados do título (do TMDB ou já existentes)
+-let tituloExistente = null;   // preenchido em modo edição
+-let editId = null;
+-
+-init();
+-
+-async function init() {
+-  sessionAtual = await requireSession();
+-  if (!sessionAtual) return;
+-
+-  perfilLogado = getProfileFromSession(sessionAtual);
+-  const modoAtivo = getModoAtivo();
+-  aplicarTema(modoAtivo);
+-
+-  renderNavbar(document.getElementById('navbar'), {
+-    activePage: 'add',
+-    modoAtivo,
+-    perfilLogado,
+-    onModoChange: novoModo => aplicarTema(novoModo)
+-  });
+-
+-  if (!perfilLogado) {
+-    showToast('Este usuário não está associado a um perfil (Caio/Noemy). Veja o README.', 'error');
+-  }
+-
+-  document.getElementById('own-review-title').textContent =
+-    perfilLogado === 'noemy' ? '🌷 Sua avaliação (Noemy)' : '👤 Sua avaliação (Caio)';
+-  document.getElementById('other-review-title').textContent =
+-    perfilLogado === 'noemy' ? '👤 Avaliação do Caio' : '🌷 Avaliação da Noemy';
+-
+-  document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
+-  atualizarDisplayNota();
+-
+-  editId = new URLSearchParams(window.location.search).get('edit');
+-
+-  if (editId) {
+-    await iniciarModoEdicao(editId);
+-  } else {
+-    iniciarModoCriacao();
+-  }
+-
+-  document.getElementById('title-form').addEventListener('submit', onSubmit);
+-}
+-
+-/* ==========================================================================
+-   Modo criação — busca no TMDB
+-   ========================================================================== */
+-
+-function iniciarModoCriacao() {
+-  const input = document.getElementById('search-input');
+-  let debounceTimer = null;
+-
+-  input.addEventListener('input', () => {
+-    clearTimeout(debounceTimer);
+-    debounceTimer = setTimeout(() => executarBusca(input.value), 400);
+-  });
+-}
+-
+-async function executarBusca(query) {
+-  const container = document.getElementById('search-results');
+-
+-  if (!query || query.trim().length < 2) {
+-    container.innerHTML = '';
+-    return;
+-  }
+-
+-  container.innerHTML = '<div class="spinner"></div>';
+-
+-  try {
+-    const resultados = await searchMulti(query);
+-    if (!resultados.length) {
+-      container.innerHTML = '<p class="empty-state">Nenhum resultado encontrado.</p>';
+-      return;
+-    }
+-    container.innerHTML = '';
+-    resultados.forEach(r => {
+-      const card = document.createElement('div');
+-      card.className = 'search-result-card';
+-      card.innerHTML = `
+-        <img src="${r.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
+-        <div class="src-body">
+-          <div class="src-title">${escapeHtml(r.nome)}</div>
+-          <div class="src-meta">${r.ano || '—'} · ${r.tipo === 'filme' ? 'Filme' : 'Série'}</div>
+-        </div>
+-      `;
+-      card.addEventListener('click', () => selecionarResultado(r));
+-      container.appendChild(card);
+-    });
+-  } catch (err) {
+-    console.error(err);
+-    container.innerHTML = '<p class="empty-state">Erro ao buscar no TMDB. Verifique sua chave em config.js.</p>';
+-  }
+-}
+-
+-async function selecionarResultado(resumo) {
+-  try {
+-    const completos = await getDetails(resumo.tmdb_id, resumo.tipo);
+-    dadosSelecionados = completos;
+-    mostrarFormulario();
+-  } catch (err) {
+-    console.error(err);
+-    showToast('Erro ao carregar detalhes do TMDB.', 'error');
+-  }
+-}
+-
+-/* ==========================================================================
+-   Modo edição
+-   ========================================================================== */
+-
+-async function iniciarModoEdicao(id) {
+-  document.getElementById('page-heading').textContent = 'Editar título';
+-  document.getElementById('search-step').hidden = true;
+-
+-  try {
+-    tituloExistente = await getTituloComAvaliacoes(id);
+-    dadosSelecionados = { ...tituloExistente };
+-    mostrarFormulario();
+-
+-    // Se a pessoa logada já avaliou, pré-preenche com a avaliação existente
+-    const minhaAvaliacao = perfilLogado === 'noemy' ? tituloExistente.avaliacaoNoemy : tituloExistente.avaliacaoCaio;
+-    if (minhaAvaliacao) {
+-      document.getElementById('f-nota').value = minhaAvaliacao.nota;
+-      document.getElementById('f-observacao').value = minhaAvaliacao.observacao || '';
+-      document.getElementById('f-data-avaliacao').value = minhaAvaliacao.data_avaliacao;
+-      atualizarDisplayNota();
+-    }
+-
+-    renderOutraAvaliacao();
+-  } catch (err) {
+-    console.error(err);
+-    showToast('Não foi possível carregar este título para edição.', 'error');
+-  }
+-}
+-
+-function renderOutraAvaliacao() {
+-  const container = document.getElementById('other-review-display');
+-  const outra = perfilLogado === 'noemy' ? tituloExistente?.avaliacaoCaio : tituloExistente?.avaliacaoNoemy;
+-
+-  if (!outra) {
+-    container.innerHTML = '<p class="review-pending">Aguardando avaliação.</p>';
+-    return;
+-  }
+-
+-  container.innerHTML = `
+-    <div class="review-score" style="font-size:1.6rem;">${outra.nota}<small> /10</small></div>
+-    ${outra.observacao ? `<div class="review-note">“${escapeHtml(outra.observacao)}”</div>` : ''}
+-  `;
+-}
+-
+-/* ==========================================================================
+-   Formulário compartilhado
+-   ========================================================================== */
+-
+-function mostrarFormulario() {
+-  const d = dadosSelecionados;
+-
+-  document.getElementById('search-step').hidden = true;
+-  document.getElementById('title-form').hidden = false;
+-
+-  document.getElementById('selected-preview').innerHTML = `
+-    <img src="${d.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(d.nome)}" />
+-    <div>
+-      <div style="font-weight:600;">${escapeHtml(d.nome)}</div>
+-      <div style="font-size:0.82rem; color:var(--text-secondary);">${d.ano || '—'} · ${d.tipo === 'filme' ? 'Filme' : 'Série'}</div>
+-    </div>
+-    ${!editId ? '<button type="button" class="btn btn-secondary btn-sm change-btn" id="change-title-btn">Trocar título</button>' : ''}
+-  `;
+-
+-  if (!editId) {
+-    document.getElementById('change-title-btn').addEventListener('click', voltarParaBusca);
+-  }
+-
+-  document.getElementById('f-nome').value = d.nome || '';
+-  document.getElementById('f-nome-original').value = d.nome_original || '';
+-  document.getElementById('f-ano').value = d.ano || '';
+-  document.getElementById('f-tipo').value = d.tipo || 'filme';
+-  document.getElementById('f-generos').value = (d.generos || []).join(', ');
+-  document.getElementById('f-sinopse').value = d.sinopse || '';
+-  document.getElementById('f-capa').value = d.capa_url || '';
+-  document.getElementById('f-data-assistido').value = d.data_assistido || '';
+-
+-  if (!document.getElementById('f-data-avaliacao').value) {
+-    document.getElementById('f-data-avaliacao').value = new Date().toISOString().slice(0, 10);
+-  }
+-}
+-
+-function voltarParaBusca() {
+-  dadosSelecionados = null;
+-  document.getElementById('title-form').hidden = true;
+-  document.getElementById('search-step').hidden = false;
+-  document.getElementById('search-input').value = '';
+-  document.getElementById('search-input').focus();
+-}
+-
+-function atualizarDisplayNota() {
+-  const val = parseFloat(document.getElementById('f-nota').value);
+-  document.getElementById('f-nota-display').textContent = val.toFixed(1).replace('.', ',');
+-}
+-
+-async function onSubmit(e) {
+-  e.preventDefault();
+-
+-  if (!perfilLogado) {
+-    showToast('Não é possível salvar: usuário sem perfil associado.', 'error');
+-    return;
+-  }
+-
+-  const btn = document.getElementById('save-btn');
+-  btn.disabled = true;
+-  btn.textContent = 'Salvando...';
+-
+-  const camposTitulo = {
+-    tmdb_id: dadosSelecionados.tmdb_id || null,
+-    tipo: document.getElementById('f-tipo').value,
+-    nome: document.getElementById('f-nome').value.trim(),
+-    nome_original: document.getElementById('f-nome-original').value.trim(),
+-    ano: document.getElementById('f-ano').value ? parseInt(document.getElementById('f-ano').value, 10) : null,
+-    generos: document.getElementById('f-generos').value.split(',').map(g => g.trim()).filter(Boolean),
+-    sinopse: document.getElementById('f-sinopse').value.trim(),
+-    capa_url: document.getElementById('f-capa').value.trim() || null,
+-    backdrop_url: dadosSelecionados.backdrop_url || null,
+-    data_assistido: document.getElementById('f-data-assistido').value || null,
+-    quero_assistir: false // ao avaliar, o título sai da lista "para assistir"
+-  };
+-
+-  const usuarioId = getUserId(sessionAtual);
+-
+-  try {
+-    let tituloId;
+-    if (editId) {
+-      const atualizado = await atualizarTitulo(editId, camposTitulo);
+-      tituloId = atualizado.id;
+-    } else {
+-      const criado = await criarTitulo(camposTitulo, usuarioId);
+-      tituloId = criado.id;
+-    }
+-
+-    await salvarAvaliacao({
+-      tituloId,
+-      usuarioId,
+-      nota: parseFloat(document.getElementById('f-nota').value),
+-      observacao: document.getElementById('f-observacao').value.trim(),
+-      dataAvaliacao: document.getElementById('f-data-avaliacao').value
+-    });
+-
+-    showToast('Título salvo com sucesso!');
+-    window.location.href = `details.html?id=${tituloId}`;
+-  } catch (err) {
+-    console.error(err);
+-    showToast('Erro ao salvar. Verifique sua conexão com o Supabase.', 'error');
+-    btn.disabled = false;
+-    btn.textContent = 'Salvar';
+-  }
+-}
+diff --git a/js/pages/catalog.js b/js/pages/catalog.js
+index ac51a1b..95f6d8a 100644
+--- a/js/pages/catalog.js
++++ b/js/pages/catalog.js
+@@ -1,33 +1,59 @@
+ // js/pages/catalog.js
+-import { requireSession, getProfileFromSession } from '../auth.js';
+-import { getAllTitulosComAvaliacoes } from '../titulos.js';
++// Página única do Catálogo, com 3 abas: Todos / Pendentes / Adicionar.
++// As abas trocam de conteúdo via JS (sem navegar de página, sem trocar a URL).
++
++import { requireSession, getProfileFromSession, getUserId } from '../auth.js';
++import { searchMulti, getDetails } from '../tmdb.js';
++import {
++  getAllTitulosComAvaliacoes,
++  getTituloComAvaliacoes,
++  criarTitulo,
++  atualizarTitulo,
++  salvarAvaliacao
++} from '../titulos.js';
+ import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
+ import { getModoAtivo, aplicarTema } from '../themes.js';
+-import { renderNavbar, renderTituloCard, showEmptyState, showSpinner, showToast } from '../ui.js';
++import { renderNavbar, renderTituloCard, placeholderCapa, escapeHtml, showEmptyState, showSpinner, showToast } from '../ui.js';
+ 
+-let titulos = [];
++let sessionAtual = null;
++let perfilLogado = null; // 'caio' | 'noemy'
+ let modoAtivo = 'casal';
++let titulos = [];
++let activeTab = 'todos';
++let previousTab = 'todos'; // pra onde "Cancelar" volta
++
++// estado da aba Adicionar
++let dadosSelecionados = null;
++let tituloExistente = null;
++let editId = null;
+ 
+ init();
+ 
+ async function init() {
+-  const session = await requireSession();
+-  if (!session) return;
++  sessionAtual = await requireSession();
++  if (!sessionAtual) return;
+ 
++  perfilLogado = getProfileFromSession(sessionAtual);
+   modoAtivo = getModoAtivo();
+   aplicarTema(modoAtivo);
+ 
+   renderNavbar(document.getElementById('navbar'), {
+     activePage: 'catalog',
+     modoAtivo,
+-    perfilLogado: getProfileFromSession(session),
++    perfilLogado,
+     onModoChange: novoModo => {
+       modoAtivo = novoModo;
+       aplicarTema(novoModo);
+-      renderResultados();
++      atualizarTextosDePerfil();
++      renderTabAtiva();
+     }
+   });
+ 
++  atualizarTextosDePerfil();
++  ligarSubTabs();
++  ligarFiltrosTodos();
++  ligarFormularioAdicionar();
++
+   const grid = document.getElementById('cards-grid');
+   showSpinner(grid);
+ 
+@@ -41,19 +67,84 @@ async function init() {
+   }
+ 
+   popularSelects();
+-  ligarFiltros();
+ 
+-  // Suporte a ?filtro=pendentes vindo de outras páginas
++  // Lê parâmetros de entrada (só na carga inicial da página, não durante a troca de abas)
+   const params = new URLSearchParams(window.location.search);
+   if (params.get('filtro')) {
+     document.getElementById('f-avaliacao').value = params.get('filtro');
+   }
+ 
+-  renderResultados();
++  const tabInicial = params.get('tab');
++  const editInicial = params.get('edit');
++
++  if (tabInicial === 'adicionar') {
++    if (editInicial) {
++      switchTab('adicionar', { edit: editInicial });
++    } else {
++      switchTab('adicionar');
++    }
++  } else if (tabInicial === 'pendentes') {
++    switchTab('pendentes');
++  } else {
++    switchTab('todos');
++  }
+ }
+ 
++function atualizarTextosDePerfil() {
++  const label = document.getElementById('f-so-minhas-pendentes-label');
++  if (label) {
++    label.textContent = perfilLogado === 'noemy' ? 'Só pendentes para mim (Noemy)' : 'Só pendentes para mim (Caio)';
++  }
++}
++
++/* ==========================================================================
++   Navegação entre abas
++   ========================================================================== */
++
++function ligarSubTabs() {
++  document.querySelectorAll('.sub-tab').forEach(btn => {
++    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
++  });
++}
++
++function switchTab(tab, options = {}) {
++  if (activeTab !== 'adicionar') previousTab = activeTab;
++  activeTab = tab;
++
++  document.querySelectorAll('.sub-tab').forEach(btn => {
++    btn.classList.toggle('active', btn.dataset.tab === tab);
++  });
++  document.getElementById('view-todos').hidden = tab !== 'todos';
++  document.getElementById('view-pendentes').hidden = tab !== 'pendentes';
++  document.getElementById('view-adicionar').hidden = tab !== 'adicionar';
++
++  if (tab === 'adicionar') {
++    prepararAbaAdicionar(options.edit || null);
++  } else if (tab === 'pendentes') {
++    renderPendentes();
++  } else {
++    renderTodos();
++  }
++}
++
++function renderTabAtiva() {
++  atualizarContadorPendentes();
++  if (activeTab === 'pendentes') renderPendentes();
++  else if (activeTab === 'todos') renderTodos();
++}
++
++function atualizarContadorPendentes() {
++  const n = pendentesDoPerfilAtivo().length;
++  document.getElementById('pendentes-count').textContent = n > 0 ? String(n) : '';
++}
++
++/* ==========================================================================
++   ABA: Todos
++   ========================================================================== */
++
+ function popularSelects() {
+   const generoSelect = document.getElementById('f-genero');
++  generoSelect.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+   extrairGenerosUnicos(titulos).forEach(g => {
+     const opt = document.createElement('option');
+     opt.value = g;
+@@ -62,22 +153,26 @@ function popularSelects() {
+   });
+ 
+   const anoSelect = document.getElementById('f-ano');
++  anoSelect.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+   extrairAnosUnicos(titulos).forEach(a => {
+     const opt = document.createElement('option');
+     opt.value = a;
+     opt.textContent = a;
+     anoSelect.appendChild(opt);
+   });
++
++  atualizarContadorPendentes();
+ }
+ 
+-function ligarFiltros() {
++function ligarFiltrosTodos() {
+   ['f-busca', 'f-tipo', 'f-avaliacao', 'f-genero', 'f-ano', 'f-ordenacao'].forEach(id => {
+     const el = document.getElementById(id);
+-    el.addEventListener(id === 'f-busca' ? 'input' : 'change', renderResultados);
++    el.addEventListener(id === 'f-busca' ? 'input' : 'change', renderTodos);
+   });
++  document.getElementById('f-so-minhas-pendentes').addEventListener('change', renderTodos);
+ }
+ 
+-function renderResultados() {
++function renderTodos() {
+   const filtros = {
+     busca: document.getElementById('f-busca').value,
+     tipo: document.getElementById('f-tipo').value,
+@@ -87,7 +182,13 @@ function renderResultados() {
+     ordenacao: document.getElementById('f-ordenacao').value
+   };
+ 
+-  const resultado = aplicarFiltros(titulos, filtros, modoAtivo);
++  let resultado = aplicarFiltros(titulos, filtros, modoAtivo);
++
++  if (document.getElementById('f-so-minhas-pendentes').checked) {
++    const idsPendentesPraMim = new Set(pendentesDoPerfilAtivo().map(t => t.id));
++    resultado = resultado.filter(t => idsPendentesPraMim.has(t.id));
++  }
++
+   const grid = document.getElementById('cards-grid');
+   grid.innerHTML = '';
+ 
+@@ -107,3 +208,300 @@ function renderResultados() {
+     grid.appendChild(card);
+   });
+ }
++
++/* ==========================================================================
++   ABA: Pendentes
++   ========================================================================== */
++
++/**
++ * Pendentes "pra mim": se o modo ativo for caio/noemy, é o que falta essa
++ * pessoa avaliar. No modo "casal" (sem pessoa específica), cai no genérico
++ * (pendente de qualquer um dos dois).
++ */
++function pendentesDoPerfilAtivo() {
++  if (modoAtivo === 'caio') {
++    return titulos.filter(t => t.status === 'aguardando_caio' || t.status === 'sem_avaliacao');
++  }
++  if (modoAtivo === 'noemy') {
++    return titulos.filter(t => t.status === 'aguardando_noemy' || t.status === 'sem_avaliacao');
++  }
++  return titulos.filter(t => t.pendente);
++}
++
++function renderPendentes() {
++  atualizarContadorPendentes();
++
++  const grid = document.getElementById('pendentes-grid');
++  const subtitle = document.getElementById('pendentes-subtitle');
++  grid.innerHTML = '';
++
++  const lista = pendentesDoPerfilAtivo();
++
++  subtitle.textContent = modoAtivo === 'casal'
++    ? `${lista.length} título${lista.length === 1 ? '' : 's'} aguardando avaliação de alguém`
++    : `${lista.length} título${lista.length === 1 ? '' : 's'} aguardando sua avaliação`;
++
++  if (!lista.length) {
++    showEmptyState(grid, 'Nenhum título pendente por aqui. 🎉');
++    return;
++  }
++
++  lista.forEach(t => {
++    const card = renderTituloCard(t, modoAtivo);
++    card.addEventListener('click', () => {
++      window.location.href = `details.html?id=${t.id}`;
++    });
++
++    const actions = document.createElement('div');
++    actions.className = 'pending-card-actions';
++    const btn = document.createElement('button');
++    btn.type = 'button';
++    btn.className = 'btn btn-primary btn-sm';
++    btn.textContent = 'Avaliar';
++    btn.addEventListener('click', e => {
++      e.stopPropagation();
++      switchTab('adicionar', { edit: t.id });
++    });
++    actions.appendChild(btn);
++    card.appendChild(actions);
++
++    grid.appendChild(card);
++  });
++}
++
++/* ==========================================================================
++   ABA: Adicionar (busca TMDB + formulário de criação/edição)
++   ========================================================================== */
++
++function ligarFormularioAdicionar() {
++  document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
++
++  const input = document.getElementById('search-input');
++  let debounceTimer = null;
++  input.addEventListener('input', () => {
++    clearTimeout(debounceTimer);
++    debounceTimer = setTimeout(() => executarBusca(input.value), 400);
++  });
++
++  document.getElementById('title-form').addEventListener('submit', onSubmit);
++  document.getElementById('cancelar-adicionar-btn').addEventListener('click', cancelarAdicionar);
++}
++
++async function prepararAbaAdicionar(id) {
++  editId = id;
++  dadosSelecionados = null;
++  tituloExistente = null;
++
++  document.getElementById('own-review-title').textContent =
++    perfilLogado === 'noemy' ? '🌷 Sua avaliação (Noemy)' : '👤 Sua avaliação (Caio)';
++  document.getElementById('other-review-title').textContent =
++    perfilLogado === 'noemy' ? '👤 Avaliação do Caio' : '🌷 Avaliação da Noemy';
++
++  document.getElementById('search-input').value = '';
++  document.getElementById('search-results').innerHTML = '';
++  document.getElementById('title-form').reset();
++  atualizarDisplayNota();
++
++  if (editId) {
++    document.getElementById('adicionar-heading').textContent = 'Avaliar / editar título';
++    document.getElementById('search-step').hidden = true;
++    document.getElementById('title-form').hidden = true;
++
++    try {
++      tituloExistente = await getTituloComAvaliacoes(editId);
++      dadosSelecionados = { ...tituloExistente };
++      mostrarFormulario();
++
++      const minhaAvaliacao = perfilLogado === 'noemy' ? tituloExistente.avaliacaoNoemy : tituloExistente.avaliacaoCaio;
++      if (minhaAvaliacao) {
++        document.getElementById('f-nota').value = minhaAvaliacao.nota;
++        document.getElementById('f-observacao').value = minhaAvaliacao.observacao || '';
++        document.getElementById('f-data-avaliacao').value = minhaAvaliacao.data_avaliacao;
++        atualizarDisplayNota();
++      }
++      renderOutraAvaliacao();
++    } catch (err) {
++      console.error(err);
++      showToast('Não foi possível carregar este título para edição.', 'error');
++    }
++  } else {
++    document.getElementById('adicionar-heading').textContent = 'Adicionar filme ou série';
++    document.getElementById('search-step').hidden = false;
++    document.getElementById('title-form').hidden = true;
++    document.getElementById('other-review-display').innerHTML = '<p class="review-pending">Aguardando avaliação.</p>';
++    document.getElementById('search-input').focus();
++  }
++}
++
++async function executarBusca(query) {
++  const container = document.getElementById('search-results');
++
++  if (!query || query.trim().length < 2) {
++    container.innerHTML = '';
++    return;
++  }
++
++  container.innerHTML = '<div class="spinner"></div>';
++
++  try {
++    const resultados = await searchMulti(query);
++    if (!resultados.length) {
++      container.innerHTML = '<p class="empty-state">Nenhum resultado encontrado.</p>';
++      return;
++    }
++    container.innerHTML = '';
++    resultados.forEach(r => {
++      const card = document.createElement('div');
++      card.className = 'search-result-card';
++      card.innerHTML = `
++        <img src="${r.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
++        <div class="src-body">
++          <div class="src-title">${escapeHtml(r.nome)}</div>
++          <div class="src-meta">${r.ano || '—'} · ${r.tipo === 'filme' ? 'Filme' : 'Série'}</div>
++        </div>
++      `;
++      card.addEventListener('click', () => selecionarResultado(r));
++      container.appendChild(card);
++    });
++  } catch (err) {
++    console.error(err);
++    container.innerHTML = '<p class="empty-state">Erro ao buscar no TMDB. Verifique sua chave em config.js.</p>';
++  }
++}
++
++async function selecionarResultado(resumo) {
++  try {
++    const completos = await getDetails(resumo.tmdb_id, resumo.tipo);
++    dadosSelecionados = completos;
++    mostrarFormulario();
++  } catch (err) {
++    console.error(err);
++    showToast('Erro ao carregar detalhes do TMDB.', 'error');
++  }
++}
++
++function renderOutraAvaliacao() {
++  const container = document.getElementById('other-review-display');
++  const outra = perfilLogado === 'noemy' ? tituloExistente?.avaliacaoCaio : tituloExistente?.avaliacaoNoemy;
++
++  if (!outra) {
++    container.innerHTML = '<p class="review-pending">Aguardando avaliação.</p>';
++    return;
++  }
++
++  container.innerHTML = `
++    <div class="review-score" style="font-size:1.6rem;">${outra.nota}<small> /10</small></div>
++    ${outra.observacao ? `<div class="review-note">“${escapeHtml(outra.observacao)}”</div>` : ''}
++  `;
++}
++
++function mostrarFormulario() {
++  const d = dadosSelecionados;
++
++  document.getElementById('search-step').hidden = true;
++  document.getElementById('title-form').hidden = false;
++
++  document.getElementById('selected-preview').innerHTML = `
++    <img src="${d.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(d.nome)}" />
++    <div>
++      <div style="font-weight:600;">${escapeHtml(d.nome)}</div>
++      <div style="font-size:0.82rem; color:var(--text-secondary);">${d.ano || '—'} · ${d.tipo === 'filme' ? 'Filme' : 'Série'}</div>
++    </div>
++    ${!editId ? '<button type="button" class="btn btn-secondary btn-sm change-btn" id="change-title-btn">Trocar título</button>' : ''}
++  `;
++
++  if (!editId) {
++    document.getElementById('change-title-btn').addEventListener('click', voltarParaBusca);
++  }
++
++  document.getElementById('f-nome').value = d.nome || '';
++  document.getElementById('f-nome-original').value = d.nome_original || '';
++  document.getElementById('f-ano-titulo').value = d.ano || '';
++  document.getElementById('f-tipo-titulo').value = d.tipo || 'filme';
++  document.getElementById('f-generos').value = (d.generos || []).join(', ');
++  document.getElementById('f-sinopse').value = d.sinopse || '';
++  document.getElementById('f-capa').value = d.capa_url || '';
++  document.getElementById('f-data-assistido').value = d.data_assistido || '';
++
++  if (!document.getElementById('f-data-avaliacao').value) {
++    document.getElementById('f-data-avaliacao').value = new Date().toISOString().slice(0, 10);
++  }
++}
++
++function voltarParaBusca() {
++  dadosSelecionados = null;
++  document.getElementById('title-form').hidden = true;
++  document.getElementById('search-step').hidden = false;
++  document.getElementById('search-input').value = '';
++  document.getElementById('search-input').focus();
++}
++
++function atualizarDisplayNota() {
++  const val = parseFloat(document.getElementById('f-nota').value);
++  document.getElementById('f-nota-display').textContent = (isNaN(val) ? 7 : val).toFixed(1).replace('.', ',');
++}
++
++function cancelarAdicionar() {
++  switchTab(previousTab === 'adicionar' ? 'todos' : previousTab);
++}
++
++async function onSubmit(e) {
++  e.preventDefault();
++
++  if (!perfilLogado) {
++    showToast('Não é possível salvar: usuário sem perfil associado.', 'error');
++    return;
++  }
++
++  const btn = document.getElementById('save-btn');
++  btn.disabled = true;
++  btn.textContent = 'Salvando...';
++
++  const camposTitulo = {
++    tmdb_id: dadosSelecionados.tmdb_id || null,
++    tipo: document.getElementById('f-tipo-titulo').value,
++    nome: document.getElementById('f-nome').value.trim(),
++    nome_original: document.getElementById('f-nome-original').value.trim(),
++    ano: document.getElementById('f-ano-titulo').value ? parseInt(document.getElementById('f-ano-titulo').value, 10) : null,
++    generos: document.getElementById('f-generos').value.split(',').map(g => g.trim()).filter(Boolean),
++    sinopse: document.getElementById('f-sinopse').value.trim(),
++    capa_url: document.getElementById('f-capa').value.trim() || null,
++    backdrop_url: dadosSelecionados.backdrop_url || null,
++    data_assistido: document.getElementById('f-data-assistido').value || null,
++    quero_assistir: false // ao avaliar, o título sai da lista "para assistir"
++  };
++
++  const usuarioId = getUserId(sessionAtual);
++
++  try {
++    let tituloId;
++    if (editId) {
++      const atualizado = await atualizarTitulo(editId, camposTitulo);
++      tituloId = atualizado.id;
++    } else {
++      const criado = await criarTitulo(camposTitulo, usuarioId);
++      tituloId = criado.id;
++    }
++
++    await salvarAvaliacao({
++      tituloId,
++      usuarioId,
++      nota: parseFloat(document.getElementById('f-nota').value),
++      observacao: document.getElementById('f-observacao').value.trim(),
++      dataAvaliacao: document.getElementById('f-data-avaliacao').value
++    });
++
++    showToast('Título salvo com sucesso!');
++
++    // recarrega os dados em memória e volta pra uma listagem
++    titulos = await getAllTitulosComAvaliacoes();
++    popularSelects();
++    switchTab(previousTab === 'adicionar' ? 'todos' : previousTab);
++  } catch (err) {
++    console.error(err);
++    showToast('Erro ao salvar. Verifique sua conexão com o Supabase.', 'error');
++  } finally {
++    btn.disabled = false;
++    btn.textContent = 'Salvar';
++  }
++}
+diff --git a/js/pages/details.js b/js/pages/details.js
+index fd9efb4..931c82d 100644
+--- a/js/pages/details.js
++++ b/js/pages/details.js
+@@ -94,7 +94,7 @@ function render() {
+     </div>
+ 
+     <div class="details-actions">
+-      <a class="btn btn-secondary" href="add.html?edit=${t.id}">Editar</a>
++      <a class="btn btn-secondary" href="catalog.html?tab=adicionar&edit=${t.id}">Editar</a>
+       <button class="btn btn-danger" id="delete-btn" type="button">Excluir</button>
+     </div>
+   `;
+diff --git a/js/pages/wishlist.js b/js/pages/wishlist.js
+index 5231078..66c5ea5 100644
+--- a/js/pages/wishlist.js
++++ b/js/pages/wishlist.js
+@@ -296,7 +296,7 @@ function mostrarVencedor(t) {
+         <div class="wishlist-card-meta">${t.ano || '—'} · ${t.tipo === 'filme' ? 'Filme' : 'Série'}</div>
+         ${t.sinopse ? `<p>${escapeHtml(t.sinopse)}</p>` : ''}
+         <div style="display:flex; gap:10px; margin-top: 14px;">
+-          <a href="add.html?edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
++          <a href="catalog.html?tab=adicionar&edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
+           <button type="button" class="btn btn-secondary" id="spin-again-btn">Girar de novo</button>
+         </div>
+       </div>
+diff --git a/js/ui.js b/js/ui.js
+index 60905dc..1032cde 100644
+--- a/js/ui.js
++++ b/js/ui.js
+@@ -36,7 +36,6 @@ export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, o
+       <div class="navbar-links">
+         <a href="${root}pages/home.html" data-page="home">Início</a>
+         <a href="${root}pages/catalog.html" data-page="catalog">Catálogo</a>
+-        <a href="${root}pages/add.html" data-page="add">Adicionar</a>
+         <a href="${root}pages/wishlist.html" data-page="wishlist">🎡 Para assistir</a>
+       </div>
+ 
+diff --git a/pages/add.html b/pages/add.html
+index 9a4f5e5..d5d97ca 100644
+--- a/pages/add.html
++++ b/pages/add.html
+@@ -2,111 +2,15 @@
+ <html lang="pt-BR">
+ <head>
+ <meta charset="UTF-8" />
+-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-<title>Adicionar título — Diário Cinematográfico do Casal</title>
+-<link rel="stylesheet" href="../css/global.css" />
+-<link rel="stylesheet" href="../css/themes.css" />
+-<link rel="stylesheet" href="../css/components.css" />
+-<link rel="stylesheet" href="../css/responsive.css" />
++<title>Redirecionando…</title>
++<script>
++  // Esta página foi incorporada como a aba "Adicionar" dentro do Catálogo.
++  var params = new URLSearchParams(window.location.search);
++  var editId = params.get('edit');
++  window.location.replace('catalog.html?tab=adicionar' + (editId ? '&edit=' + encodeURIComponent(editId) : ''));
++</script>
+ </head>
+-<body class="theme-casal" data-page="add">
+-
+-  <nav class="navbar" id="navbar"></nav>
+-
+-  <main class="container" style="padding-top: 24px; padding-bottom: 60px; max-width: 760px;">
+-    <div class="section-title"><h2 id="page-heading">Adicionar filme ou série</h2></div>
+-
+-    <!-- Etapa de busca -->
+-    <div id="search-step">
+-      <div class="search-box">
+-        <input type="search" id="search-input" placeholder="Digite o nome do filme ou série..." autocomplete="off" />
+-      </div>
+-      <div id="search-results" class="search-results"></div>
+-    </div>
+-
+-    <!-- Formulário (aparece após seleção) -->
+-    <form id="title-form" hidden>
+-      <div class="selected-title-preview" id="selected-preview"></div>
+-
+-      <div class="form-section">
+-        <h3>📋 Dados do título</h3>
+-        <div class="field">
+-          <label for="f-nome">Nome</label>
+-          <input type="text" id="f-nome" required />
+-        </div>
+-        <div class="form-row">
+-          <div class="field">
+-            <label for="f-nome-original">Nome original</label>
+-            <input type="text" id="f-nome-original" />
+-          </div>
+-          <div class="field">
+-            <label for="f-ano">Ano</label>
+-            <input type="number" id="f-ano" min="1888" max="2100" />
+-          </div>
+-        </div>
+-        <div class="form-row">
+-          <div class="field">
+-            <label for="f-tipo">Tipo</label>
+-            <select id="f-tipo">
+-              <option value="filme">Filme</option>
+-              <option value="serie">Série</option>
+-            </select>
+-          </div>
+-          <div class="field">
+-            <label for="f-data-assistido">Data em que assistimos (opcional)</label>
+-            <input type="date" id="f-data-assistido" />
+-          </div>
+-        </div>
+-        <div class="field">
+-          <label for="f-generos">Gêneros (separados por vírgula)</label>
+-          <input type="text" id="f-generos" placeholder="Drama, Ficção científica..." />
+-        </div>
+-        <div class="field">
+-          <label for="f-sinopse">Sinopse</label>
+-          <textarea id="f-sinopse" rows="3"></textarea>
+-        </div>
+-        <div class="field">
+-          <label for="f-capa">URL da capa</label>
+-          <input type="text" id="f-capa" />
+-        </div>
+-      </div>
+-
+-      <div class="form-section" id="own-review-section">
+-        <h3 id="own-review-title">⭐ Sua avaliação</h3>
+-        <div class="person-form-block">
+-          <div class="field">
+-            <label>Nota (0 a 10)</label>
+-            <div class="rating-input-group">
+-              <input type="range" id="f-nota" min="0" max="10" step="0.5" value="7" />
+-              <span class="rating-value" id="f-nota-display">7,0</span>
+-            </div>
+-          </div>
+-          <div class="field">
+-            <label for="f-observacao">Sua observação</label>
+-            <textarea id="f-observacao" rows="3" placeholder="O que você achou?"></textarea>
+-          </div>
+-          <div class="field">
+-            <label for="f-data-avaliacao">Data da sua avaliação</label>
+-            <input type="date" id="f-data-avaliacao" />
+-          </div>
+-        </div>
+-      </div>
+-
+-      <div class="form-section">
+-        <h3 id="other-review-title">Avaliação da outra pessoa</h3>
+-        <div class="person-form-block" id="other-review-display">
+-          <p class="review-pending">Aguardando avaliação.</p>
+-        </div>
+-      </div>
+-
+-      <div style="display:flex; gap:10px; margin-top: 10px;">
+-        <button type="submit" class="btn btn-primary" id="save-btn">Salvar</button>
+-        <a href="catalog.html" class="btn btn-secondary">Cancelar</a>
+-      </div>
+-    </form>
+-  </main>
+-
+-  <script src="../config.js"></script>
+-  <script type="module" src="../js/pages/add.js"></script>
++<body>
++  <p>Redirecionando para o <a href="catalog.html?tab=adicionar">Catálogo</a>…</p>
+ </body>
+ </html>
+diff --git a/pages/catalog.html b/pages/catalog.html
+index 1b3aa19..7a93838 100644
+--- a/pages/catalog.html
++++ b/pages/catalog.html
+@@ -15,49 +15,163 @@
+ 
+   <main class="container">
+     <div class="section-title" style="margin-top:24px;">
+-      <h2>Catálogo</h2>
++      <h2 id="catalog-heading">Catálogo</h2>
+     </div>
+ 
+-    <div class="filters-bar">
+-      <input type="search" id="f-busca" placeholder="Buscar pelo nome..." />
+-
+-      <select id="f-tipo">
+-        <option value="todos">Todos</option>
+-        <option value="filme">Filmes</option>
+-        <option value="serie">Séries</option>
+-      </select>
+-
+-      <select id="f-avaliacao">
+-        <option value="">Qualquer avaliação</option>
+-        <option value="assistiriamos">Assistiríamos novamente</option>
+-        <option value="nao_assistiriamos">Não assistiríamos novamente</option>
+-        <option value="pendentes">Avaliações pendentes</option>
+-        <option value="maior_igual_7">Nota ≥ 7</option>
+-        <option value="menor_7">Nota &lt; 7</option>
+-        <option value="faixa_9_10">Nota 9 a 10</option>
+-        <option value="faixa_8_89">Nota 8 a 8,9</option>
+-        <option value="faixa_7_79">Nota 7 a 7,9</option>
+-        <option value="abaixo_7">Nota abaixo de 7</option>
+-      </select>
+-
+-      <select id="f-genero"><option value="">Todos os gêneros</option></select>
+-      <select id="f-ano"><option value="">Todos os anos</option></select>
+-
+-      <select id="f-ordenacao">
+-        <option value="recentes">Mais recentes</option>
+-        <option value="antigos">Mais antigos</option>
+-        <option value="maior_nota">Maior nota</option>
+-        <option value="menor_nota">Menor nota</option>
+-        <option value="alfabetica">Ordem alfabética</option>
+-      </select>
++    <div class="sub-tabs" id="sub-tabs" role="tablist">
++      <button type="button" class="sub-tab" data-tab="todos" role="tab">Todos</button>
++      <button type="button" class="sub-tab" data-tab="pendentes" role="tab">Pendentes <span class="tab-count" id="pendentes-count"></span></button>
++      <button type="button" class="sub-tab" data-tab="adicionar" role="tab">+ Adicionar</button>
+     </div>
+ 
+-    <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
++    <!-- ===================== ABA: TODOS ===================== -->
++    <section id="view-todos" class="tab-view">
++      <div class="filters-bar">
++        <input type="search" id="f-busca" placeholder="Buscar pelo nome..." />
+ 
+-    <div id="cards-grid" class="cards-grid"></div>
+-  </main>
++        <select id="f-tipo">
++          <option value="todos">Todos</option>
++          <option value="filme">Filmes</option>
++          <option value="serie">Séries</option>
++        </select>
++
++        <select id="f-avaliacao">
++          <option value="">Qualquer avaliação</option>
++          <option value="assistiriamos">Assistiríamos novamente</option>
++          <option value="nao_assistiriamos">Não assistiríamos novamente</option>
++          <option value="pendentes">Avaliações pendentes (qualquer um)</option>
++          <option value="maior_igual_7">Nota ≥ 7</option>
++          <option value="menor_7">Nota &lt; 7</option>
++          <option value="faixa_9_10">Nota 9 a 10</option>
++          <option value="faixa_8_89">Nota 8 a 8,9</option>
++          <option value="faixa_7_79">Nota 7 a 7,9</option>
++          <option value="abaixo_7">Nota abaixo de 7</option>
++        </select>
++
++        <select id="f-genero"><option value="">Todos os gêneros</option></select>
++        <select id="f-ano"><option value="">Todos os anos</option></select>
++
++        <select id="f-ordenacao">
++          <option value="recentes">Mais recentes</option>
++          <option value="antigos">Mais antigos</option>
++          <option value="maior_nota">Maior nota</option>
++          <option value="menor_nota">Menor nota</option>
++          <option value="alfabetica">Ordem alfabética</option>
++        </select>
++
++        <label class="checkbox-filter">
++          <input type="checkbox" id="f-so-minhas-pendentes" />
++          <span id="f-so-minhas-pendentes-label">Só pendentes para mim</span>
++        </label>
++      </div>
++
++      <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
++
++      <div id="cards-grid" class="cards-grid"></div>
++    </section>
++
++    <!-- ===================== ABA: PENDENTES ===================== -->
++    <section id="view-pendentes" class="tab-view" hidden>
++      <div id="pendentes-subtitle" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
++      <div id="pendentes-grid" class="cards-grid"></div>
++    </section>
+ 
+-  <a href="add.html" class="fab" title="Adicionar filme ou série" aria-label="Adicionar filme ou série">+</a>
++    <!-- ===================== ABA: ADICIONAR ===================== -->
++    <section id="view-adicionar" class="tab-view" hidden>
++      <div style="max-width: 760px;">
++        <h3 id="adicionar-heading" style="margin-bottom: 16px;">Adicionar filme ou série</h3>
++
++        <!-- Etapa de busca -->
++        <div id="search-step">
++          <div class="search-box">
++            <input type="search" id="search-input" placeholder="Digite o nome do filme ou série..." autocomplete="off" />
++          </div>
++          <div id="search-results" class="search-results"></div>
++        </div>
++
++        <!-- Formulário (aparece após seleção) -->
++        <form id="title-form" hidden>
++          <div class="selected-title-preview" id="selected-preview"></div>
++
++          <div class="form-section">
++            <h3>📋 Dados do título</h3>
++            <div class="field">
++              <label for="f-nome">Nome</label>
++              <input type="text" id="f-nome" required />
++            </div>
++            <div class="form-row">
++              <div class="field">
++                <label for="f-nome-original">Nome original</label>
++                <input type="text" id="f-nome-original" />
++              </div>
++              <div class="field">
++                <label for="f-ano-titulo">Ano</label>
++                <input type="number" id="f-ano-titulo" min="1888" max="2100" />
++              </div>
++            </div>
++            <div class="form-row">
++              <div class="field">
++                <label for="f-tipo-titulo">Tipo</label>
++                <select id="f-tipo-titulo">
++                  <option value="filme">Filme</option>
++                  <option value="serie">Série</option>
++                </select>
++              </div>
++              <div class="field">
++                <label for="f-data-assistido">Data em que assistimos (opcional)</label>
++                <input type="date" id="f-data-assistido" />
++              </div>
++            </div>
++            <div class="field">
++              <label for="f-generos">Gêneros (separados por vírgula)</label>
++              <input type="text" id="f-generos" placeholder="Drama, Ficção científica..." />
++            </div>
++            <div class="field">
++              <label for="f-sinopse">Sinopse</label>
++              <textarea id="f-sinopse" rows="3"></textarea>
++            </div>
++            <div class="field">
++              <label for="f-capa">URL da capa</label>
++              <input type="text" id="f-capa" />
++            </div>
++          </div>
++
++          <div class="form-section" id="own-review-section">
++            <h3 id="own-review-title">⭐ Sua avaliação</h3>
++            <div class="person-form-block">
++              <div class="field">
++                <label>Nota (0 a 10)</label>
++                <div class="rating-input-group">
++                  <input type="range" id="f-nota" min="0" max="10" step="0.5" value="7" />
++                  <span class="rating-value" id="f-nota-display">7,0</span>
++                </div>
++              </div>
++              <div class="field">
++                <label for="f-observacao">Sua observação</label>
++                <textarea id="f-observacao" rows="3" placeholder="O que você achou?"></textarea>
++              </div>
++              <div class="field">
++                <label for="f-data-avaliacao">Data da sua avaliação</label>
++                <input type="date" id="f-data-avaliacao" />
++              </div>
++            </div>
++          </div>
++
++          <div class="form-section">
++            <h3 id="other-review-title">Avaliação da outra pessoa</h3>
++            <div class="person-form-block" id="other-review-display">
++              <p class="review-pending">Aguardando avaliação.</p>
++            </div>
++          </div>
++
++          <div style="display:flex; gap:10px; margin-top: 10px;">
++            <button type="submit" class="btn btn-primary" id="save-btn">Salvar</button>
++            <button type="button" class="btn btn-secondary" id="cancelar-adicionar-btn">Cancelar</button>
++          </div>
++        </form>
++      </div>
++    </section>
++  </main>
+ 
+   <script src="../config.js"></script>
+   <script type="module" src="../js/pages/catalog.js"></script>
+diff --git a/pages/home.html b/pages/home.html
+index 03cb66b..02abd94 100644
+--- a/pages/home.html
++++ b/pages/home.html
+@@ -27,7 +27,7 @@
+     </section>
+   </main>
+ 
+-  <a href="add.html" class="fab" title="Adicionar filme ou série" aria-label="Adicionar filme ou série">+</a>
++  <a href="catalog.html?tab=adicionar" class="fab" title="Adicionar filme ou série" aria-label="Adicionar filme ou série">+</a>
+ 
+   <script src="../config.js"></script>
+   <script type="module" src="../js/pages/home.js"></script>

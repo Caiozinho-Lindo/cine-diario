@@ -149,6 +149,54 @@
 .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .section-title h2 { margin: 0; font-size: 1.3rem; }
 
+/* ---------- Sub-tabs (Todos / Pendentes / Adicionar) ---------- */
+.sub-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 22px;
+}
+.sub-tab {
+  padding: 10px 18px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.sub-tab:hover { color: var(--text-primary); }
+.sub-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-count {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: #e0a83f;
+  color: #241a06;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+.tab-count:empty { display: none; }
+.tab-view { animation: fadeInTab 180ms ease; }
+@keyframes fadeInTab { from { opacity: 0; } to { opacity: 1; } }
+
+.checkbox-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-filter input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+.pending-card-actions { padding: 0 14px 14px; }
+.pending-card-actions .btn { width: 100%; }
+
 /* ---------- Filters bar ---------- */
 .filters-bar {
   display: flex;
@@ -449,3 +497,25 @@
   .roulette-winner-card { flex-direction: column; }
   .roulette-winner-card img { width: 100%; max-width: 160px; }
 }
+
+/* ==========================================================================
+   Importação em massa
+   ========================================================================== */
+.bulk-escolha-bloco {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 14px;
+  background: var(--surface);
+}
+.bulk-escolha-bloco.bulk-resolvido { border-color: var(--success); }
+.bulk-escolha-bloco.bulk-pulado { opacity: 0.55; }
+.bulk-escolha-titulo { font-weight: 600; margin-bottom: 10px; font-size: 0.92rem; }
+.bulk-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 130px));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bulk-choice-card { cursor: pointer; }
+.bulk-choice-card.selected { border-color: var(--success) !important; box-shadow: 0 0 0 2px var(--success); }
