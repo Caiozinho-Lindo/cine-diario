@@ -1,0 +1,154 @@
+/* ==========================================================================
+   THEMES — identidade visual de Caio, Noemy e Casal
+   ========================================================================== */
+
+/* ---------- CAIO: azul-marinho, cinematográfico, tecnológico ---------- */
+.theme-caio {
+  --bg-base: linear-gradient(180deg, #0a1220 0%, #0d1b2e 100%);
+  --surface: #101d30;
+  --surface-elevated: #142238;
+  --card-border: rgba(120, 160, 220, 0.15);
+  --text-primary: #e8edf5;
+  --text-secondary: #9fb0c8;
+  --accent: #3f7bd6;
+  --accent-2: #6ea8ff;
+  --accent-glow: rgba(63, 123, 214, 0.25);
+  --input-bg: #0c1728;
+  --input-border: rgba(120,160,220,0.25);
+  --success: #4fb286;
+  --danger: #d97070;
+  --nav-bg: rgba(10, 18, 32, 0.85);
+}
+
+/* ---------- NOEMY: lilás, lavanda, floral ---------- */
+.theme-noemy {
+  --bg-base: linear-gradient(180deg, #f6f0fb 0%, #efe4f8 100%);
+  --surface: #ffffff;
+  --surface-elevated: #fbf6ff;
+  --card-border: rgba(150, 100, 200, 0.18);
+  --text-primary: #3a2c4a;
+  --text-secondary: #7a6690;
+  --accent: #9b6fd6;
+  --accent-2: #c9a4ec;
+  --accent-glow: rgba(155, 111, 214, 0.22);
+  --input-bg: #ffffff;
+  --input-border: rgba(150,100,200,0.28);
+  --success: #6fa87f;
+  --danger: #c96b7a;
+  --nav-bg: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- CASAL: paleta combinada, romântica e cinematográfica ---------- */
+.theme-casal {
+  --bg-base: linear-gradient(180deg, #150f22 0%, #1e1430 55%, #2b1a2e 100%);
+  --surface: #1c1428;
+  --surface-elevated: #241a30;
+  --card-border: rgba(200, 170, 220, 0.15);
+  --text-primary: #f2e9f7;
+  --text-secondary: #b6a3c7;
+  --accent: #c98fd0;
+  --accent-2: #e0b878;
+  --accent-glow: rgba(201, 143, 208, 0.25);
+  --input-bg: #180f22;
+  --input-border: rgba(200,170,220,0.25);
+  --success: #6fbf9a;
+  --danger: #e08a8a;
+  --nav-bg: rgba(21, 15, 34, 0.85);
+}
+
+/* ==========================================================================
+   Elementos decorativos por tema
+   ========================================================================== */
+
+/* --- Caio: feixes de luz de projetor + grão de filme discreto --- */
+.theme-caio .bg-decor::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 800px 400px at 15% -10%, rgba(63,123,214,0.15), transparent 60%),
+    radial-gradient(ellipse 600px 300px at 100% 20%, rgba(110,168,255,0.08), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.theme-caio .bg-decor::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* --- Noemy: tulipas discretas no fundo --- */
+.theme-noemy .bg-decor::before {
+  content: "";
+  position: fixed;
+  bottom: -60px;
+  right: -40px;
+  width: 320px;
+  height: 320px;
+  opacity: 0.10;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 20c-8 0-14 8-14 16 0 6 4 10 8 12l-2 30h16l-2-30c4-2 8-6 8-12 0-8-6-16-14-16z' fill='%239b6fd6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.theme-noemy .bg-decor::after {
+  content: "";
+  position: fixed;
+  top: -50px;
+  left: -50px;
+  width: 260px;
+  height: 260px;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 20c-8 0-14 8-14 16 0 6 4 10 8 12l-2 30h16l-2-30c4-2 8-6 8-12 0-8-6-16-14-16z' fill='%23c9a4ec'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* --- Casal: duas constelações conectadas + luz dourada --- */
+.theme-casal .bg-decor::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 700px 500px at 10% 0%, rgba(201,143,208,0.16), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 90% 100%, rgba(224,184,120,0.10), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.theme-casal .bg-decor::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  opacity: 0.05;
+  background-image: radial-gradient(circle, #fff 1px, transparent 1.4px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---------- Login screen decor ---------- */
+.login-backdrop { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.login-backdrop .beam {
+  position: absolute;
+  top: -20%;
+  width: 260px;
+  height: 140%;
+  background: linear-gradient(180deg, rgba(201,143,208,0.18), transparent 70%);
+  filter: blur(30px);
+}
+.login-backdrop .beam-left { left: 8%; transform: rotate(12deg); }
+.login-backdrop .beam-right { right: 8%; transform: rotate(-12deg); background: linear-gradient(180deg, rgba(224,184,120,0.14), transparent 70%); }
+.login-backdrop .grain {
+  position: absolute; inset: 0; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}

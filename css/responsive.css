@@ -1,0 +1,30 @@
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .navbar-inner { flex-wrap: wrap; gap: 10px; }
+  .navbar-links { order: 3; width: 100%; overflow-x: auto; justify-content: space-between; }
+  .navbar-links a { flex: 1; text-align: center; white-space: nowrap; }
+
+  .details-hero-content { flex-direction: column; align-items: center; text-align: center; }
+  .details-hero-info { width: 100%; }
+  .details-hero-content .poster { width: 130px; }
+
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+
+  .filters-bar { flex-direction: column; align-items: stretch; }
+  .filters-bar input[type="search"] { max-width: none; }
+
+  .form-row { grid-template-columns: 1fr; }
+
+  .fab { bottom: 18px; right: 18px; width: 52px; height: 52px; font-size: 1.4rem; }
+
+  .login-card { padding: 30px 24px; }
+}
+
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
