@@ -1,8 +1,38 @@
-# 🎬 Diário Cinematográfico do Casal
+# 🎬 Cine Diário
 
 Um diário compartilhado para registrar os filmes e séries que Caio e Noemy assistem juntos — com avaliações individuais, média automática do casal, estatísticas e três identidades visuais (Caio, Noemy e Casal).
 
 Site estático (HTML + CSS + JavaScript puro, sem build step), com [Supabase](https://supabase.com) como banco de dados e autenticação, e [TMDB](https://www.themoviedb.org) como fonte de busca de filmes e séries.
+
+## Evolução multiusuário
+
+O projeto está sendo evoluído para contas individuais e espaços compartilhados
+(casal, família, amigos, clube de cinema ou outro grupo). O acervo original de
+Caio e Noemy é o espaço legado prioritário e não pode perder informações.
+
+### Ordem segura da migração
+
+1. Exporte `perfis`, `titulos` e `avaliacoes` no painel do Supabase.
+2. Anote a contagem de linhas das três tabelas.
+3. Execute `supabase/migrations/002_multiusuario_espacos.sql`.
+4. Execute `supabase/migrations/003_validar_migracao_multiusuario.sql`.
+5. Confirme que os totais originais não mudaram, que o espaço **Caio & Noemy**
+   tem dois membros e que as consultas de problemas retornam zero linhas.
+6. Teste login, catálogo, lista e avaliações com as duas contas antes de
+   permitir novos cadastros.
+
+A migração 002 é aditiva: ela não remove tabelas, colunas nem registros. Se
+uma validação interna falhar, a transação é revertida integralmente.
+
+### Modelo atual
+
+- `perfis`: identidade e personalização de cada conta por `auth.uid()`;
+- `espacos`: catálogos pessoais ou compartilhados;
+- `espaco_membros`: participação e papel dentro de cada espaço;
+- `titulos`: obras pertencentes a um espaço;
+- `biblioteca_usuario`: estado pessoal, favorito e privacidade da obra;
+- `avaliacoes`: nota e observação sempre vinculadas ao autor;
+- `preferencias_usuario`: tema e preferências privadas.
 
 ---
 
@@ -30,6 +60,7 @@ Site estático (HTML + CSS + JavaScript puro, sem build step), com [Supabase](ht
 /
 ├── index.html              → tela de login
 ├── config.example.js       → modelo de configuração (copie para config.js)
+├── supabase/migrations/    → correções de schema e políticas RLS
 ├── css/
 │   ├── global.css
 │   ├── themes.css          → temas Caio / Noemy / Casal
@@ -106,17 +137,17 @@ create table titulos (
   sinopse text,
   data_assistido date,
   criado_por uuid references auth.users(id),
+  quero_assistir boolean not null default false,
   criado_em timestamptz not null default now()
 );
 
 -- Tabela de avaliações individuais
--- "temporada" fica null hoje (obra inteira). No futuro, dá pra usar esse
--- campo para avaliar temporada por temporada sem alterar a estrutura.
+-- A temporada 0 representa a obra inteira. Temporadas específicas usam 1, 2...
 create table avaliacoes (
   id uuid primary key default gen_random_uuid(),
   titulo_id uuid not null references titulos(id) on delete cascade,
   usuario_id uuid not null references auth.users(id),
-  temporada integer,
+  temporada integer not null default 0 check (temporada >= 0),
   nota numeric(3,1) not null check (nota >= 0 and nota <= 10),
   observacao text default '',
   data_avaliacao date not null default current_date,
@@ -151,52 +182,22 @@ insert into perfis (id, nome) values
 
 ## 5. Configurar políticas de segurança (RLS)
 
-Ainda no **SQL Editor**, rode o script abaixo. Ele garante que:
-- Os dois conseguem **ver** todos os títulos e avaliações;
-- Os dois conseguem cadastrar/editar/excluir **títulos** (dados do filme em si);
-- Cada pessoa só pode criar/editar/excluir a **própria avaliação** — nunca a do outro.
+Depois de criar e preencher a tabela `perfis`, execute no **SQL Editor** o arquivo
+[`supabase/migrations/001_corrigir_schema_e_rls.sql`](supabase/migrations/001_corrigir_schema_e_rls.sql).
 
-```sql
-alter table titulos enable row level security;
-alter table avaliacoes enable row level security;
-alter table perfis enable row level security;
+Ele:
 
--- perfis: leitura liberada para os dois usuários autenticados
-create policy "perfis_select" on perfis
-  for select to authenticated using (true);
-
--- titulos: leitura e escrita liberadas para os dois usuários autenticados
-create policy "titulos_select" on titulos
-  for select to authenticated using (true);
-
-create policy "titulos_insert" on titulos
-  for insert to authenticated with check (true);
-
-create policy "titulos_update" on titulos
-  for update to authenticated using (true);
-
-create policy "titulos_delete" on titulos
-  for delete to authenticated using (true);
-
--- avaliacoes: leitura liberada para os dois, escrita só na própria avaliação
-create policy "avaliacoes_select" on avaliacoes
-  for select to authenticated using (true);
-
-create policy "avaliacoes_insert" on avaliacoes
-  for insert to authenticated with check (usuario_id = auth.uid());
-
-create policy "avaliacoes_update" on avaliacoes
-  for update to authenticated using (usuario_id = auth.uid());
-
-create policy "avaliacoes_delete" on avaliacoes
-  for delete to authenticated using (usuario_id = auth.uid());
-```
+- adiciona a coluna da lista “Para assistir” em bancos antigos;
+- corrige e consolida avaliações duplicadas causadas por `temporada = null`;
+- habilita RLS nas três tabelas;
+- restringe o acesso às contas Caio e Noemy cadastradas em `perfis`;
+- permite que cada pessoa altere somente a própria avaliação.
 
 ---
 
 ## 6. Configurar as variáveis do projeto
 
-1. Na raiz do projeto, copie `config.example.js` para um novo arquivo chamado **`config.js`** (esse nome é importante — ele já está no `.gitignore` e nunca será enviado ao GitHub).
+1. Na raiz do projeto, copie `config.example.js` para um novo arquivo chamado **`config.js`**.
 2. Preencha:
 
 ```js
@@ -208,6 +209,11 @@ window.APP_CONFIG = {
   NOEMY_EMAIL: "noemy@diario.local"
 };
 ```
+
+Este é um aplicativo estático: os valores usados pelo navegador são públicos.
+Use exclusivamente a chave **anon/publishable** do Supabase. Nunca coloque a
+chave `service_role`, senha do banco ou outro segredo no `config.js`. A proteção
+dos dados deve ser feita pelas políticas RLS do passo anterior.
 
 ---
 
@@ -231,6 +237,13 @@ Opções simples:
 
 Faça login com o e-mail e senha criados no passo 4.
 
+Para verificar sintaxe JavaScript, referências locais, IDs duplicados e
+marcadores de conflito, execute:
+
+```bash
+npm run check
+```
+
 ---
 
 ## 8. Subir para o GitHub
@@ -244,7 +257,9 @@ git remote add origin https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
 git push -u origin main
 ```
 
-> Confirme que `config.js` **não** aparece no `git status` antes de commitar — se aparecer, verifique se o `.gitignore` foi commitado corretamente.
+> Para publicar diretamente pelo GitHub Pages, o `config.js` precisa acompanhar
+> o site. Confirme que ele contém somente credenciais próprias para uso público
+> no navegador.
 
 ---
 
@@ -255,12 +270,11 @@ git push -u origin main
 3. Salve. Após 1–2 minutos, o site estará disponível em:
    `https://SEU-USUARIO.github.io/SEU-REPOSITORIO/`
 
-⚠️ Como o app é 100% estático, o `config.js` também precisa estar publicado no GitHub Pages para o site funcionar — ou seja, **você precisa commitar o `config.js` real** (removendo-o do `.gitignore`) **ou** usar [GitHub Actions/Secrets](https://docs.github.com/actions) para gerá-lo no momento do deploy, caso prefiram não deixar as chaves públicas no repositório.
-
-Duas opções, dependendo do seu nível de conforto com as chaves ficarem visíveis:
-
-- **Simples**: como a chave TMDB é pública por design (feita para uso client-side) e a chave `anon` do Supabase é protegida pelas políticas de RLS (ninguém consegue ler/escrever fora do que as políticas permitem), muitos projetos pessoais como este commitam o `config.js` real. Se optar por isso, remova a linha `config.js` do `.gitignore`.
-- **Mais cauteloso**: mantenha `config.js` fora do Git e gere-o via GitHub Actions no deploy, substituindo os valores por [GitHub Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions). Isso está fora do escopo deste guia básico, mas é uma extensão natural do projeto.
+⚠️ Como o app é 100% estático, o `config.js` precisa ser publicado para o site
+funcionar. Mesmo que GitHub Actions gere esse arquivo usando Secrets, os valores
+resultantes continuam visíveis para quem abrir o site no navegador. Secrets
+protegem o processo de build, mas não transformam configuração client-side em
+segredo. Use RLS e nunca publique credenciais administrativas.
 
 ---
 
@@ -289,4 +303,4 @@ O GitHub Pages atualiza automaticamente em 1–2 minutos após o push.
 - **Chave do TMDB fica visível no código client-side** — isso é inerente a qualquer app estático sem backend próprio. O token usado é o "read access token", feito justamente para uso público/client-side.
 - **Dois usuários fixos** — não há tela de cadastro de novos usuários; Caio e Noemy são criados manualmente no painel do Supabase (passo 4).
 - **GitHub Pages é uma URL pública** — qualquer pessoa com o link pode ver a tela de login, mas não os dados (protegidos por autenticação + RLS no Supabase).
-- **Avaliação por temporada** não está implementada nesta versão, mas a tabela `avaliacoes` já tem a coluna `temporada` pronta para isso no futuro, sem precisar de migração de schema.
+- **Avaliação por temporada** não está implementada nesta versão. A temporada `0` representa a obra inteira; valores a partir de `1` ficam reservados para temporadas futuras.

@@ -1,0 +1,44 @@
+.account-card { width: min(440px, calc(100vw - 32px)); }
+
+.account-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 24px 0 18px;
+  padding: 4px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--input-bg) 80%, transparent);
+}
+
+.account-tab,
+.account-link {
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.account-tab {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.account-tab.active {
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.16);
+}
+
+.account-link {
+  padding: 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.account-link:hover { color: var(--accent-2); }
+.account-message { margin-top: 16px; }
+.account-message.success { color: var(--success); }
+.field small { color: var(--text-secondary); }

@@ -3,32 +3,38 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Diário Cinematográfico do Casal</title>
+<title>Cine Diário</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="css/global.css" />
 <link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/account.css" />
 <link rel="stylesheet" href="css/responsive.css" />
 </head>
 <body class="theme-casal" data-page="login">
-
   <div class="login-screen">
-    <div class="login-backdrop">
+    <div class="login-backdrop" aria-hidden="true">
       <div class="beam beam-left"></div>
       <div class="beam beam-right"></div>
       <div class="grain"></div>
     </div>
 
-    <div class="login-card">
+    <main class="login-card account-card">
       <div class="login-logo">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
           <rect x="4" y="10" width="40" height="28" rx="3" stroke="currentColor" stroke-width="2"/>
           <path d="M4 18h40M12 10v8M20 10v8M28 10v8M36 10v8" stroke="currentColor" stroke-width="2"/>
         </svg>
-        <h1>Diário Cinematográfico</h1>
-        <p>o nosso histórico de filmes e séries assistidos juntos</p>
+        <h1>Cine Diário</h1>
+        <p>Seu histórico de filmes e séries, sozinho ou com quem você quiser.</p>
       </div>
 
-      <form id="login-form" class="login-form">
+      <nav class="account-tabs" aria-label="Acesso à conta">
+        <button type="button" class="account-tab active" data-auth-view="login">Entrar</button>
+        <button type="button" class="account-tab" data-auth-view="signup">Criar conta</button>
+      </nav>
+
+      <form id="login-form" class="login-form" data-auth-panel="login">
         <div class="field">
           <label for="email">E-mail</label>
           <input type="email" id="email" required autocomplete="username" />
@@ -38,12 +44,52 @@
           <input type="password" id="password" required autocomplete="current-password" />
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="login-btn">Entrar</button>
-        <p class="login-error" id="login-error" hidden></p>
+        <button type="button" class="account-link" id="forgot-btn">Esqueci minha senha</button>
       </form>
-    </div>
+
+      <form id="signup-form" class="login-form" data-auth-panel="signup" hidden>
+        <div class="field">
+          <label for="signup-name">Como podemos chamar você?</label>
+          <input type="text" id="signup-name" required minlength="2" maxlength="80" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="signup-email">E-mail</label>
+          <input type="email" id="signup-email" required autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="signup-password">Senha</label>
+          <input type="password" id="signup-password" required minlength="8" autocomplete="new-password" />
+          <small>Use pelo menos 8 caracteres.</small>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="signup-btn">Criar minha conta</button>
+      </form>
+
+      <form id="recovery-form" class="login-form" data-auth-panel="recovery" hidden>
+        <div class="field">
+          <label for="recovery-email">E-mail da conta</label>
+          <input type="email" id="recovery-email" required autocomplete="email" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="recovery-btn">Enviar link de recuperação</button>
+        <button type="button" class="account-link" data-back-login>Voltar para o login</button>
+      </form>
+
+      <form id="new-password-form" class="login-form" data-auth-panel="new-password" hidden>
+        <div class="field">
+          <label for="new-password">Nova senha</label>
+          <input type="password" id="new-password" required minlength="8" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label for="new-password-confirm">Confirmar nova senha</label>
+          <input type="password" id="new-password-confirm" required minlength="8" autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="new-password-btn">Salvar nova senha</button>
+      </form>
+
+      <p class="login-error account-message" id="login-error" role="status" hidden></p>
+    </main>
   </div>
 
-  <script src="config.js" onerror="document.getElementById('login-error').hidden=false; document.getElementById('login-error').textContent='config.js não encontrado. Copie config.example.js para config.js e preencha suas chaves.'"></script>
+  <script src="config.js" onerror="document.getElementById('login-error').hidden=false; document.getElementById('login-error').textContent='Configuração do aplicativo não encontrada.'"></script>
   <script type="module" src="js/pages/login.js"></script>
 </body>
 </html>

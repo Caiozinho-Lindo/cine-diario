@@ -11,10 +11,11 @@ export function formatarNota(nota) {
 }
 
 export function calcularEstatisticas(titulos) {
-  const avaliados = titulos.filter(t => t.media !== null);
+  const catalogo = titulos.filter(t => !t.quero_assistir);
+  const avaliados = catalogo.filter(t => !t.pendente && t.media !== null);
 
-  const filmes = titulos.filter(t => t.tipo === 'filme');
-  const series = titulos.filter(t => t.tipo === 'serie');
+  const filmes = catalogo.filter(t => t.tipo === 'filme');
+  const series = catalogo.filter(t => t.tipo === 'serie');
 
   const assistiriamos = avaliados.filter(t => t.status === 'assistiriamos').length;
   const naoAssistiriamos = avaliados.filter(t => t.status === 'nao_assistiriamos').length;
@@ -26,18 +27,19 @@ export function calcularEstatisticas(titulos) {
   return {
     totalFilmes: filmes.length,
     totalSeries: series.length,
-    totalTitulos: titulos.length,
+    totalTitulos: catalogo.length,
     assistiriamos,
     naoAssistiriamos,
     mediaGeral,
-    pendentes: titulos.filter(t => t.pendente).length
+    pendentes: catalogo.filter(t => t.pendente).length
   };
 }
 
 export function calcularDestaques(titulos) {
-  const avaliados = titulos.filter(t => t.media !== null);
-  const comCaio = titulos.filter(t => t.avaliacaoCaio);
-  const comNoemy = titulos.filter(t => t.avaliacaoNoemy);
+  const catalogo = titulos.filter(t => !t.quero_assistir);
+  const avaliados = catalogo.filter(t => !t.pendente && t.media !== null);
+  const comCaio = catalogo.filter(t => t.avaliacaoCaio);
+  const comNoemy = catalogo.filter(t => t.avaliacaoNoemy);
 
   return {
     melhorFilme: topPorMedia(avaliados.filter(t => t.tipo === 'filme')),
@@ -45,8 +47,8 @@ export function calcularDestaques(titulos) {
     maiorDiscordancia: topPorDiferenca(avaliados),
     melhorAvaliacaoCaio: topPorNotaPessoa(comCaio, 'avaliacaoCaio'),
     melhorAvaliacaoNoemy: topPorNotaPessoa(comNoemy, 'avaliacaoNoemy'),
-    ultimoAdicionado: titulos.length
-      ? [...titulos].sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em)).slice(0, 1)
+    ultimoAdicionado: catalogo.length
+      ? [...catalogo].sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em)).slice(0, 1)
       : []
   };
 }

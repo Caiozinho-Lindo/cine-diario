@@ -15,10 +15,21 @@ export function setModoAtivo(modo) {
   aplicarTema(modo);
 }
 
+export function normalizarModoAtivo(perfilLogado) {
+  const atual = getModoAtivo();
+  const permitidos = perfilLogado === 'pessoal'
+    ? ['pessoal']
+    : ['caio', 'noemy', 'casal'];
+  const modo = permitidos.includes(atual) ? atual : (perfilLogado || 'casal');
+  if (modo !== atual) setModoAtivo(modo);
+  return modo;
+}
+
 export function aplicarTema(modo) {
   const body = document.body;
+  const temaVisual = THEME_CLASSES.includes(`theme-${modo}`) ? modo : 'casal';
   THEME_CLASSES.forEach(c => body.classList.remove(c));
-  body.classList.add(`theme-${modo}`);
+  body.classList.add(`theme-${temaVisual}`);
 
   // adiciona a camada de decoração de fundo específica do tema, se ainda não existir
   if (!body.querySelector(':scope > .bg-decor')) {

@@ -2,7 +2,7 @@
 import { requireSession, getProfileFromSession } from '../auth.js';
 import { getAllTitulosComAvaliacoes } from '../titulos.js';
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
-import { getModoAtivo, aplicarTema } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, renderTituloCard, showEmptyState, showSpinner, showToast } from '../ui.js';
 
 let titulos = [];
@@ -14,13 +14,14 @@ async function init() {
   const session = await requireSession();
   if (!session) return;
 
-  modoAtivo = getModoAtivo();
+  const perfilLogado = getProfileFromSession(session);
+  modoAtivo = normalizarModoAtivo(perfilLogado);
   aplicarTema(modoAtivo);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',
     modoAtivo,
-    perfilLogado: getProfileFromSession(session),
+    perfilLogado,
     onModoChange: novoModo => {
       modoAtivo = novoModo;
       aplicarTema(novoModo);

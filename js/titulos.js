@@ -1,127 +1,149 @@
 // js/titulos.js
-// CRUD de títulos (filmes/séries) e avaliações individuais no Supabase.
-//
-// Modelagem:
-//   titulos    -> dados do filme/série em si
-//   avaliacoes -> uma linha por (titulo_id, usuario_id, temporada)
-//                 "temporada" é null hoje (obra inteira). Isso permite
-//                 no futuro adicionar avaliação por temporada sem
-//                 reestruturar a tabela.
+// CRUD de títulos por espaço e avaliações individuais no Supabase.
 
 import { supabase } from './supabaseClient.js';
-import { getPerfilIds } from './perfis.js';
+import { getEspacoAtivo, getMembrosDoEspaco, schemaMultiusuarioAusente } from './espacos.js';
 
-/**
- * Busca todos os títulos com suas avaliações já anexadas.
- * Retorna um array de "títulos enriquecidos":
- * { ...titulo, avaliacaoCaio, avaliacaoNoemy, media, status, diferenca }
- */
-export async function getAllTitulosComAvaliacoes() {
-  const { data: titulos, error: err1 } = await supabase
+const TEMPORADA_OBRA_INTEIRA = 0;
+
+async function contextoAtivo() {
+  const espaco = await getEspacoAtivo();
+  const membros = await getMembrosDoEspaco(espaco.id);
+  const { data: { user } } = await supabase.auth.getUser();
+  return { espaco, membros, usuarioId: user?.id || null };
+}
+
+export async function getAllTitulosComAvaliacoes({ incluirDesejos = false } = {}) {
+  const { espaco, membros, usuarioId } = await contextoAtivo();
+  let consultaTitulos = supabase
     .from('titulos')
     .select('*')
     .order('criado_em', { ascending: false });
 
-  if (err1) throw err1;
+  if (espaco.id) consultaTitulos = consultaTitulos.eq('espaco_id', espaco.id);
 
-  const { data: avaliacoes, error: err2 } = await supabase
+  if (!incluirDesejos) consultaTitulos = consultaTitulos.eq('quero_assistir', false);
+
+  const { data: titulos, error: titulosError } = await consultaTitulos;
+  if (titulosError) throw titulosError;
+
+  const { data: avaliacoes, error: avaliacoesError } = await supabase
     .from('avaliacoes')
     .select('*')
-    .is('temporada', null); // obra inteira (não por temporada)
+    .eq('temporada', TEMPORADA_OBRA_INTEIRA);
+  if (avaliacoesError) throw avaliacoesError;
 
-  if (err2) throw err2;
-
-  const { caioId, noemyId } = await getPerfilIds();
-
-  return titulos.map(t => enrichTitulo(t, avaliacoes, caioId, noemyId));
+  return titulos.map(titulo => enrichTitulo(titulo, avaliacoes, membros, usuarioId));
 }
 
 export async function getTituloComAvaliacoes(id) {
-  const { data: titulo, error: err1 } = await supabase
+  const { espaco, membros, usuarioId } = await contextoAtivo();
+  let consultaTitulo = supabase
     .from('titulos')
     .select('*')
-    .eq('id', id)
-    .single();
+    .eq('id', id);
+  if (espaco.id) consultaTitulo = consultaTitulo.eq('espaco_id', espaco.id);
+  const { data: titulo, error: tituloError } = await consultaTitulo.single();
+  if (tituloError) throw tituloError;
 
-  if (err1) throw err1;
-
-  const { data: avaliacoes, error: err2 } = await supabase
+  const { data: avaliacoes, error: avaliacoesError } = await supabase
     .from('avaliacoes')
     .select('*')
     .eq('titulo_id', id)
-    .is('temporada', null);
+    .eq('temporada', TEMPORADA_OBRA_INTEIRA);
+  if (avaliacoesError) throw avaliacoesError;
 
-  if (err2) throw err2;
-
-  const { caioId, noemyId } = await getPerfilIds();
-  return enrichTitulo(titulo, avaliacoes, caioId, noemyId);
+  return enrichTitulo(titulo, avaliacoes, membros, usuarioId);
 }
 
-/**
- * Cria um novo título a partir dos dados do TMDB + campos extras.
- */
 export async function criarTitulo(dadosTitulo, usuarioId) {
-  const { data, error } = await supabase
-    .from('titulos')
-    .insert({
-      tmdb_id: dadosTitulo.tmdb_id,
-      tipo: dadosTitulo.tipo,
-      nome: dadosTitulo.nome,
-      nome_original: dadosTitulo.nome_original,
-      ano: dadosTitulo.ano,
-      generos: dadosTitulo.generos || [],
-      capa_url: dadosTitulo.capa_url,
-      backdrop_url: dadosTitulo.backdrop_url,
-      sinopse: dadosTitulo.sinopse,
-      data_assistido: dadosTitulo.data_assistido || null,
-      criado_por: usuarioId,
-      quero_assistir: dadosTitulo.quero_assistir || false
-    })
-    .select()
-    .single();
+  const espaco = await getEspacoAtivo();
+  const payload = {
+    tmdb_id: dadosTitulo.tmdb_id,
+    tipo: dadosTitulo.tipo,
+    nome: dadosTitulo.nome,
+    nome_original: dadosTitulo.nome_original,
+    ano: dadosTitulo.ano,
+    generos: dadosTitulo.generos || [],
+    capa_url: dadosTitulo.capa_url,
+    backdrop_url: dadosTitulo.backdrop_url,
+    sinopse: dadosTitulo.sinopse,
+    data_assistido: dadosTitulo.data_assistido || null,
+    criado_por: usuarioId,
+    quero_assistir: Boolean(dadosTitulo.quero_assistir)
+  };
+  if (espaco.id) payload.espaco_id = espaco.id;
 
+  if (payload.tmdb_id) {
+    let consultaExistente = supabase
+      .from('titulos')
+      .select('*')
+      .eq('tmdb_id', payload.tmdb_id)
+      .eq('tipo', payload.tipo);
+    if (espaco.id) consultaExistente = consultaExistente.eq('espaco_id', espaco.id);
+    const { data: existentes, error: buscaError } = await consultaExistente.limit(1);
+    if (buscaError) throw buscaError;
+
+    if (existentes?.length) {
+      if (payload.quero_assistir) return { ...existentes[0], jaExistia: true };
+      let atualizacao = supabase
+        .from('titulos')
+        .update(payload)
+        .eq('id', existentes[0].id);
+      if (espaco.id) atualizacao = atualizacao.eq('espaco_id', espaco.id);
+      const { data, error } = await atualizacao.select().single();
+      if (error) throw error;
+      await salvarEstadoBiblioteca(usuarioId, data.id, 'assistido', data.data_assistido);
+      return data;
+    }
+  }
+
+  const { data, error } = await supabase.from('titulos').insert(payload).select().single();
   if (error) throw error;
+  await salvarEstadoBiblioteca(
+    usuarioId,
+    data.id,
+    payload.quero_assistir ? 'quero_assistir' : 'assistido',
+    payload.data_assistido
+  );
   return data;
 }
 
-/**
- * Retorna os títulos marcados como "quero assistir" (lista de desejos do casal).
- */
 export async function getListaDesejos() {
-  const { data, error } = await supabase
+  const espaco = await getEspacoAtivo();
+  let consulta = supabase
     .from('titulos')
     .select('*')
-    .eq('quero_assistir', true)
-    .order('criado_em', { ascending: false });
-
+    .eq('quero_assistir', true);
+  if (espaco.id) consulta = consulta.eq('espaco_id', espaco.id);
+  const { data, error } = await consulta.order('criado_em', { ascending: false });
   if (error) throw error;
   return data;
 }
 
 export async function atualizarTitulo(id, campos) {
-  const { data, error } = await supabase
+  const espaco = await getEspacoAtivo();
+  let atualizacao = supabase
     .from('titulos')
     .update(campos)
-    .eq('id', id)
-    .select()
-    .single();
-
+    .eq('id', id);
+  if (espaco.id) atualizacao = atualizacao.eq('espaco_id', espaco.id);
+  const { data, error } = await atualizacao.select().single();
   if (error) throw error;
   return data;
 }
 
 export async function excluirTitulo(id) {
-  // As avaliações são removidas em cascata via FK "on delete cascade"
-  // configurada no schema do Supabase (ver README).
-  const { error } = await supabase.from('titulos').delete().eq('id', id);
+  const espaco = await getEspacoAtivo();
+  let exclusao = supabase
+    .from('titulos')
+    .delete()
+    .eq('id', id);
+  if (espaco.id) exclusao = exclusao.eq('espaco_id', espaco.id);
+  const { error } = await exclusao;
   if (error) throw error;
 }
 
-/**
- * Cria ou atualiza (upsert) a avaliação de UM usuário para um título.
- * A constraint única (titulo_id, usuario_id, temporada) garante que
- * cada pessoa tenha só uma avaliação por título.
- */
 export async function salvarAvaliacao({ tituloId, usuarioId, nota, observacao, dataAvaliacao }) {
   const { data, error } = await supabase
     .from('avaliacoes')
@@ -129,7 +151,7 @@ export async function salvarAvaliacao({ tituloId, usuarioId, nota, observacao, d
       {
         titulo_id: tituloId,
         usuario_id: usuarioId,
-        temporada: null,
+        temporada: TEMPORADA_OBRA_INTEIRA,
         nota,
         observacao: observacao || '',
         data_avaliacao: dataAvaliacao || new Date().toISOString().slice(0, 10)
@@ -138,36 +160,64 @@ export async function salvarAvaliacao({ tituloId, usuarioId, nota, observacao, d
     )
     .select()
     .single();
-
   if (error) throw error;
+
+  await salvarEstadoBiblioteca(usuarioId, tituloId, 'assistido', dataAvaliacao);
   return data;
 }
 
-/* ==========================================================================
-   Helpers internos
-   ========================================================================== */
+async function salvarEstadoBiblioteca(usuarioId, tituloId, status, dataAssistido = null) {
+  const { error } = await supabase
+    .from('biblioteca_usuario')
+    .upsert(
+      {
+        usuario_id: usuarioId,
+        titulo_id: tituloId,
+        status,
+        data_assistido: status === 'assistido' ? dataAssistido || null : null,
+        privacidade: 'espaco',
+        atualizado_em: new Date().toISOString()
+      },
+      { onConflict: 'usuario_id,titulo_id' }
+    );
+  if (error && !schemaMultiusuarioAusente(error)) throw error;
+}
 
-function enrichTitulo(titulo, avaliacoes, caioId, noemyId) {
-  const avaliacaoCaio = avaliacoes.find(a => a.titulo_id === titulo.id && a.usuario_id === caioId) || null;
-  const avaliacaoNoemy = avaliacoes.find(a => a.titulo_id === titulo.id && a.usuario_id === noemyId) || null;
+function enrichTitulo(titulo, avaliacoes, membros, usuarioId) {
+  const avaliacoesTitulo = avaliacoes.filter(avaliacao => avaliacao.titulo_id === titulo.id);
+  const porNome = nome => {
+    const membro = membros.find(item => item.perfil?.nome?.toLowerCase() === nome);
+    return membro
+      ? avaliacoesTitulo.find(avaliacao => avaliacao.usuario_id === membro.usuario_id) || null
+      : null;
+  };
 
-  const temAmbas = avaliacaoCaio && avaliacaoNoemy;
-  const media = temAmbas ? (Number(avaliacaoCaio.nota) + Number(avaliacaoNoemy.nota)) / 2 : null;
-  const diferenca = temAmbas ? Math.abs(Number(avaliacaoCaio.nota) - Number(avaliacaoNoemy.nota)) : null;
+  const avaliacaoCaio = porNome('caio');
+  const avaliacaoNoemy = porNome('noemy');
+  const notas = avaliacoesTitulo.map(avaliacao => Number(avaliacao.nota));
+  const media = notas.length
+    ? notas.reduce((total, nota) => total + nota, 0) / notas.length
+    : null;
+  const diferenca = notas.length > 1 ? Math.max(...notas) - Math.min(...notas) : null;
+  const pendente = avaliacoesTitulo.length < membros.length;
 
-  let status;
-  if (!avaliacaoCaio && !avaliacaoNoemy) status = 'sem_avaliacao';
-  else if (!avaliacaoCaio) status = 'aguardando_caio';
-  else if (!avaliacaoNoemy) status = 'aguardando_noemy';
-  else status = media >= 7 ? 'assistiriamos' : 'nao_assistiriamos';
+  let status = 'sem_avaliacao';
+  if (avaliacaoCaio && !avaliacaoNoemy) status = 'aguardando_noemy';
+  else if (!avaliacaoCaio && avaliacaoNoemy) status = 'aguardando_caio';
+  else if (notas.length && !pendente) status = media >= 7 ? 'assistiriamos' : 'nao_assistiriamos';
 
   return {
     ...titulo,
+    avaliacoesMembros: membros.map(membro => ({
+      membro,
+      avaliacao: avaliacoesTitulo.find(item => item.usuario_id === membro.usuario_id) || null
+    })),
     avaliacaoCaio,
     avaliacaoNoemy,
+    avaliacaoAtual: avaliacoesTitulo.find(item => item.usuario_id === usuarioId) || null,
     media,
     diferenca,
     status,
-    pendente: status === 'aguardando_caio' || status === 'aguardando_noemy' || status === 'sem_avaliacao'
+    pendente
   };
 }

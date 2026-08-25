@@ -6,8 +6,8 @@
 import { requireSession, getProfileFromSession, getUserId } from '../auth.js';
 import { searchMulti, getDetails } from '../tmdb.js';
 import { criarTitulo, getAllTitulosComAvaliacoes } from '../titulos.js';
-import { getModoAtivo, aplicarTema } from '../themes.js';
-import { renderNavbar, placeholderCapa, escapeHtml, showToast, showSpinner } from '../ui.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, showSpinner } from '../ui.js';
 
 let sessionAtual = null;
 let existentesNormalizados = new Set();
@@ -21,12 +21,13 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
-  const modoAtivo = getModoAtivo();
+  const perfilLogado = getProfileFromSession(sessionAtual);
+  const modoAtivo = normalizarModoAtivo(perfilLogado);
   aplicarTema(modoAtivo);
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'bulk-import',
     modoAtivo,
-    perfilLogado: getProfileFromSession(sessionAtual),
+    perfilLogado,
     onModoChange: novoModo => aplicarTema(novoModo)
   });
 
@@ -86,7 +87,7 @@ async function analisarLista() {
 
   let existentes = [];
   try {
-    existentes = await getAllTitulosComAvaliacoes();
+    existentes = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar catálogo atual do Supabase.', 'error');
@@ -170,7 +171,7 @@ function renderBlocoEscolha(item, index) {
   const cardsHtml = item.resultados.length
     ? item.resultados.map((r, ri) => `
         <div class="search-result-card bulk-choice-card" data-ri="${ri}">
-          <img src="${r.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
+          <img src="${safeImageSrc(r.capa_url)}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
           <div class="src-body">
             <div class="src-title">${escapeHtml(r.nome)}</div>
             <div class="src-meta">${r.ano || '—'} · ${r.tipo === 'filme' ? 'Filme' : 'Série'}</div>
@@ -225,7 +226,7 @@ async function importarSelecionados() {
   const log = document.getElementById('log-output');
   const usuarioId = getUserId(sessionAtual);
 
-  let sucesso = 0, erro = 0;
+  let sucesso = 0, erro = 0, jaCadastrados = 0;
 
   for (const item of selecionados) {
     const escolhido = item.resultados[item.escolhaIndex];
@@ -233,9 +234,14 @@ async function importarSelecionados() {
     log.scrollTop = log.scrollHeight;
     try {
       const completos = await getDetails(escolhido.tmdb_id, escolhido.tipo);
-      await criarTitulo({ ...completos, quero_assistir: true }, usuarioId);
-      log.textContent += `  ✅ Adicionado (${completos.ano || '—'})\n`;
-      sucesso++;
+      const titulo = await criarTitulo({ ...completos, quero_assistir: true }, usuarioId);
+      if (titulo.jaExistia) {
+        log.textContent += '  ↪️ Já estava cadastrado; ignorado.\n';
+        jaCadastrados++;
+      } else {
+        log.textContent += `  ✅ Adicionado (${completos.ano || '—'})\n`;
+        sucesso++;
+      }
     } catch (err) {
       console.error(err);
       log.textContent += `  ⚠️ Erro: ${err.message}\n`;
@@ -246,7 +252,7 @@ async function importarSelecionados() {
   }
 
   const pulados = itens.filter(it => it.pulado || it.escolhaIndex === null).length;
-  log.textContent += `\nConcluído! ${sucesso} adicionados, ${erro} com erro, ${pulados} pulados/sem resultado.\n`;
+  log.textContent += `\nConcluído! ${sucesso} adicionados, ${jaCadastrados} já cadastrados, ${erro} com erro, ${pulados} pulados/sem resultado.\n`;
   log.scrollTop = log.scrollHeight;
   showToast(`${sucesso} títulos adicionados à lista "Para assistir"!`);
 }

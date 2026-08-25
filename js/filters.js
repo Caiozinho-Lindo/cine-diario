@@ -10,7 +10,8 @@
 export function notaPorModo(titulo, modo) {
   if (modo === 'caio') return titulo.avaliacaoCaio ? Number(titulo.avaliacaoCaio.nota) : null;
   if (modo === 'noemy') return titulo.avaliacaoNoemy ? Number(titulo.avaliacaoNoemy.nota) : null;
-  return titulo.media;
+  if (modo === 'pessoal') return titulo.avaliacaoAtual ? Number(titulo.avaliacaoAtual.nota) : null;
+  return titulo.pendente ? null : titulo.media;
 }
 
 export function aplicarFiltros(titulos, filtros, modo) {
@@ -45,7 +46,7 @@ export function aplicarFiltros(titulos, filtros, modo) {
 }
 
 function atendeAvaliacaoFiltro(titulo, filtro, modo) {
-  if (filtro === 'pendentes') return titulo.pendente;
+  if (filtro === 'pendentes') return notaPorModo(titulo, modo) === null;
 
   const nota = notaPorModo(titulo, modo);
 

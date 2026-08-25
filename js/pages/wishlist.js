@@ -4,8 +4,8 @@
 import { requireSession, getProfileFromSession, getUserId } from '../auth.js';
 import { searchMulti, getDetails } from '../tmdb.js';
 import { criarTitulo, getListaDesejos, excluirTitulo } from '../titulos.js';
-import { getModoAtivo, aplicarTema } from '../themes.js';
-import { renderNavbar, placeholderCapa, escapeHtml, showToast, confirmarAcao, showSpinner } from '../ui.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, confirmarAcao, showSpinner } from '../ui.js';
 
 let sessionAtual = null;
 let desejos = [];
@@ -20,13 +20,14 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
-  const modoAtivo = getModoAtivo();
+  const perfilLogado = getProfileFromSession(sessionAtual);
+  const modoAtivo = normalizarModoAtivo(perfilLogado);
   aplicarTema(modoAtivo);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'wishlist',
     modoAtivo,
-    perfilLogado: getProfileFromSession(sessionAtual),
+    perfilLogado,
     onModoChange: novoModo => aplicarTema(novoModo)
   });
 
@@ -69,7 +70,7 @@ function renderGrid() {
     const card = document.createElement('article');
     card.className = 'wishlist-card';
     card.innerHTML = `
-      <img src="${t.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(t.nome)}" loading="lazy" />
+      <img src="${safeImageSrc(t.capa_url)}" alt="Capa de ${escapeHtml(t.nome)}" loading="lazy" />
       <div class="wishlist-card-body">
         <div class="wishlist-card-title">${escapeHtml(t.nome)}</div>
         <div class="wishlist-card-meta">${t.ano || '—'} · ${t.tipo === 'filme' ? 'Filme' : 'Série'}</div>
@@ -137,7 +138,7 @@ async function executarBusca(query) {
       const card = document.createElement('div');
       card.className = 'search-result-card';
       card.innerHTML = `
-        <img src="${r.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
+        <img src="${safeImageSrc(r.capa_url)}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
         <div class="src-body">
           <div class="src-title">${escapeHtml(r.nome)}</div>
           <div class="src-meta">${r.ano || '—'} · ${r.tipo === 'filme' ? 'Filme' : 'Série'}</div>
@@ -162,7 +163,12 @@ async function adicionarNaLista(resumo) {
     const completos = await getDetails(resumo.tmdb_id, resumo.tipo);
     const usuarioId = getUserId(sessionAtual);
 
-    await criarTitulo({ ...completos, quero_assistir: true }, usuarioId);
+    const titulo = await criarTitulo({ ...completos, quero_assistir: true }, usuarioId);
+
+    if (titulo.jaExistia) {
+      showToast('Esse título já está cadastrado no catálogo.', 'error');
+      return;
+    }
 
     document.getElementById('wishlist-search-input').value = '';
     document.getElementById('wishlist-search-results').innerHTML = '';
@@ -232,7 +238,7 @@ function construirFatiasSVG(lista) {
     svg += `
       <g transform="translate(${posThumb.x}, ${posThumb.y})">
         <g clip-path="url(#clip-${i})">
-          <image href="${t.capa_url || placeholderCapa()}" x="-28" y="-28" width="56" height="56" preserveAspectRatio="xMidYMid slice" />
+          <image href="${safeImageSrc(t.capa_url)}" x="-28" y="-28" width="56" height="56" preserveAspectRatio="xMidYMid slice" />
         </g>
         <circle cx="0" cy="0" r="28" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-width="2" />
       </g>
@@ -289,7 +295,7 @@ function mostrarVencedor(t) {
   box.hidden = false;
   box.innerHTML = `
     <div class="roulette-winner-card">
-      <img src="${t.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(t.nome)}" />
+      <img src="${safeImageSrc(t.capa_url)}" alt="Capa de ${escapeHtml(t.nome)}" />
       <div class="roulette-winner-info">
         <div class="roulette-winner-label">🎬 Vamos assistir:</div>
         <h3>${escapeHtml(t.nome)}</h3>

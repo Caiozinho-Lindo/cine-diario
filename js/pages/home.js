@@ -2,8 +2,8 @@
 import { requireSession, getProfileFromSession } from '../auth.js';
 import { getAllTitulosComAvaliacoes } from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js';
-import { getModoAtivo, setModoAtivo, aplicarTema } from '../themes.js';
-import { renderNavbar, placeholderCapa, escapeHtml, showToast } from '../ui.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 
 init();
 
@@ -12,12 +12,7 @@ async function init() {
   if (!session) return;
 
   const perfilLogado = getProfileFromSession(session);
-  let modoAtivo = getModoAtivo();
-  if (!sessionStorage.getItem('modo_definido') && perfilLogado) {
-    modoAtivo = perfilLogado;
-    setModoAtivo(modoAtivo);
-    sessionStorage.setItem('modo_definido', '1');
-  }
+  const modoAtivo = normalizarModoAtivo(perfilLogado);
   aplicarTema(modoAtivo);
 
   renderNavbar(document.getElementById('navbar'), {
@@ -101,7 +96,7 @@ function highlightBlock(label, lista, metaFn) {
 
   return lista.map(t => `
     <a class="highlight-card" href="details.html?id=${t.id}">
-      <img src="${t.capa_url || placeholderCapa()}" alt="Capa de ${escapeHtml(t.nome)}" />
+      <img src="${safeImageSrc(t.capa_url)}" alt="Capa de ${escapeHtml(t.nome)}" />
       <div>
         <div class="highlight-label">${label}</div>
         <div class="highlight-title">${escapeHtml(t.nome)}</div>
