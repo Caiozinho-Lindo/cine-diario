@@ -12,7 +12,10 @@
 
 begin;
 
-create temporary table _cine_diario_inventario_antes on commit drop as
+-- Usa uma tabela transitória comum porque o SQL Editor pode executar comandos
+-- em sessões distintas, fazendo tabelas TEMP desaparecerem entre statements.
+-- Ela é removida antes do COMMIT e também some automaticamente em um rollback.
+create table public.cinediarioinventariomigracao002 as
 select
   (select count(*) from public.perfis) as perfis,
   (select count(*) from public.titulos) as titulos,
@@ -451,7 +454,8 @@ declare
   copias_biblioteca bigint;
   inventario record;
 begin
-  select * into inventario from _cine_diario_inventario_antes;
+  select * into inventario
+  from public.cinediarioinventariomigracao002;
   select count(*) into total_titulos from public.titulos;
   select count(*) into titulos_no_espaco
     from public.titulos
@@ -484,5 +488,7 @@ begin
   end if;
 end
 $$;
+
+drop table public.cinediarioinventariomigracao002;
 
 commit;

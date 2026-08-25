@@ -10,18 +10,20 @@ export function formatarNota(nota) {
     .replace('.', ',');
 }
 
-export function calcularEstatisticas(titulos) {
+export function calcularEstatisticas(titulos, modo = 'casal') {
   const catalogo = titulos.filter(t => !t.quero_assistir);
-  const avaliados = catalogo.filter(t => !t.pendente && t.media !== null);
+  const avaliados = catalogo
+    .map(t => ({ titulo: t, nota: notaPorModo(t, modo) }))
+    .filter(item => item.nota !== null);
 
-  const filmes = catalogo.filter(t => t.tipo === 'filme');
-  const series = catalogo.filter(t => t.tipo === 'serie');
+  const filmes = avaliados.filter(item => item.titulo.tipo === 'filme');
+  const series = avaliados.filter(item => item.titulo.tipo === 'serie');
 
-  const assistiriamos = avaliados.filter(t => t.status === 'assistiriamos').length;
-  const naoAssistiriamos = avaliados.filter(t => t.status === 'nao_assistiriamos').length;
+  const assistiriamos = avaliados.filter(item => item.nota >= 7).length;
+  const naoAssistiriamos = avaliados.filter(item => item.nota < 7).length;
 
   const mediaGeral = avaliados.length
-    ? avaliados.reduce((soma, t) => soma + t.media, 0) / avaliados.length
+    ? avaliados.reduce((soma, item) => soma + item.nota, 0) / avaliados.length
     : null;
 
   return {
@@ -31,8 +33,21 @@ export function calcularEstatisticas(titulos) {
     assistiriamos,
     naoAssistiriamos,
     mediaGeral,
-    pendentes: catalogo.filter(t => t.pendente).length
+    pendentes: catalogo.length - avaliados.length
   };
+}
+
+function notaPorModo(titulo, modo) {
+  if (modo === 'caio') {
+    return titulo.avaliacaoCaio ? Number(titulo.avaliacaoCaio.nota) : null;
+  }
+  if (modo === 'noemy') {
+    return titulo.avaliacaoNoemy ? Number(titulo.avaliacaoNoemy.nota) : null;
+  }
+  if (modo === 'pessoal') {
+    return titulo.avaliacaoAtual ? Number(titulo.avaliacaoAtual.nota) : null;
+  }
+  return titulo.pendente || titulo.media === null ? null : Number(titulo.media);
 }
 
 export function calcularDestaques(titulos) {

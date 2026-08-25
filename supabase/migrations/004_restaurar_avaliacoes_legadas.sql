@@ -22,11 +22,13 @@ create table if not exists public.avaliacoes_historico_migracao (
 alter table public.avaliacoes_historico_migracao enable row level security;
 revoke all on table public.avaliacoes_historico_migracao from anon, authenticated;
 
-create temporary table _avaliacoes_antes on commit drop as
+-- O SQL Editor pode alternar a sessão entre statements; por isso estas tabelas
+-- transitórias são comuns e removidas antes do COMMIT, em vez de serem TEMP.
+create table public.cinediarioavaliacoesantes004 as
 select count(*)::bigint as total
 from public.avaliacoes;
 
-create temporary table _avaliacoes_duplicadas on commit drop as
+create table public.cinediarioavaliacoesduplicadas004 as
 select id
 from (
   select
@@ -62,11 +64,11 @@ select
   a.data_avaliacao,
   'Versão anterior preservada ao normalizar temporada NULL para 0'
 from public.avaliacoes a
-join _avaliacoes_duplicadas d on d.id = a.id
+join public.cinediarioavaliacoesduplicadas004 d on d.id = a.id
 on conflict (original_avaliacao_id) do nothing;
 
 delete from public.avaliacoes a
-using _avaliacoes_duplicadas d
+using public.cinediarioavaliacoesduplicadas004 d
 where a.id = d.id;
 
 update public.avaliacoes
@@ -100,11 +102,13 @@ declare
   total_arquivado_desta_correcao bigint;
   temporadas_nulas bigint;
 begin
-  select total into total_antes from _avaliacoes_antes;
+  select total into total_antes
+  from public.cinediarioavaliacoesantes004;
   select count(*) into total_ativo from public.avaliacoes;
   select count(*) into total_arquivado_desta_correcao
   from public.avaliacoes_historico_migracao h
-  join _avaliacoes_duplicadas d on d.id = h.original_avaliacao_id;
+  join public.cinediarioavaliacoesduplicadas004 d
+    on d.id = h.original_avaliacao_id;
   select count(*) into temporadas_nulas
   from public.avaliacoes
   where temporada is null;
@@ -120,5 +124,8 @@ begin
   end if;
 end;
 $$;
+
+drop table public.cinediarioavaliacoesduplicadas004;
+drop table public.cinediarioavaliacoesantes004;
 
 commit;

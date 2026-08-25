@@ -41,7 +41,8 @@ function renderTudo(modo) {
 }
 
 function renderStats(titulos, modo) {
-  const stats = calcularEstatisticas(titulos);
+  const stats = calcularEstatisticas(titulos, modo);
+  const rotulos = rotulosEstatisticas(modo);
   document.getElementById('hero-subtitle').textContent =
     stats.totalTitulos > 0
       ? `${stats.totalTitulos} títulos registrados até agora`
@@ -49,13 +50,50 @@ function renderStats(titulos, modo) {
 
   const grid = document.getElementById('stats-grid');
   grid.innerHTML = `
-    ${statCard('🎬', stats.totalFilmes, 'filmes avaliados')}
-    ${statCard('📺', stats.totalSeries, 'séries avaliadas')}
+    ${statCard('🎬', stats.totalFilmes, rotulos.filmes)}
+    ${statCard('📺', stats.totalSeries, rotulos.series)}
     ${statCard('🎞️', stats.totalTitulos, 'títulos ao todo')}
-    ${statCard('✨', stats.assistiriamos, 'assistiríamos novamente')}
-    ${statCard('🎥', stats.naoAssistiriamos, 'não assistiríamos novamente')}
-    ${statCard('⭐', stats.mediaGeral !== null ? formatarNota(stats.mediaGeral) + '/10' : '—', 'média geral do casal')}
+    ${statCard('✨', stats.assistiriamos, rotulos.assistiria)}
+    ${statCard('🎥', stats.naoAssistiriamos, rotulos.naoAssistiria)}
+    ${statCard('⭐', stats.mediaGeral !== null ? formatarNota(stats.mediaGeral) + '/10' : '—', rotulos.media)}
   `;
+}
+
+function rotulosEstatisticas(modo) {
+  if (modo === 'caio') {
+    return {
+      filmes: 'filmes avaliados pelo Caio',
+      series: 'séries avaliadas pelo Caio',
+      assistiria: 'Caio assistiria novamente',
+      naoAssistiria: 'Caio não assistiria novamente',
+      media: 'média geral do Caio'
+    };
+  }
+  if (modo === 'noemy') {
+    return {
+      filmes: 'filmes avaliados pela Noemy',
+      series: 'séries avaliadas pela Noemy',
+      assistiria: 'Noemy assistiria novamente',
+      naoAssistiria: 'Noemy não assistiria novamente',
+      media: 'média geral da Noemy'
+    };
+  }
+  if (modo === 'pessoal') {
+    return {
+      filmes: 'filmes que avaliei',
+      series: 'séries que avaliei',
+      assistiria: 'assistiria novamente',
+      naoAssistiria: 'não assistiria novamente',
+      media: 'minha média geral'
+    };
+  }
+  return {
+    filmes: 'filmes avaliados pelo casal',
+    series: 'séries avaliadas pelo casal',
+    assistiria: 'assistiríamos novamente',
+    naoAssistiria: 'não assistiríamos novamente',
+    media: 'média geral do casal'
+  };
 }
 
 function statCard(icon, value, label) {
