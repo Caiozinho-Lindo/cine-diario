@@ -17,6 +17,13 @@
   .filters-bar { flex-direction: column; align-items: stretch; }
   .filters-bar input[type="search"] { max-width: none; }
 
+  .catalog-heading,
+  .catalog-add-header { align-items: stretch; flex-direction: column; }
+  .catalog-heading .btn,
+  .catalog-add-header .btn { width: 100%; }
+  .catalog-add-form { padding: 16px; }
+  .catalog-add-actions .btn { width: 100%; }
+
   .form-row { grid-template-columns: 1fr; }
 
   .fab { bottom: 18px; right: 18px; width: 52px; height: 52px; font-size: 1.4rem; }

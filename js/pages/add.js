@@ -19,6 +19,12 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
+  editId = new URLSearchParams(window.location.search).get('edit');
+  if (!editId) {
+    window.location.replace('catalog.html?adicionar=1');
+    return;
+  }
+
   perfilAtual = await getCurrentProfile(sessionAtual);
   const perfilNavbar = getProfileFromSession(sessionAtual);
   const espacoAtivo = await getEspacoAtivo();
@@ -27,7 +33,7 @@ async function init() {
   aplicarTema(modoAtivo);
 
   renderNavbar(document.getElementById('navbar'), {
-    activePage: 'add',
+    activePage: 'catalog',
     modoAtivo,
     perfilLogado: perfilNavbar,
     onModoChange: novoModo => aplicarTema(novoModo)
@@ -42,13 +48,7 @@ async function init() {
   document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
   atualizarDisplayNota();
 
-  editId = new URLSearchParams(window.location.search).get('edit');
-
-  if (editId) {
-    await iniciarModoEdicao(editId);
-  } else {
-    iniciarModoCriacao();
-  }
+  await iniciarModoEdicao(editId);
 
   document.getElementById('title-form').addEventListener('submit', onSubmit);
 }

@@ -15,50 +15,105 @@
   <nav class="navbar" id="navbar"></nav>
 
   <main class="container">
-    <div class="section-title" style="margin-top:24px;">
+    <div class="section-title catalog-heading" style="margin-top:24px;">
       <h2>Catálogo</h2>
+      <button class="btn btn-primary" id="open-add-view" type="button">+ Adicionar título</button>
     </div>
 
-    <div class="filters-bar">
-      <input type="search" id="f-busca" placeholder="Buscar pelo nome..." />
+    <section id="catalog-view">
+      <div class="filters-bar">
+        <input type="search" id="f-busca" placeholder="Buscar no seu catálogo..." />
 
-      <select id="f-tipo">
-        <option value="todos">Todos</option>
-        <option value="filme">Filmes</option>
-        <option value="serie">Séries</option>
-      </select>
+        <select id="f-tipo">
+          <option value="todos">Todos</option>
+          <option value="filme">Filmes</option>
+          <option value="serie">Séries</option>
+        </select>
 
-      <select id="f-avaliacao">
-        <option value="">Qualquer avaliação</option>
-        <option value="assistiriamos">Assistiríamos novamente</option>
-        <option value="nao_assistiriamos">Não assistiríamos novamente</option>
-        <option value="pendentes">Avaliações pendentes</option>
-        <option value="maior_igual_7">Nota ≥ 7</option>
-        <option value="menor_7">Nota &lt; 7</option>
-        <option value="faixa_9_10">Nota 9 a 10</option>
-        <option value="faixa_8_89">Nota 8 a 8,9</option>
-        <option value="faixa_7_79">Nota 7 a 7,9</option>
-        <option value="abaixo_7">Nota abaixo de 7</option>
-      </select>
+        <select id="f-avaliacao">
+          <option value="">Qualquer avaliação</option>
+          <option value="assistiriamos">Assistiríamos novamente</option>
+          <option value="nao_assistiriamos">Não assistiríamos novamente</option>
+          <option value="pendentes">Avaliações pendentes</option>
+          <option value="maior_igual_7">Nota ≥ 7</option>
+          <option value="menor_7">Nota &lt; 7</option>
+          <option value="faixa_9_10">Nota 9 a 10</option>
+          <option value="faixa_8_89">Nota 8 a 8,9</option>
+          <option value="faixa_7_79">Nota 7 a 7,9</option>
+          <option value="abaixo_7">Nota abaixo de 7</option>
+        </select>
 
-      <select id="f-genero"><option value="">Todos os gêneros</option></select>
-      <select id="f-ano"><option value="">Todos os anos</option></select>
+        <select id="f-genero"><option value="">Todos os gêneros</option></select>
+        <select id="f-ano"><option value="">Todos os anos</option></select>
 
-      <select id="f-ordenacao">
-        <option value="recentes">Mais recentes</option>
-        <option value="antigos">Mais antigos</option>
-        <option value="maior_nota">Maior nota</option>
-        <option value="menor_nota">Menor nota</option>
-        <option value="alfabetica">Ordem alfabética</option>
-      </select>
-    </div>
+        <select id="f-ordenacao">
+          <option value="recentes">Mais recentes</option>
+          <option value="antigos">Mais antigos</option>
+          <option value="maior_nota">Maior nota</option>
+          <option value="menor_nota">Menor nota</option>
+          <option value="alfabetica">Ordem alfabética</option>
+        </select>
+      </div>
 
-    <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
+      <div id="results-count" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 14px;"></div>
 
-    <div id="cards-grid" class="cards-grid"></div>
+      <div id="cards-grid" class="cards-grid"></div>
+    </section>
+
+    <section id="catalog-add-view" class="catalog-add-view" hidden>
+      <div class="catalog-add-header">
+        <div>
+          <span class="eyebrow">Dentro do catálogo</span>
+          <h2>Adicionar filme ou série</h2>
+          <p>Pesquise o título, selecione o resultado correto e registre sua avaliação.</p>
+        </div>
+        <button class="btn btn-secondary" id="close-add-view" type="button">← Voltar ao catálogo</button>
+      </div>
+
+      <div id="catalog-add-search-step">
+        <div class="search-box">
+          <input type="search" id="catalog-add-search" placeholder="Busque um filme ou série..." autocomplete="off" />
+        </div>
+        <div id="catalog-add-results" class="search-results"></div>
+      </div>
+
+      <form id="catalog-add-form" class="catalog-add-form" hidden>
+        <div class="selected-title-preview" id="catalog-selected-preview"></div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="catalog-watched-date">Data em que foi assistido (opcional)</label>
+            <input type="date" id="catalog-watched-date" />
+          </div>
+          <div class="field">
+            <label for="catalog-review-date">Data da sua avaliação</label>
+            <input type="date" id="catalog-review-date" required />
+          </div>
+        </div>
+
+        <div class="person-form-block">
+          <h3 id="catalog-review-title">⭐ Sua avaliação</h3>
+          <div class="field">
+            <label for="catalog-rating">Nota (0 a 10)</label>
+            <div class="rating-input-group">
+              <input type="range" id="catalog-rating" min="0" max="10" step="0.5" value="7" />
+              <span class="rating-value" id="catalog-rating-display">7,0</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="catalog-observation">Sua observação (opcional)</label>
+            <textarea id="catalog-observation" rows="3" placeholder="O que você achou?"></textarea>
+          </div>
+        </div>
+
+        <div class="catalog-add-actions">
+          <button type="submit" class="btn btn-primary" id="catalog-save-title">Adicionar ao catálogo</button>
+          <button type="button" class="btn btn-secondary" id="catalog-change-title">Escolher outro</button>
+          <button type="button" class="btn btn-secondary" id="catalog-cancel-add">Cancelar</button>
+        </div>
+      </form>
+    </section>
   </main>
-
-  <a href="add.html" class="fab" title="Adicionar filme ou série" aria-label="Adicionar filme ou série">+</a>
 
   <script src="../config.js"></script>
   <script type="module" src="../js/pages/catalog.js"></script>
