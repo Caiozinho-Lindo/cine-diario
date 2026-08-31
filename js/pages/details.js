@@ -1,17 +1,26 @@
 // js/pages/details.js
-import { requireSession, getCurrentProfile, getProfileFromSession } from '../auth.js';
+import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getTituloComAvaliacoes, excluirTitulo } from '../titulos.js';
 import { formatarNota } from '../statistics.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import {
-  renderNavbar, statusLabel, safeImageSrc, escapeHtml,
+  normalizarModoAtivo,
+  aplicarTema,
+  avaliacaoNoModo,
+  nomeDoModo,
+  usuarioDoModo
+} from '../themes.js';
+import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
+import {
+  renderNavbar, safeImageSrc, escapeHtml,
   showToast, confirmarAcao
 } from '../ui.js';
 
 let titulo = null;
-let modoAtivo = 'casal';
-let abaAtiva = 'casal'; // aba de observações: caio | noemy | casal
+let modoAtivo = 'geral';
+let abaAtiva = 'geral';
 let perfilAtual = null;
+let membrosEspaco = [];
+let usuarioIdAtual = null;
 
 init();
 
@@ -20,18 +29,22 @@ async function init() {
   if (!session) return;
 
   perfilAtual = await getCurrentProfile(session);
-  const perfilLogado = getProfileFromSession(session);
-  modoAtivo = normalizarModoAtivo(perfilLogado);
-  aplicarTema(modoAtivo);
-  abaAtiva = modoAtivo === 'caio' || modoAtivo === 'noemy' || modoAtivo === 'pessoal' ? modoAtivo : 'casal';
+  usuarioIdAtual = getUserId(session);
+  const espacoAtivo = await getEspacoAtivo();
+  membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
+  modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioIdAtual);
+  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  abaAtiva = modoAtivo;
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'details',
     modoAtivo,
-    perfilLogado,
+    perfilAtual,
+    membros: membrosEspaco,
+    usuarioId: usuarioIdAtual,
     onModoChange: novoModo => {
       modoAtivo = novoModo;
-      abaAtiva = novoModo === 'caio' || novoModo === 'noemy' || novoModo === 'pessoal' ? novoModo : 'casal';
+      abaAtiva = novoModo;
       if (titulo) render();
     }
   });
@@ -85,22 +98,15 @@ function render() {
 
     ${renderPendingBanner(t, modoAtivo)}
 
-    ${modoAtivo === 'pessoal' ? '' : `<div class="details-toggle" id="review-toggle">
-      <button data-toggle="caio" type="button">👤 Caio</button>
-      <button data-toggle="noemy" type="button">🌷 Noemy</button>
-      <button data-toggle="casal" type="button">✨ Casal</button>
-    </div>`}
+    ${renderReviewTabs()}
 
     <div class="review-grid">
-      ${modoAtivo === 'pessoal'
-        ? renderReviewPanel('pessoal', t.avaliacaoAtual)
-        : `${renderReviewPanel('caio', t.avaliacaoCaio)}
-           ${renderReviewPanel('noemy', t.avaliacaoNoemy)}
-           ${renderCoupleReviewPanel(t)}`}
+      ${t.avaliacoesMembros.map(({ membro, avaliacao }) => renderReviewPanel(membro, avaliacao)).join('')}
+      ${membrosEspaco.length > 1 ? renderGroupReviewPanel(t) : ''}
     </div>
 
     <div class="details-actions">
-      <a class="btn btn-secondary" href="add.html?edit=${t.id}">Editar</a>
+      <a class="btn btn-secondary" href="edit.html?edit=${t.id}">Editar</a>
       <button class="btn btn-danger" id="delete-btn" type="button">Excluir</button>
     </div>
   `;
@@ -114,59 +120,68 @@ function render() {
   document.getElementById('delete-btn').addEventListener('click', onDelete);
 }
 
-function avaliacaoNoModo(t, modo) {
-  if (modo === 'caio') return t.avaliacaoCaio;
-  if (modo === 'noemy') return t.avaliacaoNoemy;
-  if (modo === 'pessoal') return t.avaliacaoAtual;
-  return null;
+function renderReviewTabs() {
+  if (membrosEspaco.length <= 1) return '';
+  return `<div class="details-toggle" id="review-toggle">
+    ${membrosEspaco.map(membro => `
+      <button data-toggle="membro:${escapeHtml(membro.usuario_id)}" type="button">
+        ${escapeHtml(membro.perfil?.nome_exibicao || membro.perfil?.nome || 'Participante')}
+      </button>`).join('')}
+    <button data-toggle="geral" type="button">✨ Geral</button>
+  </div>`;
 }
 
 function renderStatusChip(t, modo) {
-  if (modo === 'caio' || modo === 'noemy' || modo === 'pessoal') {
-    const nome = modo === 'caio' ? 'Caio' : modo === 'noemy' ? 'Noemy' : (perfilAtual?.nome_exibicao || 'você');
+  if (usuarioDoModo(modo)) {
+    const nome = nomeDoModo(modo, membrosEspaco, usuarioIdAtual);
     return avaliacaoNoModo(t, modo)
-      ? `<span class="chip chip-yes">Avaliado por ${nome}</span>`
-      : `<span class="chip chip-pending">Aguardando avaliação de ${nome}</span>`;
+      ? `<span class="chip chip-yes">Avaliado por ${escapeHtml(nome)}</span>`
+      : `<span class="chip chip-pending">Aguardando avaliação de ${escapeHtml(nome)}</span>`;
   }
-  if (t.status === 'assistiriamos') return `<span class="chip chip-yes">🎬🎬 Assistiríamos novamente</span>`;
-  if (t.status === 'nao_assistiriamos') return `<span class="chip chip-no">Não assistiríamos novamente</span>`;
-  return `<span class="chip chip-pending">${escapeHtml(statusLabel(t.status))}</span>`;
+  if (t.pendente) {
+    const faltantes = t.avaliacoesMembros.filter(item => !item.avaliacao).length;
+    return `<span class="chip chip-pending">${faltantes} avaliação${faltantes === 1 ? '' : 'ões'} pendente${faltantes === 1 ? '' : 's'}</span>`;
+  }
+  if (t.media >= 7) return '<span class="chip chip-yes">🎬 O grupo assistiria novamente</span>';
+  return '<span class="chip chip-no">O grupo não assistiria novamente</span>';
 }
 
 function renderPendingBanner(t, modo) {
-  if (modo === 'caio' || modo === 'noemy' || modo === 'pessoal') {
+  if (usuarioDoModo(modo)) {
     if (avaliacaoNoModo(t, modo)) return '';
-    const nome = modo === 'caio' ? 'Caio' : modo === 'noemy' ? 'Noemy' : (perfilAtual?.nome_exibicao || 'você');
-    return `<div class="pending-banner">⏳ Aguardando avaliação de ${nome}.</div>`;
+    const nome = nomeDoModo(modo, membrosEspaco, usuarioIdAtual);
+    return `<div class="pending-banner">⏳ Aguardando avaliação de ${escapeHtml(nome)}.</div>`;
   }
-  return t.pendente
-    ? `<div class="pending-banner">⏳ ${statusLabel(t.status)} — a média do casal só é calculada quando as duas notas estiverem preenchidas.</div>`
-    : '';
+  if (!t.pendente) return '';
+  const nomes = t.avaliacoesMembros
+    .filter(item => !item.avaliacao)
+    .map(item => item.membro.perfil?.nome_exibicao || item.membro.perfil?.nome || 'Participante');
+  return `<div class="pending-banner">⏳ Aguardando ${escapeHtml(nomes.join(', '))}. A média geral aparece quando todas as pessoas avaliarem.</div>`;
 }
 
-function renderReviewPanel(pessoa, avaliacao) {
-  const nome = pessoa === 'caio' ? 'Caio' : pessoa === 'noemy' ? 'Noemy' : (perfilAtual?.nome_exibicao || 'Você');
-  const icone = pessoa === 'caio' ? '👤' : pessoa === 'noemy' ? '🌷' : '🎬';
+function renderReviewPanel(membro, avaliacao) {
+  const nome = membro.perfil?.nome_exibicao || membro.perfil?.nome || 'Participante';
+  const painel = `membro:${membro.usuario_id}`;
   return `
-    <div class="review-panel" data-panel="${pessoa}" ${pessoa === 'pessoal' ? '' : 'hidden'}>
-      <h3>${icone} ${pessoa === 'pessoal' ? 'Sua avaliação' : `Avaliação de ${nome}`}</h3>
+    <div class="review-panel" data-panel="${escapeHtml(painel)}" hidden>
+      <h3>🎬 ${membro.usuario_id === usuarioIdAtual ? 'Sua avaliação' : `Avaliação de ${escapeHtml(nome)}`}</h3>
       ${avaliacao ? `
         <div class="review-score">${formatarNota(Number(avaliacao.nota))}<small> /10</small></div>
         ${avaliacao.observacao ? `<div class="review-note">“${escapeHtml(avaliacao.observacao)}”</div>` : ''}
         <div class="review-date">Avaliado em ${new Date(avaliacao.data_avaliacao + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
-      ` : `<p class="review-pending">Aguardando avaliação de ${nome}.</p>`}
+      ` : `<p class="review-pending">Aguardando avaliação de ${escapeHtml(nome)}.</p>`}
     </div>
   `;
 }
 
-function renderCoupleReviewPanel(t) {
+function renderGroupReviewPanel(t) {
   return `
-    <div class="review-panel" data-panel="casal" hidden>
-      <h3>✨ Visão do casal</h3>
+    <div class="review-panel" data-panel="geral" hidden>
+      <h3>✨ Visão geral</h3>
       ${!t.pendente && t.media !== null ? `
         <div class="review-score">${formatarNota(t.media)}<small> /10</small></div>
         <div class="review-date">Diferença entre as notas: ${formatarNota(t.diferenca)} ponto${t.diferenca === 1 ? '' : 's'}</div>
-      ` : `<p class="review-pending">A média do casal aparece aqui assim que os dois avaliarem.</p>`}
+      ` : '<p class="review-pending">A média geral aparece aqui quando todas as pessoas avaliarem.</p>'}
     </div>
   `;
 }

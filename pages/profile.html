@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../css/profile.css" />
 <link rel="stylesheet" href="../css/responsive.css" />
 </head>
-<body class="theme-casal" data-page="profile">
+<body class="theme-cinema" data-page="profile">
   <nav id="navbar" class="navbar"></nav>
   <main class="page-container settings-page">
     <header class="page-header">
@@ -21,6 +21,7 @@
     <div class="settings-grid">
       <section class="settings-card">
         <h2>Personalização</h2>
+        <div id="profile-preview" class="profile-preview" aria-live="polite"></div>
         <form id="profile-form" class="settings-form">
           <div class="field">
             <label for="profile-name">Nome de exibição</label>
@@ -33,9 +34,9 @@
           <div class="field">
             <label for="profile-theme">Tema</label>
             <select id="profile-theme">
-              <option value="casal">Cinema</option>
-              <option value="caio">Azul-marinho</option>
-              <option value="noemy">Lavanda</option>
+              <option value="cinema">Cinema</option>
+              <option value="azul">Azul-marinho</option>
+              <option value="lavanda">Lavanda</option>
             </select>
           </div>
           <div class="field">
@@ -48,28 +49,67 @@
 
       <section class="settings-card">
         <h2>Seus espaços</h2>
-        <p class="settings-help">Use um espaço pessoal ou compartilhe um catálogo com casal, família, amigos e grupos.</p>
+        <p class="settings-help">Tenha seu próprio catálogo ou compartilhe um espaço com outras pessoas.</p>
         <div id="spaces-list" class="spaces-list"></div>
-        <button class="btn btn-secondary" id="show-space-form" type="button">Criar novo espaço</button>
+        <div class="space-entry-actions">
+          <button class="btn btn-secondary" id="show-space-form" type="button">Criar novo espaço</button>
+          <button class="btn btn-secondary" id="show-join-form" type="button">Entrar com código</button>
+        </div>
 
         <form id="space-form" class="settings-form compact-form" hidden>
           <div class="field">
             <label for="space-name">Nome do espaço</label>
             <input id="space-name" type="text" required maxlength="80" placeholder="Ex.: Cinema da família" />
           </div>
-          <div class="field">
-            <label for="space-type">Tipo</label>
-            <select id="space-type">
-              <option value="casal">Casal</option>
-              <option value="familia">Família</option>
-              <option value="amigos">Amigos</option>
-              <option value="clube">Clube de cinema</option>
-              <option value="outro">Outro grupo</option>
-              <option value="pessoal">Pessoal</option>
-            </select>
-          </div>
           <button class="btn btn-primary" id="create-space-btn" type="submit">Criar espaço</button>
         </form>
+
+        <form id="join-space-form" class="settings-form compact-form" hidden>
+          <div class="field">
+            <label for="join-code">Código do convite</label>
+            <input id="join-code" type="text" required minlength="12" maxlength="14" autocomplete="off" placeholder="Ex.: A1B2C3D4E5F6" />
+          </div>
+          <button class="btn btn-primary" id="join-space-btn" type="submit">Ver convite</button>
+        </form>
+
+        <section id="active-space-panel" class="active-space-panel">
+          <div class="subsection-heading">
+            <div>
+              <span class="eyebrow">Espaço ativo</span>
+              <h3 id="active-space-title"></h3>
+            </div>
+            <span id="current-role" class="chip"></span>
+          </div>
+
+          <form id="edit-space-form" class="settings-form compact-form" hidden>
+            <div class="field">
+              <label for="edit-space-name">Nome do espaço</label>
+              <input id="edit-space-name" type="text" required maxlength="80" />
+            </div>
+            <button class="btn btn-primary" id="save-space-btn" type="submit">Salvar espaço</button>
+          </form>
+
+          <div class="members-heading">
+            <h3>Membros</h3>
+            <small id="members-count"></small>
+          </div>
+          <div id="members-list" class="members-list"></div>
+          <p id="sharing-note" class="settings-help sharing-note"></p>
+          <div id="invite-actions" class="invite-actions" hidden>
+            <button class="btn btn-secondary" data-space-action="code" type="button">Código</button>
+            <button class="btn btn-primary" data-space-action="invite" type="button">Convidar</button>
+          </div>
+          <div id="invite-result" class="invite-result" hidden>
+            <span class="eyebrow">Código do convite</span>
+            <strong id="invite-code-value"></strong>
+            <small id="invite-expiration"></small>
+            <div class="invite-copy-actions">
+              <button class="btn btn-secondary btn-sm" data-space-action="copy-code" type="button">Copiar código</button>
+              <button class="btn btn-secondary btn-sm" data-space-action="copy-link" type="button">Copiar link</button>
+            </div>
+          </div>
+          <div id="space-actions" class="space-actions"></div>
+        </section>
       </section>
     </div>
   </main>

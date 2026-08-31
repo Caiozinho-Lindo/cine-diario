@@ -6,6 +6,8 @@
   .navbar-inner { flex-wrap: wrap; gap: 10px; }
   .navbar-links { order: 3; width: 100%; overflow-x: auto; justify-content: space-between; }
   .navbar-links a { flex: 1; text-align: center; white-space: nowrap; }
+  .view-picker { order: 2; margin-left: auto; }
+  .navbar-user-name { display: none; }
 
   .details-hero-content { flex-direction: column; align-items: center; text-align: center; }
   .details-hero-info { width: 100%; }

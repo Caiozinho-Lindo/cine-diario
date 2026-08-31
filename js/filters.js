@@ -1,17 +1,15 @@
 // js/filters.js
-// Filtros e ordenação da lista de títulos, respeitando o modo (caio/noemy/casal).
+// Filtros e ordenação da lista de títulos, respeitando a pessoa ou visão geral ativa.
+
+import { notaNoModo } from './themes.js';
 
 /**
  * Retorna a "nota relevante" de um título de acordo com o modo ativo.
- * - modo "caio"  -> nota do Caio
- * - modo "noemy" -> nota da Noemy
- * - modo "casal" -> média do casal
+ * - modo "membro:<uuid>" -> nota daquela pessoa
+ * - modo "geral" -> média do espaço quando todas as pessoas avaliaram
  */
 export function notaPorModo(titulo, modo) {
-  if (modo === 'caio') return titulo.avaliacaoCaio ? Number(titulo.avaliacaoCaio.nota) : null;
-  if (modo === 'noemy') return titulo.avaliacaoNoemy ? Number(titulo.avaliacaoNoemy.nota) : null;
-  if (modo === 'pessoal') return titulo.avaliacaoAtual ? Number(titulo.avaliacaoAtual.nota) : null;
-  return titulo.pendente ? null : titulo.media;
+  return notaNoModo(titulo, modo);
 }
 
 export function aplicarFiltros(titulos, filtros, modo) {
@@ -46,13 +44,13 @@ export function aplicarFiltros(titulos, filtros, modo) {
 }
 
 function atendeAvaliacaoFiltro(titulo, filtro, modo) {
-  if (filtro === 'pendentes') return notaPorModo(titulo, modo) === null;
+  if (filtro === 'pendentes') return estaPendenteParaUsuario(titulo);
 
   const nota = notaPorModo(titulo, modo);
 
   switch (filtro) {
-    case 'assistiriamos': return titulo.status === 'assistiriamos';
-    case 'nao_assistiriamos': return titulo.status === 'nao_assistiriamos';
+    case 'assistiriamos': return nota !== null && nota >= 7;
+    case 'nao_assistiriamos': return nota !== null && nota < 7;
     case 'maior_igual_7': return nota !== null && nota >= 7;
     case 'menor_7': return nota !== null && nota < 7;
     case 'faixa_9_10': return nota !== null && nota >= 9 && nota <= 10;
@@ -61,6 +59,16 @@ function atendeAvaliacaoFiltro(titulo, filtro, modo) {
     case 'abaixo_7': return nota !== null && nota < 7;
     default: return true;
   }
+}
+
+/**
+ * Um título está pendente para o usuário atual somente quando outra pessoa do
+ * espaço já o avaliou e o usuário logado ainda não. Funciona com qualquer
+ * quantidade de membros e não confunde a lista "Para assistir" com pendências.
+ */
+export function estaPendenteParaUsuario(titulo) {
+  if (titulo.quero_assistir || titulo.avaliacaoAtual) return false;
+  return (titulo.avaliacoesMembros || []).some(item => Boolean(item.avaliacao));
 }
 
 function ordenar(lista, criterio, modo) {

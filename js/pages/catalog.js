@@ -2,7 +2,6 @@
 import {
   requireSession,
   getCurrentProfile,
-  getProfileFromSession,
   getUserId
 } from '../auth.js';
 import { searchMulti, getDetails } from '../tmdb.js';
@@ -13,6 +12,7 @@ import {
 } from '../titulos.js';
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar,
   renderTituloCard,
@@ -24,12 +24,13 @@ import {
 } from '../ui.js';
 
 let titulos = [];
-let modoAtivo = 'casal';
+let modoAtivo = 'geral';
 let sessionAtual = null;
 let perfilAtual = null;
 let dadosSelecionados = null;
 let buscaExternaTimer = null;
 let secaoCatalogo = 'todos';
+let membrosEspaco = [];
 
 init();
 
@@ -37,18 +38,21 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
-  const perfilLogado = getProfileFromSession(sessionAtual);
   perfilAtual = await getCurrentProfile(sessionAtual);
-  modoAtivo = normalizarModoAtivo(perfilLogado);
-  aplicarTema(modoAtivo);
+  const usuarioId = getUserId(sessionAtual);
+  const espacoAtivo = await getEspacoAtivo();
+  membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
+  modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
+  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',
     modoAtivo,
-    perfilLogado,
+    perfilAtual,
+    membros: membrosEspaco,
+    usuarioId,
     onModoChange: novoModo => {
       modoAtivo = novoModo;
-      aplicarTema(novoModo);
       atualizarTituloAvaliacao();
       renderResultados();
     }

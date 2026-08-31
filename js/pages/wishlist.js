@@ -1,11 +1,12 @@
 // js/pages/wishlist.js
-// Lista "para assistir" do casal + roleta pra sortear o próximo título.
+// Lista "para assistir" do espaço + roleta para sortear o próximo título.
 
-import { requireSession, getProfileFromSession, getUserId } from '../auth.js';
+import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { searchMulti, getDetails } from '../tmdb.js';
 import { criarTitulo, getListaDesejos, excluirTitulo } from '../titulos.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast, confirmarAcao, showSpinner } from '../ui.js';
+import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 
 let sessionAtual = null;
 let desejos = [];
@@ -20,15 +21,20 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
-  const perfilLogado = getProfileFromSession(sessionAtual);
-  const modoAtivo = normalizarModoAtivo(perfilLogado);
-  aplicarTema(modoAtivo);
+  const perfilAtual = await getCurrentProfile(sessionAtual);
+  const usuarioId = getUserId(sessionAtual);
+  const espacoAtivo = await getEspacoAtivo();
+  const membros = await getMembrosDoEspaco(espacoAtivo.id);
+  const modoAtivo = normalizarModoAtivo(membros, usuarioId);
+  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',
     modoAtivo,
-    perfilLogado,
-    onModoChange: novoModo => aplicarTema(novoModo)
+    perfilAtual,
+    membros,
+    usuarioId,
+    onModoChange: () => {}
   });
 
   ligarBusca();
@@ -302,7 +308,7 @@ function mostrarVencedor(t) {
         <div class="wishlist-card-meta">${t.ano || '—'} · ${t.tipo === 'filme' ? 'Filme' : 'Série'}</div>
         ${t.sinopse ? `<p>${escapeHtml(t.sinopse)}</p>` : ''}
         <div style="display:flex; gap:10px; margin-top: 14px;">
-          <a href="add.html?edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
+          <a href="edit.html?edit=${t.id}" class="btn btn-primary">Assistimos! Avaliar agora</a>
           <button type="button" class="btn btn-secondary" id="spin-again-btn">Girar de novo</button>
         </div>
       </div>

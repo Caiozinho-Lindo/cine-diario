@@ -10,6 +10,8 @@ import {
 const message = document.getElementById('login-error');
 const tabs = [...document.querySelectorAll('[data-auth-view]')];
 const panels = [...document.querySelectorAll('[data-auth-panel]')];
+const CHAVE_CONVITE_PENDENTE = 'cine_diario_convite_pendente';
+const convitePendente = lerConviteDaUrl();
 
 init();
 
@@ -24,7 +26,7 @@ async function init() {
   }
 
   const session = await getSession().catch(() => null);
-  if (session) window.location.href = 'pages/home.html';
+  if (session) redirecionarDepoisDeEntrar();
 }
 
 function ligarNavegacao() {
@@ -59,7 +61,7 @@ async function onLogin(event) {
       document.getElementById('password').value,
       { lembrarDispositivo: lembrar }
     );
-    window.location.href = 'pages/home.html';
+    redirecionarDepoisDeEntrar();
   }, 'E-mail ou senha incorretos. Verifique suas credenciais.');
 }
 
@@ -70,10 +72,11 @@ async function onSignup(event) {
     const data = await cadastrar({
       nome: document.getElementById('signup-name').value,
       email: document.getElementById('signup-email').value.trim(),
-      password: document.getElementById('signup-password').value
+      password: document.getElementById('signup-password').value,
+      conviteCodigo: convitePendente
     });
     if (data.session) {
-      window.location.href = 'pages/home.html';
+      redirecionarDepoisDeEntrar();
     } else {
       exibirMensagem('Conta criada! Confira seu e-mail para confirmar o cadastro.', true);
     }
@@ -142,4 +145,20 @@ function exibirMensagem(texto, sucesso = false) {
   message.textContent = texto;
   message.classList.toggle('success', sucesso);
   message.hidden = false;
+}
+
+function lerConviteDaUrl() {
+  const codigo = String(new URLSearchParams(window.location.search).get('convite') || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 12);
+  if (codigo.length === 12) localStorage.setItem(CHAVE_CONVITE_PENDENTE, codigo);
+  return codigo.length === 12 ? codigo : localStorage.getItem(CHAVE_CONVITE_PENDENTE);
+}
+
+function redirecionarDepoisDeEntrar() {
+  const codigo = convitePendente || localStorage.getItem(CHAVE_CONVITE_PENDENTE);
+  window.location.href = codigo
+    ? `pages/profile.html?convite=${encodeURIComponent(codigo)}`
+    : 'pages/home.html';
 }

@@ -3,25 +3,29 @@
 
 import { formatarNota } from './statistics.js';
 import { resolveRootPath, logout } from './auth.js';
-import { setModoAtivo } from './themes.js';
+import { nomeDoModo, notaNoModo, setModoAtivo } from './themes.js';
 import { getEspacosDoUsuario, getEspacoAtivo, setEspacoAtivo } from './espacos.js';
 
-const STATUS_LABEL = {
-  assistiriamos: 'Assistiríamos novamente',
-  nao_assistiriamos: 'Não assistiríamos novamente',
-  aguardando_caio: 'Aguardando avaliação do Caio',
-  aguardando_noemy: 'Aguardando avaliação da Noemy',
-  sem_avaliacao: 'Aguardando avaliações'
-};
-
-export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, onModoChange }) {
+export function renderNavbar(container, {
+  activePage,
+  modoAtivo,
+  perfilAtual,
+  membros = [],
+  usuarioId,
+  onModoChange
+}) {
   const root = resolveRootPath('');
-  const perfilLegado = perfilLogado === 'caio' || perfilLogado === 'noemy';
-  const botoesModo = perfilLegado
-    ? `<button data-mode-btn="caio" type="button">👤 Caio</button>
-       <button data-mode-btn="noemy" type="button">🌷 Noemy</button>
-       <button data-mode-btn="casal" type="button">✨ Casal</button>`
-    : `<button data-mode-btn="pessoal" type="button">🎬 Meu diário</button>`;
+  const nomeUsuario = perfilAtual?.nome_exibicao || perfilAtual?.nome || 'Cineasta';
+  const avatar = perfilAtual?.avatar_url
+    ? `<img src="${safeImageSrc(perfilAtual.avatar_url)}" alt="" />`
+    : `<span aria-hidden="true">${escapeHtml(nomeUsuario.slice(0, 1).toUpperCase())}</span>`;
+  const opcoesModo = [
+    ...(membros.length > 1 ? [{ valor: 'geral', nome: 'Visão geral' }] : []),
+    ...membros.map(membro => ({
+      valor: `membro:${membro.usuario_id}`,
+      nome: nomeDoModo(`membro:${membro.usuario_id}`, membros, usuarioId)
+    }))
+  ];
 
   container.innerHTML = `
     <div class="navbar-inner">
@@ -38,7 +42,15 @@ export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, o
         <select data-space-picker aria-label="Espaço ativo"></select>
       </label>
 
-      <div class="mode-switch" aria-label="Modo de visualização">${botoesModo}</div>
+      <label class="view-picker" ${opcoesModo.length <= 1 ? 'hidden' : ''}>
+        <span>Visão</span>
+        <select data-mode-select aria-label="Visão das avaliações">
+          ${opcoesModo.map(opcao => `
+            <option value="${escapeHtml(opcao.valor)}" ${opcao.valor === modoAtivo ? 'selected' : ''}>
+              ${escapeHtml(opcao.nome)}
+            </option>`).join('')}
+        </select>
+      </label>
 
       <div class="navbar-links">
         <a href="${root}pages/home.html" data-page="home">Início</a>
@@ -47,19 +59,17 @@ export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, o
       </div>
 
       <div class="navbar-user">
-        <span>${perfilLogado === 'caio' ? 'Caio' : perfilLogado === 'noemy' ? 'Noemy' : ''}</span>
+        <span class="navbar-avatar">${avatar}</span>
+        <span class="navbar-user-name">${escapeHtml(nomeUsuario)}</span>
         <button class="btn btn-secondary btn-sm" id="logout-btn" type="button">Sair</button>
       </div>
     </div>`;
 
   container.querySelectorAll(`[data-page="${activePage}"]`).forEach(a => a.classList.add('active'));
-  container.querySelectorAll('[data-mode-btn]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.modeBtn === modoAtivo);
-    btn.addEventListener('click', () => {
-      const novoModo = btn.dataset.modeBtn;
-      setModoAtivo(novoModo);
-      if (onModoChange) onModoChange(novoModo);
-    });
+  const seletorModo = container.querySelector('[data-mode-select]');
+  seletorModo?.addEventListener('change', () => {
+    setModoAtivo(seletorModo.value);
+    if (onModoChange) onModoChange(seletorModo.value);
   });
   container.querySelector('#logout-btn').addEventListener('click', logout);
   hidratarEspacos(container).catch(error => console.error('[espaços]', error));
@@ -81,12 +91,12 @@ async function hidratarEspacos(container) {
 
 export function renderTituloCard(titulo, modo) {
   const paraAssistir = Boolean(titulo.quero_assistir);
-  const notaPrincipal = obterNotaExibicao(titulo, modo);
+  const notaPrincipal = notaNoModo(titulo, modo);
   const capa = safeImageSrc(titulo.capa_url);
   const pendente = !paraAssistir && estaPendenteNoModo(titulo, modo);
   const statusChip = paraAssistir
     ? '<span class="chip chip-watchlist">Na lista</span>'
-    : renderStatusChip(titulo.status, modo, pendente);
+    : renderStatusChip(titulo, modo, pendente);
   const card = document.createElement('article');
   card.className = 'title-card';
   card.dataset.id = titulo.id;
@@ -107,32 +117,20 @@ export function renderTituloCard(titulo, modo) {
   return card;
 }
 
-function obterNotaExibicao(titulo, modo) {
-  if (modo === 'caio') return titulo.avaliacaoCaio ? Number(titulo.avaliacaoCaio.nota) : null;
-  if (modo === 'noemy') return titulo.avaliacaoNoemy ? Number(titulo.avaliacaoNoemy.nota) : null;
-  if (modo === 'pessoal') return titulo.avaliacaoAtual ? Number(titulo.avaliacaoAtual.nota) : null;
-  return titulo.pendente ? null : titulo.media;
-}
-
 function estaPendenteNoModo(titulo, modo) {
-  if (modo === 'caio') return !titulo.avaliacaoCaio;
-  if (modo === 'noemy') return !titulo.avaliacaoNoemy;
-  if (modo === 'pessoal') return !titulo.avaliacaoAtual;
-  return titulo.pendente;
+  return notaNoModo(titulo, modo) === null;
 }
 
-function renderStatusChip(status, modo, pendente) {
-  if (modo === 'caio' || modo === 'noemy' || modo === 'pessoal') {
+function renderStatusChip(titulo, modo, pendente) {
+  if (modo !== 'geral') {
     return pendente
       ? '<span class="chip chip-pending">Pendente</span>'
       : '<span class="chip chip-yes">Avaliado</span>';
   }
-  if (status === 'assistiriamos') return '<span class="chip chip-yes">🎬 Assistiríamos</span>';
-  if (status === 'nao_assistiriamos') return '<span class="chip chip-no">Não assistiríamos</span>';
-  return '<span class="chip chip-pending">Pendente</span>';
+  if (titulo.pendente || titulo.media === null) return '<span class="chip chip-pending">Pendente</span>';
+  if (titulo.media >= 7) return '<span class="chip chip-yes">🎬 O grupo assistiria</span>';
+  return '<span class="chip chip-no">O grupo não assistiria</span>';
 }
-
-export function statusLabel(status) { return STATUS_LABEL[status] || ''; }
 
 export function placeholderCapa() {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(`

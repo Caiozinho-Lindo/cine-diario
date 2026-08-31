@@ -1,5 +1,5 @@
 /**
- * CONFIGURAÇÃO DO APP — Diário Cinematográfico do Casal
+ * CONFIGURAÇÃO DO APP — Cine Diário
  *
  * 1. Copie este arquivo e renomeie a cópia para "config.js".
  * 2. Em hospedagem estática, os valores desse arquivo ficam públicos no

@@ -2,7 +2,7 @@
 // CRUD de títulos por espaço e avaliações individuais no Supabase.
 
 import { supabase } from './supabaseClient.js';
-import { getEspacoAtivo, getMembrosDoEspaco, schemaMultiusuarioAusente } from './espacos.js';
+import { getEspacoAtivo, getMembrosDoEspaco } from './espacos.js';
 
 const TEMPORADA_OBRA_INTEIRA = 0;
 
@@ -180,20 +180,11 @@ async function salvarEstadoBiblioteca(usuarioId, tituloId, status, dataAssistido
       },
       { onConflict: 'usuario_id,titulo_id' }
     );
-  if (error && !schemaMultiusuarioAusente(error)) throw error;
+  if (error) throw error;
 }
 
 function enrichTitulo(titulo, avaliacoes, membros, usuarioId) {
   const avaliacoesTitulo = avaliacoes.filter(avaliacao => avaliacao.titulo_id === titulo.id);
-  const porNome = nome => {
-    const membro = membros.find(item => item.perfil?.nome?.toLowerCase() === nome);
-    return membro
-      ? avaliacoesTitulo.find(avaliacao => avaliacao.usuario_id === membro.usuario_id) || null
-      : null;
-  };
-
-  const avaliacaoCaio = porNome('caio');
-  const avaliacaoNoemy = porNome('noemy');
   const notas = avaliacoesTitulo.map(avaliacao => Number(avaliacao.nota));
   const media = notas.length
     ? notas.reduce((total, nota) => total + nota, 0) / notas.length
@@ -201,23 +192,15 @@ function enrichTitulo(titulo, avaliacoes, membros, usuarioId) {
   const diferenca = notas.length > 1 ? Math.max(...notas) - Math.min(...notas) : null;
   const pendente = avaliacoesTitulo.length < membros.length;
 
-  let status = 'sem_avaliacao';
-  if (avaliacaoCaio && !avaliacaoNoemy) status = 'aguardando_noemy';
-  else if (!avaliacaoCaio && avaliacaoNoemy) status = 'aguardando_caio';
-  else if (notas.length && !pendente) status = media >= 7 ? 'assistiriamos' : 'nao_assistiriamos';
-
   return {
     ...titulo,
     avaliacoesMembros: membros.map(membro => ({
       membro,
       avaliacao: avaliacoesTitulo.find(item => item.usuario_id === membro.usuario_id) || null
     })),
-    avaliacaoCaio,
-    avaliacaoNoemy,
     avaliacaoAtual: avaliacoesTitulo.find(item => item.usuario_id === usuarioId) || null,
     media,
     diferenca,
-    status,
     pendente
   };
 }

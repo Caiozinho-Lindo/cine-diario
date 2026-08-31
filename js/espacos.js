@@ -11,16 +11,10 @@ export async function getEspacosDoUsuario() {
 
   const { data, error } = await supabase
     .from('espacos')
-    .select('id, nome, tipo, imagem_url, criado_por, criado_em')
+    .select('id, nome, imagem_url, criado_por, criado_em')
     .order('criado_em', { ascending: true });
 
-  if (error) {
-    if (schemaMultiusuarioAusente(error)) {
-      cacheEspacos = [{ id: null, nome: 'Caio & Noemy', tipo: 'casal', legado: true }];
-      return cacheEspacos;
-    }
-    throw error;
-  }
+  if (error) throw error;
   cacheEspacos = data || [];
   return cacheEspacos;
 }
@@ -44,15 +38,7 @@ export async function setEspacoAtivo(espacoId) {
 }
 
 export async function getMembrosDoEspaco(espacoId) {
-  if (!espacoId) {
-    const { data, error } = await supabase.from('perfis').select('*');
-    if (error) throw error;
-    return (data || []).map(perfil => ({
-      usuario_id: perfil.id,
-      papel: perfil.nome === 'caio' ? 'proprietario' : 'administrador',
-      perfil
-    }));
-  }
+  if (!espacoId) throw new Error('Espaço inválido.');
 
   const { data: membros, error: membrosError } = await supabase
     .from('espaco_membros')
@@ -75,10 +61,10 @@ export async function getMembrosDoEspaco(espacoId) {
   }));
 }
 
-export async function criarEspaco({ nome, tipo = 'outro' }, usuarioId) {
+export async function criarEspaco({ nome }, usuarioId) {
   if (!usuarioId) throw new Error('Autenticação obrigatória.');
   const { data: espaco, error } = await supabase
-    .rpc('criar_espaco', { nome_espaco: nome.trim(), tipo_espaco: tipo })
+    .rpc('criar_espaco', { nome_espaco: nome.trim() })
     .single();
   if (error) throw error;
 
@@ -87,11 +73,85 @@ export async function criarEspaco({ nome, tipo = 'outro' }, usuarioId) {
   return espaco;
 }
 
-export function limparCacheEspacos() {
+export async function atualizarEspaco(espacoId, { nome }) {
+  if (!espacoId) throw new Error('Espaço inválido.');
+
+  const { data, error } = await supabase
+    .from('espacos')
+    .update({ nome: nome.trim() })
+    .eq('id', espacoId)
+    .select('id, nome, imagem_url, criado_por, criado_em')
+    .single();
+
+  if (error) throw error;
   cacheEspacos = null;
+  return data;
 }
 
-export function schemaMultiusuarioAusente(error) {
-  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error?.code)
-    || /espacos|espaco_id|biblioteca_usuario/i.test(error?.message || '');
+export async function excluirEspaco(espacoId) {
+  if (!espacoId) throw new Error('Este espaço antigo não pode ser excluído por esta tela.');
+
+  const { error } = await supabase.from('espacos').delete().eq('id', espacoId);
+  if (error) throw error;
+
+  cacheEspacos = null;
+  if (localStorage.getItem(STORAGE_KEY) === espacoId) localStorage.removeItem(STORAGE_KEY);
+}
+
+export async function sairDoEspaco(espacoId, usuarioId) {
+  if (!espacoId || !usuarioId) throw new Error('Espaço e usuário são obrigatórios.');
+
+  const { error } = await supabase.rpc('sair_do_espaco', { p_espaco_id: espacoId });
+
+  if (error) throw error;
+  cacheEspacos = null;
+  if (localStorage.getItem(STORAGE_KEY) === espacoId) localStorage.removeItem(STORAGE_KEY);
+}
+
+export async function criarConviteEspaco(espacoId) {
+  const { data, error } = await supabase
+    .rpc('criar_convite_espaco', { p_espaco_id: espacoId })
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function consultarConviteEspaco(codigo) {
+  const { data, error } = await supabase
+    .rpc('consultar_convite_espaco', { p_codigo: normalizarCodigo(codigo) })
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function entrarEspacoPorCodigo(codigo) {
+  const { data: espaco, error } = await supabase
+    .rpc('entrar_espaco_por_codigo', { p_codigo: normalizarCodigo(codigo) })
+    .single();
+  if (error) throw error;
+
+  cacheEspacos = null;
+  await setEspacoAtivo(espaco.id);
+  return espaco;
+}
+
+export async function atualizarPapelMembro(espacoId, usuarioId, papel) {
+  const { error } = await supabase.rpc('atualizar_papel_membro', {
+    p_espaco_id: espacoId,
+    p_usuario_id: usuarioId,
+    p_papel: papel
+  });
+  if (error) throw error;
+}
+
+export async function removerMembroEspaco(espacoId, usuarioId) {
+  const { error } = await supabase.rpc('remover_membro_espaco', {
+    p_espaco_id: espacoId,
+    p_usuario_id: usuarioId
+  });
+  if (error) throw error;
+}
+
+export function normalizarCodigo(codigo) {
+  return String(codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }

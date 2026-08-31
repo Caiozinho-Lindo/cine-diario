@@ -20,13 +20,15 @@ export async function login(email, password, { lembrarDispositivo = false } = {}
   return data.session;
 }
 
-export async function cadastrar({ nome, email, password }) {
+export async function cadastrar({ nome, email, password, conviteCodigo = null }) {
+  const redirectUrl = new URL(resolveRootPath('index.html'), window.location.href);
+  if (conviteCodigo) redirectUrl.searchParams.set('convite', conviteCodigo);
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { nome_exibicao: nome.trim() },
-      emailRedirectTo: new URL(resolveRootPath('index.html'), window.location.href).href
+      emailRedirectTo: redirectUrl.href
     }
   });
   if (error) throw error;
@@ -192,17 +194,8 @@ export async function getCurrentProfile(session) {
   return perfilAtual;
 }
 
-// Compatibilidade temporária com as telas atuais. A identidade vem do registro
-// cujo id é auth.uid(); o e-mail não participa mais da decisão.
-export function getProfileFromSession(session) {
-  if (!session || perfilAtual?.id !== session.user.id) return null;
-  const nomeLegado = perfilAtual.nome?.toLowerCase();
-  if (nomeLegado === 'caio' || nomeLegado === 'noemy') return nomeLegado;
-  return 'pessoal';
-}
-
 export async function atualizarPerfil(usuarioId, campos) {
-  const permitidos = ['nome_exibicao', 'avatar_url', 'tema', 'cor_destaque', 'pagina_inicial'];
+  const permitidos = ['nome_exibicao', 'avatar_url', 'tema', 'cor_destaque'];
   const payload = Object.fromEntries(
     Object.entries(campos).filter(([chave]) => permitidos.includes(chave))
   );

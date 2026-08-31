@@ -1,7 +1,6 @@
-// js/pages/add.js
-import { requireSession, getCurrentProfile, getProfileFromSession, getUserId } from '../auth.js';
-import { searchMulti, getDetails } from '../tmdb.js';
-import { criarTitulo, atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
+// js/pages/edit.js
+import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
+import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
@@ -9,8 +8,8 @@ import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 let sessionAtual = null;
 let perfilAtual = null;
 let membrosEspaco = [];
-let dadosSelecionados = null; // dados do título (do TMDB ou já existentes)
-let tituloExistente = null;   // preenchido em modo edição
+let dadosSelecionados = null;
+let tituloExistente = null;
 let editId = null;
 
 init();
@@ -26,17 +25,19 @@ async function init() {
   }
 
   perfilAtual = await getCurrentProfile(sessionAtual);
-  const perfilNavbar = getProfileFromSession(sessionAtual);
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
-  const modoAtivo = normalizarModoAtivo(perfilNavbar);
-  aplicarTema(modoAtivo);
+  const usuarioId = getUserId(sessionAtual);
+  const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
+  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',
     modoAtivo,
-    perfilLogado: perfilNavbar,
-    onModoChange: novoModo => aplicarTema(novoModo)
+    perfilAtual,
+    membros: membrosEspaco,
+    usuarioId,
+    onModoChange: () => {}
   });
 
   if (!perfilAtual) {
@@ -53,74 +54,8 @@ async function init() {
   document.getElementById('title-form').addEventListener('submit', onSubmit);
 }
 
-/* ==========================================================================
-   Modo criação — busca no TMDB
-   ========================================================================== */
-
-function iniciarModoCriacao() {
-  const input = document.getElementById('search-input');
-  let debounceTimer = null;
-
-  input.addEventListener('input', () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => executarBusca(input.value), 400);
-  });
-}
-
-async function executarBusca(query) {
-  const container = document.getElementById('search-results');
-
-  if (!query || query.trim().length < 2) {
-    container.innerHTML = '';
-    return;
-  }
-
-  container.innerHTML = '<div class="spinner"></div>';
-
-  try {
-    const resultados = await searchMulti(query);
-    if (!resultados.length) {
-      container.innerHTML = '<p class="empty-state">Nenhum resultado encontrado.</p>';
-      return;
-    }
-    container.innerHTML = '';
-    resultados.forEach(r => {
-      const card = document.createElement('div');
-      card.className = 'search-result-card';
-      card.innerHTML = `
-        <img src="${safeImageSrc(r.capa_url)}" alt="Capa de ${escapeHtml(r.nome)}" loading="lazy" />
-        <div class="src-body">
-          <div class="src-title">${escapeHtml(r.nome)}</div>
-          <div class="src-meta">${r.ano || '—'} · ${r.tipo === 'filme' ? 'Filme' : 'Série'}</div>
-        </div>
-      `;
-      card.addEventListener('click', () => selecionarResultado(r));
-      container.appendChild(card);
-    });
-  } catch (err) {
-    console.error(err);
-    container.innerHTML = '<p class="empty-state">Erro ao buscar no TMDB. Verifique sua chave em config.js.</p>';
-  }
-}
-
-async function selecionarResultado(resumo) {
-  try {
-    const completos = await getDetails(resumo.tmdb_id, resumo.tipo);
-    dadosSelecionados = completos;
-    mostrarFormulario();
-  } catch (err) {
-    console.error(err);
-    showToast('Erro ao carregar detalhes do TMDB.', 'error');
-  }
-}
-
-/* ==========================================================================
-   Modo edição
-   ========================================================================== */
-
 async function iniciarModoEdicao(id) {
-  document.getElementById('page-heading').textContent = 'Editar título';
-  document.getElementById('search-step').hidden = true;
+  document.getElementById('page-heading').textContent = 'Editar e avaliar';
 
   try {
     tituloExistente = await getTituloComAvaliacoes(id);
@@ -181,14 +116,9 @@ function configurarSecoesDeAvaliacao() {
     outros.length === 1 ? 'Avaliação da outra pessoa' : 'Avaliações de outras pessoas';
 }
 
-/* ==========================================================================
-   Formulário compartilhado
-   ========================================================================== */
-
 function mostrarFormulario() {
   const d = dadosSelecionados;
 
-  document.getElementById('search-step').hidden = true;
   document.getElementById('title-form').hidden = false;
 
   document.getElementById('selected-preview').innerHTML = `
@@ -197,12 +127,7 @@ function mostrarFormulario() {
       <div style="font-weight:600;">${escapeHtml(d.nome)}</div>
       <div style="font-size:0.82rem; color:var(--text-secondary);">${d.ano || '—'} · ${d.tipo === 'filme' ? 'Filme' : 'Série'}</div>
     </div>
-    ${!editId ? '<button type="button" class="btn btn-secondary btn-sm change-btn" id="change-title-btn">Trocar título</button>' : ''}
   `;
-
-  if (!editId) {
-    document.getElementById('change-title-btn').addEventListener('click', voltarParaBusca);
-  }
 
   document.getElementById('f-nome').value = d.nome || '';
   document.getElementById('f-nome-original').value = d.nome_original || '';
@@ -216,14 +141,6 @@ function mostrarFormulario() {
   if (!document.getElementById('f-data-avaliacao').value) {
     document.getElementById('f-data-avaliacao').value = new Date().toISOString().slice(0, 10);
   }
-}
-
-function voltarParaBusca() {
-  dadosSelecionados = null;
-  document.getElementById('title-form').hidden = true;
-  document.getElementById('search-step').hidden = false;
-  document.getElementById('search-input').value = '';
-  document.getElementById('search-input').focus();
 }
 
 function atualizarDisplayNota() {
@@ -260,14 +177,8 @@ async function onSubmit(e) {
   const usuarioId = getUserId(sessionAtual);
 
   try {
-    let tituloId;
-    if (editId) {
-      const atualizado = await atualizarTitulo(editId, camposTitulo);
-      tituloId = atualizado.id;
-    } else {
-      const criado = await criarTitulo(camposTitulo, usuarioId);
-      tituloId = criado.id;
-    }
+    const atualizado = await atualizarTitulo(editId, camposTitulo);
+    const tituloId = atualizado.id;
 
     await salvarAvaliacao({
       tituloId,

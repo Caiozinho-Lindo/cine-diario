@@ -1,9 +1,9 @@
 /* ==========================================================================
-   THEMES — identidade visual de Caio, Noemy e Casal
+   THEMES — três identidades visuais disponíveis no perfil
    ========================================================================== */
 
-/* ---------- CAIO: azul-marinho, cinematográfico, tecnológico ---------- */
-.theme-caio {
+/* ---------- Azul-marinho: cinematográfico, tecnológico ---------- */
+.theme-azul {
   --bg-base: linear-gradient(180deg, #0a1220 0%, #0d1b2e 100%);
   --surface: #101d30;
   --surface-elevated: #142238;
@@ -20,8 +20,8 @@
   --nav-bg: rgba(10, 18, 32, 0.85);
 }
 
-/* ---------- NOEMY: lilás, lavanda, floral ---------- */
-.theme-noemy {
+/* ---------- Lavanda: lilás e floral ---------- */
+.theme-lavanda {
   --bg-base: linear-gradient(180deg, #f6f0fb 0%, #efe4f8 100%);
   --surface: #ffffff;
   --surface-elevated: #fbf6ff;
@@ -39,7 +39,7 @@
 }
 
 /* ---------- CASAL: paleta combinada, romântica e cinematográfica ---------- */
-.theme-casal {
+.theme-cinema {
   --bg-base: linear-gradient(180deg, #150f22 0%, #1e1430 55%, #2b1a2e 100%);
   --surface: #1c1428;
   --surface-elevated: #241a30;
@@ -60,8 +60,8 @@
    Elementos decorativos por tema
    ========================================================================== */
 
-/* --- Caio: feixes de luz de projetor + grão de filme discreto --- */
-.theme-caio .bg-decor::before {
+/* --- Azul-marinho: feixes de luz de projetor + grão de filme discreto --- */
+.theme-azul .bg-decor::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -72,7 +72,7 @@
   z-index: 0;
 }
 
-.theme-caio .bg-decor::after {
+.theme-azul .bg-decor::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -82,8 +82,8 @@
   z-index: 0;
 }
 
-/* --- Noemy: tulipas discretas no fundo --- */
-.theme-noemy .bg-decor::before {
+/* --- Lavanda: tulipas discretas no fundo --- */
+.theme-lavanda .bg-decor::before {
   content: "";
   position: fixed;
   bottom: -60px;
@@ -98,7 +98,7 @@
   z-index: 0;
 }
 
-.theme-noemy .bg-decor::after {
+.theme-lavanda .bg-decor::after {
   content: "";
   position: fixed;
   top: -50px;
@@ -114,7 +114,7 @@
 }
 
 /* --- Casal: duas constelações conectadas + luz dourada --- */
-.theme-casal .bg-decor::before {
+.theme-cinema .bg-decor::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -125,7 +125,7 @@
   z-index: 0;
 }
 
-.theme-casal .bg-decor::after {
+.theme-cinema .bg-decor::after {
   content: "";
   position: fixed;
   inset: 0;
