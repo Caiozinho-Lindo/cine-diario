@@ -15,10 +15,19 @@
   <nav class="navbar" id="navbar"></nav>
 
   <main class="container">
-    <div class="section-title catalog-heading" style="margin-top:24px;">
-      <h2>Catálogo</h2>
+    <header class="catalog-page-header">
+      <div>
+        <h2>Catálogo</h2>
+        <p>Seus títulos assistidos e os que ainda estão na lista.</p>
+      </div>
       <button class="btn btn-primary" id="open-add-view" type="button">+ Adicionar título</button>
-    </div>
+    </header>
+
+    <nav class="catalog-tabs" aria-label="Seções do catálogo">
+      <a class="active" href="catalog.html" data-catalog-section="todos" aria-current="page">Todos</a>
+      <a href="catalog.html?secao=assistidos" data-catalog-section="assistidos">✓ Assistidos</a>
+      <a href="wishlist.html">🎲 Para assistir</a>
+    </nav>
 
     <section id="catalog-view">
       <div class="filters-bar">

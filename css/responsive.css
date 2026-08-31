@@ -19,6 +19,10 @@
 
   .catalog-heading,
   .catalog-add-header { align-items: stretch; flex-direction: column; }
+  .catalog-page-header { align-items: stretch; flex-direction: column; }
+  .catalog-page-header .btn { width: 100%; }
+  .catalog-tabs { display: flex; width: 100%; }
+  .catalog-tabs a { flex: 1; text-align: center; }
   .catalog-heading .btn,
   .catalog-add-header .btn { width: 100%; }
   .catalog-add-form { padding: 16px; }

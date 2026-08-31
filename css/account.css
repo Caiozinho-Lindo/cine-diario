@@ -42,3 +42,25 @@
 .account-message { margin-top: 16px; }
 .account-message.success { color: var(--success); }
 .field small { color: var(--text-secondary); }
+
+.remember-device {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  margin: -2px 0 14px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.remember-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.remember-toggle input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+}

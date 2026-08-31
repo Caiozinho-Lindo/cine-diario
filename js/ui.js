@@ -43,7 +43,6 @@ export function renderNavbar(container, { activePage, modoAtivo, perfilLogado, o
       <div class="navbar-links">
         <a href="${root}pages/home.html" data-page="home">Início</a>
         <a href="${root}pages/catalog.html" data-page="catalog">Catálogo</a>
-        <a href="${root}pages/wishlist.html" data-page="wishlist">🎲 Para assistir</a>
         <a href="${root}pages/profile.html" data-page="profile">Perfil e espaços</a>
       </div>
 
@@ -81,10 +80,13 @@ async function hidratarEspacos(container) {
 }
 
 export function renderTituloCard(titulo, modo) {
+  const paraAssistir = Boolean(titulo.quero_assistir);
   const notaPrincipal = obterNotaExibicao(titulo, modo);
   const capa = safeImageSrc(titulo.capa_url);
-  const pendente = estaPendenteNoModo(titulo, modo);
-  const statusChip = renderStatusChip(titulo.status, modo, pendente);
+  const pendente = !paraAssistir && estaPendenteNoModo(titulo, modo);
+  const statusChip = paraAssistir
+    ? '<span class="chip chip-watchlist">Na lista</span>'
+    : renderStatusChip(titulo.status, modo, pendente);
   const card = document.createElement('article');
   card.className = 'title-card';
   card.dataset.id = titulo.id;
@@ -98,7 +100,7 @@ export function renderTituloCard(titulo, modo) {
       <div class="card-title">${escapeHtml(titulo.nome)}</div>
       <div class="card-meta">${titulo.ano || '—'}${titulo.generos?.length ? ' · ' + escapeHtml(titulo.generos.slice(0, 2).join(', ')) : ''}</div>
       <div class="card-footer">
-        <div class="card-score">${notaPrincipal !== null ? formatarNota(notaPrincipal) : '—'}<small> /10</small></div>
+        <div class="card-score${paraAssistir ? ' card-watchlist-label' : ''}">${paraAssistir ? '🎲 Para assistir' : `${notaPrincipal !== null ? formatarNota(notaPrincipal) : '—'}<small> /10</small>`}</div>
         ${statusChip}
       </div>
     </div>`;

@@ -25,7 +25,7 @@ async function init() {
   aplicarTema(modoAtivo);
 
   renderNavbar(document.getElementById('navbar'), {
-    activePage: 'wishlist',
+    activePage: 'catalog',
     modoAtivo,
     perfilLogado,
     onModoChange: novoModo => aplicarTema(novoModo)

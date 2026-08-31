@@ -29,6 +29,7 @@ let sessionAtual = null;
 let perfilAtual = null;
 let dadosSelecionados = null;
 let buscaExternaTimer = null;
+let secaoCatalogo = 'todos';
 
 init();
 
@@ -57,7 +58,7 @@ async function init() {
   showSpinner(grid);
 
   try {
-    titulos = await getAllTitulosComAvaliacoes();
+    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar títulos.', 'error');
@@ -71,6 +72,8 @@ async function init() {
 
   // Suporte a ?filtro=pendentes vindo de outras páginas
   const params = new URLSearchParams(window.location.search);
+  secaoCatalogo = params.get('secao') === 'assistidos' ? 'assistidos' : 'todos';
+  atualizarAbasCatalogo();
   if (params.get('filtro')) {
     document.getElementById('f-avaliacao').value = params.get('filtro');
   }
@@ -119,7 +122,10 @@ function renderResultados() {
     ordenacao: document.getElementById('f-ordenacao').value
   };
 
-  const resultado = aplicarFiltros(titulos, filtros, modoAtivo);
+  const titulosDaSecao = secaoCatalogo === 'assistidos'
+    ? titulos.filter(titulo => !titulo.quero_assistir)
+    : titulos;
+  const resultado = aplicarFiltros(titulosDaSecao, filtros, modoAtivo);
   const grid = document.getElementById('cards-grid');
   grid.innerHTML = '';
 
@@ -149,6 +155,15 @@ function renderResultados() {
       window.location.href = `details.html?id=${t.id}`;
     });
     grid.appendChild(card);
+  });
+}
+
+function atualizarAbasCatalogo() {
+  document.querySelectorAll('[data-catalog-section]').forEach(link => {
+    const ativa = link.dataset.catalogSection === secaoCatalogo;
+    link.classList.toggle('active', ativa);
+    if (ativa) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
   });
 }
 
@@ -240,10 +255,10 @@ async function buscarParaAdicionar(query) {
         <span class="src-body">
           <span class="src-title">${escapeHtml(resultado.nome)}</span>
           <span class="src-meta">${resultado.ano || '—'} · ${resultado.tipo === 'filme' ? 'Filme' : 'Série'}</span>
-          <span class="src-status">${existente ? '✓ Já está no catálogo' : '+ Adicionar ao catálogo'}</span>
+          <span class="src-status">${existente?.quero_assistir ? '+ Marcar como assistido' : existente ? '✓ Já está no catálogo' : '+ Adicionar ao catálogo'}</span>
         </span>`;
       card.addEventListener('click', () => {
-        if (existente) window.location.href = `details.html?id=${existente.id}`;
+        if (existente && !existente.quero_assistir) window.location.href = `details.html?id=${existente.id}`;
         else selecionarParaAdicionar(resultado);
       });
       container.appendChild(card);
@@ -347,7 +362,7 @@ async function salvarTituloDoCatalogo(event) {
       dataAvaliacao: document.getElementById('catalog-review-date').value
     });
 
-    titulos = await getAllTitulosComAvaliacoes();
+    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
     popularSelects();
     fecharAdicionar();
     document.getElementById('f-busca').value = nomeAdicionado;

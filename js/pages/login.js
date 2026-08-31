@@ -52,10 +52,12 @@ function ligarFormularios() {
 async function onLogin(event) {
   event.preventDefault();
   const btn = document.getElementById('login-btn');
+  const lembrar = document.getElementById('remember-device').checked;
   await executar(btn, 'Entrando...', async () => {
     await login(
       document.getElementById('email').value.trim(),
-      document.getElementById('password').value
+      document.getElementById('password').value,
+      { lembrarDispositivo: lembrar }
     );
     window.location.href = 'pages/home.html';
   }, 'E-mail ou senha incorretos. Verifique suas credenciais.');

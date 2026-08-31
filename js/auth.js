@@ -4,10 +4,18 @@
 import { supabase } from './supabaseClient.js';
 
 let perfilAtual = null;
+let timerExpiracao = null;
 
-export async function login(email, password) {
+const CHAVE_LEMBRAR = 'cine_diario_lembrar_dispositivo';
+const CHAVE_SESSAO_ABERTA = 'cine_diario_sessao_aberta';
+const CHAVE_POLITICA_INICIADA = 'cine_diario_politica_sessao_v1';
+const DURACAO_LEMBRAR_MS = 7 * 24 * 60 * 60 * 1000;
+const TIMER_MAXIMO_MS = 2_147_000_000;
+
+export async function login(email, password, { lembrarDispositivo = false } = {}) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
+  registrarPreferenciaSessao(data.session, lembrarDispositivo);
   perfilAtual = await carregarPerfil(data.session?.user?.id);
   return data.session;
 }
@@ -22,6 +30,7 @@ export async function cadastrar({ nome, email, password }) {
     }
   });
   if (error) throw error;
+  if (data.session) registrarPreferenciaSessao(data.session, false);
   return data;
 }
 
@@ -36,20 +45,33 @@ export async function solicitarRecuperacaoSenha(email) {
 export async function atualizarSenha(password) {
   const { data, error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
+  const { data: sessaoAtual } = await supabase.auth.getSession();
+  const session = sessaoAtual.session;
+  if (session) registrarPreferenciaSessao(session, false);
   return data.user;
 }
 
 export async function logout() {
   perfilAtual = null;
+  limparPreferenciaSessao();
   sessionStorage.removeItem('diario_modo_ativo');
   sessionStorage.removeItem('modo_definido');
   await supabase.auth.signOut();
   window.location.href = resolveRootPath('index.html');
 }
 
-export async function getSession() {
+export async function getSession({ permitirMigracao = true } = {}) {
   const { data } = await supabase.auth.getSession();
-  return data.session;
+  const session = data.session;
+  if (!session) return null;
+
+  if (sessaoPermitida(session, permitirMigracao)) {
+    agendarExpiracao(session);
+    return session;
+  }
+
+  await encerrarSessaoLocal();
+  return null;
 }
 
 export async function requireSession() {
@@ -63,6 +85,87 @@ export async function requireSession() {
     perfilAtual = await carregarPerfil(session.user.id);
   }
   return session;
+}
+
+function registrarPreferenciaSessao(session, lembrarDispositivo) {
+  const usuarioId = session?.user?.id;
+  if (!usuarioId) return;
+
+  localStorage.setItem(CHAVE_POLITICA_INICIADA, '1');
+  sessionStorage.setItem(CHAVE_SESSAO_ABERTA, usuarioId);
+
+  if (lembrarDispositivo) {
+    localStorage.setItem(CHAVE_LEMBRAR, JSON.stringify({
+      usuarioId,
+      expiraEm: Date.now() + DURACAO_LEMBRAR_MS
+    }));
+  } else {
+    localStorage.removeItem(CHAVE_LEMBRAR);
+  }
+
+  agendarExpiracao(session);
+}
+
+function sessaoPermitida(session, permitirMigracao) {
+  const usuarioId = session.user.id;
+  const preferencia = lerPreferenciaSessao();
+
+  if (preferencia?.usuarioId === usuarioId && preferencia.expiraEm > Date.now()) {
+    sessionStorage.setItem(CHAVE_SESSAO_ABERTA, usuarioId);
+    return true;
+  }
+
+  if (preferencia) localStorage.removeItem(CHAVE_LEMBRAR);
+  if (sessionStorage.getItem(CHAVE_SESSAO_ABERTA) === usuarioId) return true;
+
+  // Mantém quem já estava conectado antes desta funcionalidade. Essa
+  // compatibilidade só é aplicada uma vez neste navegador.
+  if (permitirMigracao && !localStorage.getItem(CHAVE_POLITICA_INICIADA)) {
+    registrarPreferenciaSessao(session, true);
+    return true;
+  }
+
+  return false;
+}
+
+function lerPreferenciaSessao() {
+  try {
+    const valor = JSON.parse(localStorage.getItem(CHAVE_LEMBRAR));
+    if (!valor || !valor.usuarioId || !Number.isFinite(valor.expiraEm)) return null;
+    return valor;
+  } catch {
+    return null;
+  }
+}
+
+function agendarExpiracao(session) {
+  window.clearTimeout(timerExpiracao);
+  const preferencia = lerPreferenciaSessao();
+  if (!preferencia || preferencia.usuarioId !== session?.user?.id) return;
+
+  const restante = preferencia.expiraEm - Date.now();
+  if (restante <= 0) {
+    void encerrarSessaoLocal().then(() => {
+      window.location.href = resolveRootPath('index.html');
+    });
+    return;
+  }
+
+  timerExpiracao = window.setTimeout(() => agendarExpiracao(session), Math.min(restante, TIMER_MAXIMO_MS));
+}
+
+function limparPreferenciaSessao() {
+  window.clearTimeout(timerExpiracao);
+  timerExpiracao = null;
+  localStorage.removeItem(CHAVE_LEMBRAR);
+  localStorage.setItem(CHAVE_POLITICA_INICIADA, '1');
+  sessionStorage.removeItem(CHAVE_SESSAO_ABERTA);
+}
+
+async function encerrarSessaoLocal() {
+  perfilAtual = null;
+  limparPreferenciaSessao();
+  await supabase.auth.signOut({ scope: 'local' });
 }
 
 async function carregarPerfil(usuarioId) {

@@ -160,6 +160,42 @@
 .section-title h2 { margin: 0; font-size: 1.3rem; }
 .catalog-heading { justify-content: space-between; }
 
+.catalog-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 0 18px;
+}
+.catalog-page-header h2 { margin: 0 0 4px; }
+.catalog-page-header p,
+.catalog-tab-description { color: var(--text-secondary); }
+.catalog-page-header p { margin: 0; }
+
+.catalog-tabs {
+  display: inline-flex;
+  gap: 5px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.catalog-tabs a {
+  padding: 9px 15px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.catalog-tabs a:hover { color: var(--text-primary); }
+.catalog-tabs a.active {
+  color: #fff;
+  background: var(--accent);
+}
+.catalog-subpage { max-width: 900px; padding-top: 1px; padding-bottom: 60px; }
+.catalog-tab-description { margin: -4px 0 24px; }
+
 /* ---------- Filters bar ---------- */
 .filters-bar {
   display: flex;
@@ -260,6 +296,8 @@
 .chip-yes { background: rgba(79, 178, 134, 0.18); color: var(--success); }
 .chip-no { background: rgba(217, 112, 112, 0.18); color: var(--danger); }
 .chip-pending { background: rgba(224, 168, 63, 0.18); color: #e0a83f; }
+.chip-watchlist { background: var(--accent-glow); color: var(--accent-2); }
+.card-watchlist-label { color: var(--accent-2); font-family: inherit !important; font-size: 0.8rem !important; }
 
 /* ---------- FAB add button ---------- */
 .fab {
