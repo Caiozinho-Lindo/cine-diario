@@ -10,6 +10,39 @@
 .profile-preview-avatar img, .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .profile-preview strong, .profile-preview small { display: block; }
 .profile-preview small { margin-top: 3px; color: var(--text-secondary); }
+.profile-streamings { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--card-border); }
+.profile-streamings h3 { margin: 0 0 12px; }
+.profile-streamings .settings-help { margin: -5px 0 14px; }
+.streamings-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 15px 0; }
+.streaming-option { position: relative; display: grid; min-height: 72px; place-items: center; padding: 10px 8px; border: 1px solid var(--card-border); border-radius: var(--radius-sm); background: var(--surface-elevated); cursor: pointer; }
+.streaming-option:hover { border-color: var(--accent-2); transform: translateY(-1px); }
+.streaming-option:has(input:checked) { border-color: var(--accent); background: var(--accent-glow); box-shadow: inset 0 0 0 1px var(--accent); }
+.streaming-option:has(input:focus-visible) { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.streaming-option input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.streaming-check { position: absolute; top: 6px; right: 7px; display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; color: transparent; background: var(--surface); font-size: 0.68rem; font-weight: 800; }
+.streaming-option:has(input:checked) .streaming-check { color: #fff; background: var(--accent); }
+.streaming-logo { display: grid; width: 100%; min-width: 0; height: 38px; place-items: center; line-height: 1; }
+.brand-netflix { position: relative; width: 24px; height: 38px; }
+.brand-netflix i { position: absolute; top: 1px; width: 7px; height: 36px; background: #b20710; }
+.brand-netflix i:first-child { left: 2px; }
+.brand-netflix i:nth-child(2) { z-index: 2; left: 9px; background: #e50914; box-shadow: 1px 0 3px rgba(0, 0, 0, 0.35); transform: rotate(-18deg); }
+.brand-netflix i:last-child { right: 2px; }
+.brand-prime { position: relative; display: grid; color: #39a9e8; font-family: Arial, sans-serif; text-align: center; }
+.brand-prime b { font-size: 1rem; font-weight: 700; letter-spacing: -0.04em; }
+.brand-prime i { height: 8px; margin-top: -5px; font-size: 1.35rem; font-style: normal; transform: scaleX(1.6); }
+.brand-disney { position: relative; display: grid; color: #d8e8ff; font-family: Georgia, serif; font-style: italic; }
+.brand-disney i { width: 48px; height: 15px; margin-bottom: -9px; border-top: 2px solid #6aa9ff; border-radius: 50%; transform: rotate(-7deg); }
+.brand-disney b { font-size: 0.9rem; }
+.brand-max { color: #a66cff; font-family: Arial Black, Arial, sans-serif; font-size: 1.4rem; letter-spacing: -0.13em; }
+.brand-globo { position: relative; display: grid; width: 35px; height: 35px; place-items: center; border-radius: 50%; background: conic-gradient(#f9d423, #f06, #8d5cff, #00b7ff, #00d084, #f9d423); }
+.brand-globo::before { position: absolute; width: 24px; height: 17px; border-radius: 5px; background: var(--surface-elevated); content: ''; }
+.brand-globo i { position: relative; z-index: 1; color: #fff; font-size: 0.62rem; font-style: normal; }
+.brand-apple { display: flex; align-items: center; gap: 4px; color: #f5f5f5; font-family: Arial, sans-serif; }
+.brand-apple i { font-size: 1.3rem; font-style: normal; }
+.brand-apple b { font-size: 1.15rem; }
+.brand-paramount { position: relative; display: grid; width: 36px; height: 36px; place-items: center; border: 2px solid #4b91ff; border-radius: 50%; color: #dbeaff; }
+.brand-paramount i { font-size: 1rem; font-style: normal; }
+.brand-paramount b { position: absolute; right: -8px; bottom: -2px; color: #4b91ff; font-size: 1rem; }
 .compact-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--card-border); }
 .spaces-list { display: grid; gap: 10px; margin-bottom: 18px; }
 .space-entry-actions, .invite-actions, .invite-copy-actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -40,3 +73,4 @@
 .space-picker select { max-width: 180px; padding: 7px 10px; border: 1px solid var(--input-border); border-radius: 9px; color: var(--text-primary); background: var(--input-bg); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 760px) { .settings-grid { grid-template-columns: 1fr; } .space-picker { order: 3; width: 100%; } .space-picker select { max-width: none; width: 100%; } .member-row { align-items: flex-start; flex-wrap: wrap; } .member-role-actions { width: 100%; padding-left: 48px; } }
+@media (max-width: 520px) { .streamings-options { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

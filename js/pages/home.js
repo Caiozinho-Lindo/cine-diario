@@ -1,10 +1,11 @@
 // js/pages/home.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getAllTitulosComAvaliacoes } from '../titulos.js';
-import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js';
+import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
 import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
+import { getSessaoPendente } from '../sessoes.js';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -36,6 +37,8 @@ async function init() {
     }
   });
 
+  renderSessaoPendente().catch(error => console.error('[sessão pendente]', error));
+
   try {
     window._titulos = await getAllTitulosComAvaliacoes();
     renderTudo(modoAtivo);
@@ -43,6 +46,29 @@ async function init() {
     console.error(err);
     showToast('Erro ao carregar dados. Verifique sua conexão e configuração do Supabase.', 'error');
   }
+}
+
+async function renderSessaoPendente() {
+  const sessao = await getSessaoPendente();
+  if (!sessao) return;
+  const titulo = sessao.titulo;
+  const minhaParticipacao = (sessao.participantes || [])
+    .find(item => item.usuario_id === usuarioIdAtual);
+  const precisoConfirmar = Boolean(minhaParticipacao) && !minhaParticipacao.confirmado_em;
+  const banner = document.getElementById('pending-session-banner');
+  banner.hidden = false;
+  banner.innerHTML = `
+    ${titulo?.capa_url ? `<img src="${safeImageSrc(titulo.capa_url)}" alt="" />` : '<span class="pending-session-icon">🎬</span>'}
+    <div class="pending-session-copy">
+      <span class="eyebrow">Sessão pendente</span>
+      <strong>${escapeHtml(titulo?.nome || 'Título escolhido')}</strong>
+      <small>${precisoConfirmar
+        ? 'Confirme depois de assistir e registre sua nota.'
+        : 'Aguardando a confirmação dos participantes.'}</small>
+    </div>
+    ${precisoConfirmar
+      ? `<a class="btn btn-primary btn-sm" href="edit.html?edit=${encodeURIComponent(sessao.titulo_id)}&sessao=${encodeURIComponent(sessao.id)}">Confirmar e avaliar</a>`
+      : `<a class="btn btn-secondary btn-sm" href="details.html?id=${encodeURIComponent(sessao.titulo_id)}">Ver título</a>`}`;
 }
 
 function renderTudo(modo) {

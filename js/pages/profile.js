@@ -22,6 +22,7 @@ import {
 } from '../espacos.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao } from '../ui.js';
+import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 
 const CHAVE_CONVITE_PENDENTE = 'cine_diario_convite_pendente';
 
@@ -47,6 +48,7 @@ async function init() {
   renderCabecalho();
 
   preencherPerfil(perfilAtual);
+  await carregarStreamings();
   await renderEspacos();
   renderDetalhesEspaco();
   ligarEventos();
@@ -70,6 +72,32 @@ function preencherPerfil(perfil) {
   document.getElementById('profile-theme').value = normalizarTemaPerfil(perfil.tema);
   document.getElementById('profile-color').value = perfil.cor_destaque || '#c98fd0';
   renderPreviaPerfil();
+}
+
+async function carregarStreamings() {
+  const selecionados = new Set(await getMeusStreamings(getUserId(session)));
+  document.getElementById('streamings-options').innerHTML = SERVICOS_STREAMING.map(servico => `
+    <label class="streaming-option" title="${escapeHtml(servico.nome)}">
+      <input type="checkbox" name="streaming" value="${escapeHtml(servico.slug)}" ${selecionados.has(servico.slug) ? 'checked' : ''} />
+      <span class="streaming-logo streaming-logo-${escapeHtml(servico.slug)}" aria-hidden="true">
+        ${iconeStreaming(servico.slug)}
+      </span>
+      <span class="sr-only">${escapeHtml(servico.nome)}</span>
+      <span class="streaming-check" aria-hidden="true">✓</span>
+    </label>`).join('');
+}
+
+function iconeStreaming(slug) {
+  const icones = {
+    netflix: '<span class="brand-netflix"><i></i><i></i><i></i></span>',
+    'prime-video': '<span class="brand-prime"><b>prime</b><i>⌣</i></span>',
+    'disney-plus': '<span class="brand-disney"><i></i><b>Disney+</b></span>',
+    max: '<span class="brand-max">max</span>',
+    globoplay: '<span class="brand-globo"><i>▶</i></span>',
+    'apple-tv-plus': '<span class="brand-apple"><i>●</i><b>tv+</b></span>',
+    'paramount-plus': '<span class="brand-paramount"><i>▲</i><b>+</b></span>'
+  };
+  return icones[slug] || '<span>▶</span>';
 }
 
 function normalizarTemaPerfil(tema) {
@@ -218,19 +246,22 @@ async function salvarPerfil(event) {
   btn.disabled = true;
   try {
     const tema = document.getElementById('profile-theme').value;
+    const streamingsSelecionados = [...document.querySelectorAll('input[name="streaming"]:checked')]
+      .map(input => input.value);
     perfilAtual = await atualizarPerfil(getUserId(session), {
       nome_exibicao: document.getElementById('profile-name').value.trim(),
       avatar_url: document.getElementById('profile-avatar').value.trim() || null,
       tema,
       cor_destaque: document.getElementById('profile-color').value
     });
+    await salvarMeusStreamings(getUserId(session), streamingsSelecionados);
     const membroAtual = membrosEspaco.find(membro => membro.usuario_id === getUserId(session));
     if (membroAtual) membroAtual.perfil = { ...membroAtual.perfil, ...perfilAtual };
     aplicarTema(tema, perfilAtual.cor_destaque);
     renderCabecalho();
     renderPreviaPerfil();
     renderDetalhesEspaco();
-    showToast('Perfil atualizado.');
+    showToast('Perfil e streamings atualizados.');
   } catch (error) {
     console.error(error);
     showToast('Não foi possível atualizar o perfil.', 'error');

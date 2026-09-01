@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Escolher hoje — Cine Diário</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="../css/global.css" />
+<link rel="stylesheet" href="../css/themes.css" />
+<link rel="stylesheet" href="../css/components.css" />
+<link rel="stylesheet" href="../css/recommend.css" />
+<link rel="stylesheet" href="../css/responsive.css" />
+</head>
+<body class="theme-cinema" data-page="recommend">
+  <nav class="navbar" id="navbar"></nav>
+
+  <main class="container recommend-page">
+    <header class="recommend-header">
+      <span class="eyebrow">Recomendador do espaço</span>
+      <h1>O que vamos assistir hoje?</h1>
+      <p>Faça algumas escolhas rápidas. O Cine Diário cuida do resto.</p>
+    </header>
+
+    <ol class="recommend-progress" aria-label="Etapas do recomendador">
+      <li class="active" data-progress="setup"><span>1</span>Preparar</li>
+      <li data-progress="results"><span>2</span>Finalistas</li>
+      <li data-progress="session"><span>3</span>Sessão</li>
+    </ol>
+
+    <section id="recommend-setup" class="recommend-panel" data-step="setup">
+      <div class="recommend-fields">
+        <fieldset class="recommend-field recommend-field-wide">
+          <legend>Quem vai assistir?</legend>
+          <div id="recommend-members" class="choice-pills"></div>
+        </fieldset>
+
+        <fieldset class="recommend-field recommend-field-wide">
+          <legend>O que querem assistir?</legend>
+          <div class="choice-pills">
+            <button class="choice-pill active" data-type="filme" type="button">Filme</button>
+            <button class="choice-pill" data-type="serie" type="button">Série</button>
+          </div>
+          <div id="series-mode-field" class="series-mode-field" hidden>
+            <span>Para a série:</span>
+            <div class="choice-pills">
+              <button class="choice-pill active" data-series-mode="nova" type="button">Começar uma nova</button>
+              <button class="choice-pill" data-series-mode="continuar" type="button">Continuar uma série</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="recommend-field recommend-field-wide">
+          <legend>Qual é o clima de hoje?</legend>
+          <div class="choice-pills">
+            <button class="choice-pill active" data-mood="rir" type="button">😄 Quero rir</button>
+            <button class="choice-pill" data-mood="emocao" type="button">💗 Quero emoção</button>
+            <button class="choice-pill" data-mood="tensao" type="button">😰 Quero tensão</button>
+            <button class="choice-pill" data-mood="pensar" type="button">💭 Quero pensar</button>
+            <button class="choice-pill" data-mood="qualquer" type="button">🎲 Qualquer coisa</button>
+          </div>
+        </fieldset>
+
+        <div class="recommend-field recommend-field-wide">
+          <span class="field-label">Streamings disponíveis</span>
+          <div id="recommend-streamings" class="streaming-summary"></div>
+        </div>
+      </div>
+
+      <footer class="recommend-panel-footer">
+        <p>Primeiro serão considerados os títulos da lista “Para assistir”.</p>
+        <button id="recommend-find" class="btn btn-primary" type="button">Encontrar três opções →</button>
+      </footer>
+    </section>
+
+    <section id="recommend-results" data-step="results" hidden aria-live="polite">
+      <header class="results-heading">
+        <div>
+          <h2>Três opções da sua lista</h2>
+          <p id="results-summary"></p>
+        </div>
+        <div class="results-actions">
+          <button class="btn btn-secondary" data-action="back" type="button">Alterar respostas</button>
+          <button class="btn btn-primary" id="recommend-raffle" type="button">🎲 Ainda em dúvida? Sortear</button>
+        </div>
+      </header>
+      <div id="recommend-loading" class="recommend-panel" hidden><div class="spinner"></div></div>
+      <div id="recommend-empty" class="recommend-panel recommend-empty" hidden></div>
+      <div id="recommend-finalists" class="finalists-grid"></div>
+      <div class="more-finalists">
+        <button id="recommend-more" class="btn btn-secondary" type="button">Mostrar outras três opções</button>
+      </div>
+    </section>
+
+    <section id="recommend-session" data-step="session" hidden aria-live="polite"></section>
+  </main>
+
+  <script src="../config.js"></script>
+  <script type="module" src="../js/pages/recommend.js"></script>
+</body>
+</html>

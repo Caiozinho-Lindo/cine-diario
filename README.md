@@ -14,6 +14,8 @@ O projeto é um site estático em HTML, CSS e JavaScript, com Supabase para aute
 - avaliações individuais e visão geral do espaço;
 - catálogo com pesquisa no TMDB, filtros e inclusão no mesmo fluxo;
 - lista “Para assistir” com roleta;
+- recomendador “Escolher hoje”, com clima, participantes e streamings;
+- três finalistas, sorteio e sessão pendente até todos os participantes avaliarem;
 - destaques e estatísticas adaptados à quantidade real de participantes.
 
 ## Modelo de dados
@@ -26,6 +28,8 @@ O projeto é um site estático em HTML, CSS e JavaScript, com Supabase para aute
 - `avaliacoes`: nota e observação vinculadas ao autor;
 - `biblioteca_usuario`: situação pessoal de cada título;
 - `preferencias_usuario`: preferências privadas reservadas para evolução futura.
+- `usuario_streamings`: serviços disponíveis para cada pessoa;
+- `sessoes` e `sessao_participantes`: escolhas pendentes e confirmações individuais.
 
 ## Migrações
 
@@ -36,6 +40,7 @@ Os arquivos ficam em `supabase/migrations/` e devem ser executados na ordem num�
 3. `003_validar_migracao_multiusuario.sql` para conferir a migração histórica
 4. `004_convites_e_papeis.sql`
 5. `005_finalizar_nomes_de_tema.sql`, somente depois de publicar o código novo
+6. `006_recomendador_e_sessoes.sql`
 
 A migração 004 cria os convites, simplifica os papéis, remove classificações de espaço e elimina a preferência de página inicial. A migração 005 encerra a compatibilidade temporária com a versão anterior do site. Antes de qualquer migração no ambiente online, exporte as tabelas principais e confira as contagens.
 
@@ -51,6 +56,9 @@ A migração 004 cria os convites, simplifica os papéis, remove classificaçõe
 │   ├── espacos.js
 │   ├── filters.js
 │   ├── statistics.js
+│   ├── recommendations.js
+│   ├── sessoes.js
+│   ├── streamings.js
 │   ├── themes.js
 │   ├── titulos.js
 │   ├── tmdb.js
@@ -62,6 +70,7 @@ A migração 004 cria os convites, simplifica os papéis, remove classificaçõe
 │       ├── details.js
 │       ├── edit.js
 │       ├── profile.js
+│       ├── recommend.js
 │       └── wishlist.js
 ├── pages/
 │   ├── home.html
@@ -69,6 +78,7 @@ A migração 004 cria os convites, simplifica os papéis, remove classificaçõe
 │   ├── details.html
 │   ├── edit.html
 │   ├── profile.html
+│   ├── recommend.html
 │   └── wishlist.html
 └── supabase/migrations/
 ```

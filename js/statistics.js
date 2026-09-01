@@ -66,14 +66,14 @@ export function calcularDestaques(titulos) {
 function topPorMedia(lista) {
   if (!lista.length) return [];
   const max = Math.max(...lista.map(t => t.media));
-  return lista.filter(t => t.media === max);
+  return maisRecente(lista.filter(t => t.media === max));
 }
 
 function topPorDiferenca(lista) {
   const comDiferenca = lista.filter(t => t.diferenca !== null && t.diferenca > 0);
   if (!comDiferenca.length) return [];
   const max = Math.max(...comDiferenca.map(t => t.diferenca));
-  return comDiferenca.filter(t => t.diferenca === max);
+  return maisRecente(comDiferenca.filter(t => t.diferenca === max));
 }
 
 function topPorNotaMembro(lista, usuarioId) {
@@ -88,5 +88,30 @@ function topPorNotaMembro(lista, usuarioId) {
   const max = Math.max(...avaliados.map(item => Number(item.avaliacao.nota)));
   return avaliados
     .filter(item => Number(item.avaliacao.nota) === max)
+    .sort((a, b) => dataDaAvaliacao(b.avaliacao, b.titulo) - dataDaAvaliacao(a.avaliacao, a.titulo))
+    .slice(0, 1)
     .map(item => item.titulo);
+}
+
+function maisRecente(lista) {
+  return [...lista]
+    .sort((a, b) => dataMaisRecente(b) - dataMaisRecente(a))
+    .slice(0, 1);
+}
+
+function dataMaisRecente(titulo) {
+  const datas = (titulo.avaliacoesMembros || [])
+    .map(item => dataDaAvaliacao(item.avaliacao, titulo));
+  return Math.max(...datas, dataSegura(titulo.criado_em));
+}
+
+function dataDaAvaliacao(avaliacao, titulo) {
+  return dataSegura(avaliacao?.data_avaliacao)
+    || dataSegura(titulo?.data_assistido)
+    || dataSegura(titulo?.criado_em);
+}
+
+function dataSegura(valor) {
+  const timestamp = new Date(valor || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }

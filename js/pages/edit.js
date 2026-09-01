@@ -4,6 +4,7 @@ import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../tit
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
+import { confirmarSessao } from '../sessoes.js';
 
 let sessionAtual = null;
 let perfilAtual = null;
@@ -11,6 +12,7 @@ let membrosEspaco = [];
 let dadosSelecionados = null;
 let tituloExistente = null;
 let editId = null;
+let sessaoId = null;
 
 init();
 
@@ -18,7 +20,9 @@ async function init() {
   sessionAtual = await requireSession();
   if (!sessionAtual) return;
 
-  editId = new URLSearchParams(window.location.search).get('edit');
+  const params = new URLSearchParams(window.location.search);
+  editId = params.get('edit');
+  sessaoId = params.get('sessao');
   if (!editId) {
     window.location.replace('catalog.html?adicionar=1');
     return;
@@ -141,6 +145,9 @@ function mostrarFormulario() {
   if (!document.getElementById('f-data-avaliacao').value) {
     document.getElementById('f-data-avaliacao').value = new Date().toISOString().slice(0, 10);
   }
+  if (sessaoId && !document.getElementById('f-data-assistido').value) {
+    document.getElementById('f-data-assistido').value = new Date().toISOString().slice(0, 10);
+  }
 }
 
 function atualizarDisplayNota() {
@@ -187,6 +194,8 @@ async function onSubmit(e) {
       observacao: document.getElementById('f-observacao').value.trim(),
       dataAvaliacao: document.getElementById('f-data-avaliacao').value
     });
+
+    if (sessaoId) await confirmarSessao(sessaoId);
 
     showToast('Título salvo com sucesso!');
     window.location.href = `details.html?id=${tituloId}`;

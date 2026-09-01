@@ -181,6 +181,39 @@
 .highlight-card .highlight-meta { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
 .highlight-empty { color: var(--text-secondary); font-size: 0.9rem; }
 
+.pending-session-home {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 26px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-glow);
+}
+.pending-session-home[hidden] { display: none; }
+.pending-session-home img,
+.pending-session-icon { width: 42px; height: 58px; flex: 0 0 auto; border-radius: 6px; object-fit: cover; }
+.pending-session-icon { display: grid; place-items: center; background: var(--surface-elevated); }
+.pending-session-copy { min-width: 0; flex: 1; }
+.pending-session-copy strong,
+.pending-session-copy small { display: block; }
+.pending-session-copy small { margin-top: 3px; color: var(--text-secondary); }
+
+@media (max-width: 640px) {
+  .pending-session-home { align-items: stretch; flex-wrap: wrap; }
+  .pending-session-copy { flex-basis: calc(100% - 60px); }
+  .pending-session-home .btn { width: 100%; }
+}
+
+.eyebrow {
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* ---------- Section headers ---------- */
 .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .section-title h2 { margin: 0; font-size: 1.3rem; }
