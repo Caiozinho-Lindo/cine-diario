@@ -3,9 +3,10 @@ import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getAllTitulosComAvaliacoes } from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
 import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
+import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente } from '../sessoes.js';
+import { initRecommend } from './recommend.js?v=20260902.1';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -42,6 +43,15 @@ async function init() {
   try {
     window._titulos = await getAllTitulosComAvaliacoes();
     renderTudo(modoAtivo);
+    await initRecommend({
+      embedded: true,
+      session,
+      perfilAtual,
+      espacoAtivo,
+      membros: membrosEspaco,
+      usuarioId: usuarioIdAtual,
+      historicoInicial: window._titulos
+    });
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar dados. Verifique sua conexão e configuração do Supabase.', 'error');
@@ -75,6 +85,36 @@ function renderTudo(modo) {
   const titulos = window._titulos || [];
   renderStats(titulos, modo);
   renderHighlights(titulos);
+  renderCatalogoRecente(titulos, modo);
+}
+
+function renderCatalogoRecente(titulos, modo) {
+  const grid = document.getElementById('home-catalog-grid');
+  if (!grid) return;
+  const recentes = [...titulos]
+    .sort((a, b) => new Date(b.criado_em || 0) - new Date(a.criado_em || 0))
+    .slice(0, 6);
+
+  if (!recentes.length) {
+    grid.innerHTML = '<div class="home-catalog-empty">O catálogo ainda está vazio.</div>';
+    return;
+  }
+
+  grid.innerHTML = '';
+  recentes.forEach(titulo => {
+    const card = renderTituloCard(titulo, modo);
+    card.tabIndex = 0;
+    card.setAttribute('role', 'link');
+    const abrir = () => { window.location.href = `details.html?id=${encodeURIComponent(titulo.id)}`; };
+    card.addEventListener('click', abrir);
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        abrir();
+      }
+    });
+    grid.appendChild(card);
+  });
 }
 
 function renderStats(titulos, modo) {

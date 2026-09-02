@@ -25,27 +25,30 @@ let idsExibidos = new Set();
 const participantes = new Set();
 const detalhesCache = new Map();
 
-init();
+if (document.body.dataset.page === 'recommend') initRecommend();
 
-async function init() {
-  session = await requireSession();
+export async function initRecommend(contexto = {}) {
+  session = contexto.session || await requireSession();
   if (!session) return;
 
-  perfilAtual = await getCurrentProfile(session);
-  usuarioId = getUserId(session);
-  espacoAtivo = await getEspacoAtivo();
-  membros = await getMembrosDoEspaco(espacoAtivo.id);
+  perfilAtual = contexto.perfilAtual || await getCurrentProfile(session);
+  usuarioId = contexto.usuarioId || getUserId(session);
+  espacoAtivo = contexto.espacoAtivo || await getEspacoAtivo();
+  membros = contexto.membros || await getMembrosDoEspaco(espacoAtivo.id);
+  participantes.clear();
   participantes.add(usuarioId);
   aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
 
-  renderNavbar(document.getElementById('navbar'), {
-    activePage: 'recommend',
-    modoAtivo: normalizarModoAtivo(membros, usuarioId),
-    perfilAtual,
-    membros,
-    usuarioId,
-    onModoChange: () => {}
-  });
+  if (!contexto.embedded) {
+    renderNavbar(document.getElementById('navbar'), {
+      activePage: 'recommend',
+      modoAtivo: normalizarModoAtivo(membros, usuarioId),
+      perfilAtual,
+      membros,
+      usuarioId,
+      onModoChange: () => {}
+    });
+  }
 
   ligarEventos();
   renderMembros();
@@ -53,7 +56,9 @@ async function init() {
   try {
     [desejos, historico, streamingsPorUsuario] = await Promise.all([
       getListaDesejos(),
-      getAllTitulosComAvaliacoes(),
+      contexto.historicoInicial
+        ? Promise.resolve(contexto.historicoInicial)
+        : getAllTitulosComAvaliacoes(),
       getStreamingsDosUsuarios(membros.map(membro => membro.usuario_id))
     ]);
     renderStreamings();

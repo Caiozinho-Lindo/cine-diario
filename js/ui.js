@@ -55,7 +55,6 @@ export function renderNavbar(container, {
       <div class="navbar-links">
         <a href="${root}pages/home.html" data-page="home">Início</a>
         <a href="${root}pages/catalog.html" data-page="catalog">Catálogo</a>
-        <a href="${root}pages/recommend.html" data-page="recommend">Escolher hoje</a>
         <a href="${root}pages/profile.html" data-page="profile">Perfil e espaços</a>
       </div>
 
