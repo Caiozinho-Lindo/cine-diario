@@ -2,6 +2,16 @@
    RESPONSIVE
    ========================================================================== */
 
+@media (max-width: 1050px) {
+  .cards-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+@media (max-width: 880px) {
+  .cards-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .catalog-toolbar { align-items: flex-start; flex-direction: column; }
+  .catalog-primary-filters { justify-content: flex-start; width: 100%; }
+}
+
 @media (max-width: 640px) {
   .navbar-inner { flex-wrap: wrap; gap: 10px; }
   .navbar-links { order: 3; width: 100%; overflow-x: auto; justify-content: space-between; }
@@ -14,17 +24,22 @@
   .details-hero-content .poster { width: 130px; }
 
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-
-  .filters-bar { flex-direction: column; align-items: stretch; }
-  .filters-bar input[type="search"] { max-width: none; }
+  .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 10px; }
 
   .catalog-heading,
   .catalog-add-header { align-items: stretch; flex-direction: column; }
   .catalog-page-header { align-items: stretch; flex-direction: column; }
   .catalog-page-header .btn { width: 100%; }
   .catalog-tabs { display: flex; width: 100%; }
-  .catalog-tabs a { flex: 1; text-align: center; }
+  .catalog-tabs button,
+  .catalog-tabs a { flex: 1; padding-inline: 8px; text-align: center; }
+  .catalog-primary-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .catalog-primary-filters select,
+  .catalog-primary-filters .btn { width: 100%; min-width: 0; }
+  .catalog-extra-filters { grid-template-columns: 1fr; }
   .catalog-heading .btn,
   .catalog-add-header .btn { width: 100%; }
   .catalog-add-form { padding: 16px; }
@@ -37,7 +52,7 @@
   .login-card { padding: 30px 24px; }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

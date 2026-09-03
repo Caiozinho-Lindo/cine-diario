@@ -21,7 +21,7 @@ import {
   showEmptyState,
   showSpinner,
   showToast
-} from '../ui.js';
+} from '../ui.js?v=20260902.2';
 
 let titulos = [];
 let modoAtivo = 'geral';
@@ -31,6 +31,10 @@ let dadosSelecionados = null;
 let buscaExternaTimer = null;
 let secaoCatalogo = 'todos';
 let membrosEspaco = [];
+let limiteResultados = 24;
+let modoAdicionar = 'assistido';
+
+const RESULTADOS_POR_PAGINA = 24;
 
 init();
 
@@ -70,16 +74,19 @@ async function init() {
     return;
   }
 
+  atualizarTotalCatalogo();
   popularSelects();
   ligarFiltros();
+  ligarNavegacaoCatalogo();
   ligarAdicaoInline();
 
   // Suporte a ?filtro=pendentes vindo de outras páginas
   const params = new URLSearchParams(window.location.search);
-  secaoCatalogo = params.get('secao') === 'assistidos' ? 'assistidos' : 'todos';
+  secaoCatalogo = normalizarSecao(params.get('secao'));
   atualizarAbasCatalogo();
   if (params.get('filtro')) {
     document.getElementById('f-avaliacao').value = params.get('filtro');
+    abrirFiltrosExtras();
   }
 
   renderResultados();
@@ -112,7 +119,32 @@ function popularSelects() {
 function ligarFiltros() {
   ['f-busca', 'f-tipo', 'f-avaliacao', 'f-genero', 'f-ano', 'f-ordenacao'].forEach(id => {
     const el = document.getElementById(id);
-    el.addEventListener(id === 'f-busca' ? 'input' : 'change', renderResultados);
+    el.addEventListener(id === 'f-busca' ? 'input' : 'change', () => {
+      limiteResultados = RESULTADOS_POR_PAGINA;
+      atualizarEstadoFiltrosExtras();
+      renderResultados();
+    });
+  });
+
+  document.getElementById('toggle-extra-filters').addEventListener('click', alternarFiltrosExtras);
+  document.getElementById('clear-catalog-filters').addEventListener('click', limparFiltrosCatalogo);
+  document.getElementById('catalog-load-more').addEventListener('click', () => {
+    limiteResultados += RESULTADOS_POR_PAGINA;
+    renderResultados();
+  });
+}
+
+function ligarNavegacaoCatalogo() {
+  document.querySelectorAll('[data-catalog-section]').forEach(botao => {
+    botao.addEventListener('click', () => {
+      secaoCatalogo = normalizarSecao(botao.dataset.catalogSection);
+      limiteResultados = RESULTADOS_POR_PAGINA;
+      document.getElementById('f-avaliacao').value = '';
+      atualizarAbasCatalogo();
+      atualizarUrlCatalogo();
+      atualizarEstadoFiltrosExtras();
+      renderResultados();
+    });
   });
 }
 
@@ -126,15 +158,20 @@ function renderResultados() {
     ordenacao: document.getElementById('f-ordenacao').value
   };
 
-  const titulosDaSecao = secaoCatalogo === 'assistidos'
-    ? titulos.filter(titulo => !titulo.quero_assistir)
-    : titulos;
+  const titulosDaSecao = filtrarPorSecao(titulos);
   const resultado = aplicarFiltros(titulosDaSecao, filtros, modoAtivo);
+  const resultadoVisivel = resultado.slice(0, limiteResultados);
   const grid = document.getElementById('cards-grid');
+  const botaoCarregarMais = document.getElementById('catalog-load-more');
   grid.innerHTML = '';
 
   document.getElementById('results-count').textContent =
     `${resultado.length} título${resultado.length === 1 ? '' : 's'} encontrado${resultado.length === 1 ? '' : 's'}`;
+  botaoCarregarMais.hidden = resultado.length <= limiteResultados;
+  if (!botaoCarregarMais.hidden) {
+    const restantes = resultado.length - limiteResultados;
+    botaoCarregarMais.textContent = `Carregar mais (${Math.min(RESULTADOS_POR_PAGINA, restantes)})`;
+  }
 
   if (!resultado.length) {
     const busca = filtros.busca.trim();
@@ -153,8 +190,8 @@ function renderResultados() {
     return;
   }
 
-  resultado.forEach(t => {
-    const card = renderTituloCard(t, modoAtivo);
+  resultadoVisivel.forEach(t => {
+    const card = renderTituloCard(t, modoAtivo, { compactoCatalogo: true });
     card.addEventListener('click', () => {
       window.location.href = `details.html?id=${t.id}`;
     });
@@ -163,12 +200,79 @@ function renderResultados() {
 }
 
 function atualizarAbasCatalogo() {
-  document.querySelectorAll('[data-catalog-section]').forEach(link => {
-    const ativa = link.dataset.catalogSection === secaoCatalogo;
-    link.classList.toggle('active', ativa);
-    if (ativa) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
+  document.querySelectorAll('[data-catalog-section]').forEach(botao => {
+    const ativa = botao.dataset.catalogSection === secaoCatalogo;
+    botao.classList.toggle('active', ativa);
+    botao.setAttribute('aria-selected', String(ativa));
   });
+  atualizarBotaoAdicionar();
+}
+
+function filtrarPorSecao(lista) {
+  if (secaoCatalogo === 'assistidos') return lista.filter(titulo => !titulo.quero_assistir);
+  if (secaoCatalogo === 'para_assistir') return lista.filter(titulo => titulo.quero_assistir);
+  return lista;
+}
+
+function normalizarSecao(secao) {
+  return ['assistidos', 'para_assistir'].includes(secao) ? secao : 'todos';
+}
+
+function atualizarTotalCatalogo() {
+  const total = titulos.length;
+  document.getElementById('catalog-total-count').textContent =
+    `${total} título${total === 1 ? '' : 's'} no espaço`;
+}
+
+function atualizarBotaoAdicionar() {
+  const botao = document.getElementById('open-add-view');
+  botao.textContent = secaoCatalogo === 'para_assistir'
+    ? '+ Adicionar à lista'
+    : '+ Adicionar título';
+}
+
+function atualizarUrlCatalogo() {
+  const url = new URL(window.location.href);
+  url.search = '';
+  if (secaoCatalogo !== 'todos') url.searchParams.set('secao', secaoCatalogo);
+  history.replaceState(null, '', `${url.pathname.split('/').pop()}${url.search}`);
+}
+
+function alternarFiltrosExtras() {
+  const painel = document.getElementById('catalog-extra-filters');
+  if (painel.hidden) abrirFiltrosExtras();
+  else fecharFiltrosExtras();
+}
+
+function abrirFiltrosExtras() {
+  const painel = document.getElementById('catalog-extra-filters');
+  painel.hidden = false;
+  document.getElementById('toggle-extra-filters').setAttribute('aria-expanded', 'true');
+}
+
+function fecharFiltrosExtras() {
+  const painel = document.getElementById('catalog-extra-filters');
+  painel.hidden = true;
+  document.getElementById('toggle-extra-filters').setAttribute('aria-expanded', 'false');
+}
+
+function atualizarEstadoFiltrosExtras() {
+  const ativos = Boolean(
+    document.getElementById('f-avaliacao').value
+    || document.getElementById('f-ano').value
+  );
+  document.getElementById('toggle-extra-filters').classList.toggle('has-active-filters', ativos);
+}
+
+function limparFiltrosCatalogo() {
+  document.getElementById('f-tipo').value = 'todos';
+  document.getElementById('f-avaliacao').value = '';
+  document.getElementById('f-genero').value = '';
+  document.getElementById('f-ano').value = '';
+  document.getElementById('f-ordenacao').value = 'recentes';
+  limiteResultados = RESULTADOS_POR_PAGINA;
+  atualizarEstadoFiltrosExtras();
+  renderResultados();
 }
 
 /* ==========================================================================
@@ -195,6 +299,7 @@ function ligarAdicaoInline() {
 }
 
 function abrirAdicionar(query = '') {
+  modoAdicionar = secaoCatalogo === 'para_assistir' ? 'lista' : 'assistido';
   document.getElementById('catalog-view').hidden = true;
   document.getElementById('catalog-add-view').hidden = false;
   document.getElementById('open-add-view').hidden = true;
@@ -208,7 +313,18 @@ function abrirAdicionar(query = '') {
   document.getElementById('catalog-review-date').value = new Date().toISOString().slice(0, 10);
   atualizarTituloAvaliacao();
 
-  history.replaceState(null, '', 'catalog.html?adicionar=1');
+  document.getElementById('catalog-add-title').textContent = modoAdicionar === 'lista'
+    ? 'Adicionar à lista “Para assistir”'
+    : 'Adicionar filme ou série';
+  document.getElementById('catalog-add-description').textContent = modoAdicionar === 'lista'
+    ? 'Pesquise e escolha um título para guardar na lista deste espaço.'
+    : 'Pesquise o título, selecione o resultado correto e registre sua avaliação.';
+
+  const url = new URL(window.location.href);
+  url.search = '';
+  if (secaoCatalogo !== 'todos') url.searchParams.set('secao', secaoCatalogo);
+  url.searchParams.set('adicionar', '1');
+  history.replaceState(null, '', `${url.pathname.split('/').pop()}${url.search}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (query.trim().length >= 2) buscarParaAdicionar(query);
@@ -226,7 +342,7 @@ function fecharAdicionar() {
   document.getElementById('catalog-add-view').hidden = true;
   document.getElementById('catalog-view').hidden = false;
   document.getElementById('open-add-view').hidden = false;
-  history.replaceState(null, '', 'catalog.html');
+  atualizarUrlCatalogo();
   atualizarDisplayNota();
 }
 
@@ -251,19 +367,25 @@ async function buscarParaAdicionar(query) {
     container.innerHTML = '';
     resultados.forEach(resultado => {
       const existente = encontrarTituloExistente(resultado);
+      const status = textoStatusResultado(existente);
       const card = document.createElement('button');
       card.type = 'button';
       card.className = `search-result-card${existente ? ' already-added' : ''}`;
       card.innerHTML = `
         <img src="${safeImageSrc(resultado.capa_url)}" alt="Capa de ${escapeHtml(resultado.nome)}" loading="lazy" />
-        <span class="src-body">
+          <span class="src-body">
           <span class="src-title">${escapeHtml(resultado.nome)}</span>
           <span class="src-meta">${resultado.ano || '—'} · ${resultado.tipo === 'filme' ? 'Filme' : 'Série'}</span>
-          <span class="src-status">${existente?.quero_assistir ? '+ Marcar como assistido' : existente ? '✓ Já está no catálogo' : '+ Adicionar ao catálogo'}</span>
+          <span class="src-status">${status}</span>
         </span>`;
       card.addEventListener('click', () => {
-        if (existente && !existente.quero_assistir) window.location.href = `details.html?id=${existente.id}`;
-        else selecionarParaAdicionar(resultado);
+        if (existente && (!existente.quero_assistir || modoAdicionar === 'lista')) {
+          window.location.href = `details.html?id=${existente.id}`;
+        } else if (modoAdicionar === 'lista') {
+          adicionarDiretoNaLista(resultado);
+        } else {
+          selecionarParaAdicionar(resultado);
+        }
       });
       container.appendChild(card);
     });
@@ -271,6 +393,13 @@ async function buscarParaAdicionar(query) {
     console.error(error);
     showEmptyState(container, 'Não foi possível buscar agora. Tente novamente.');
   }
+}
+
+function textoStatusResultado(existente) {
+  if (existente?.quero_assistir && modoAdicionar === 'assistido') return '+ Marcar como assistido e avaliar';
+  if (existente?.quero_assistir) return '✓ Já está na lista';
+  if (existente) return '✓ Já está no catálogo';
+  return modoAdicionar === 'lista' ? '+ Adicionar à lista' : '+ Adicionar e avaliar';
 }
 
 function encontrarTituloExistente(resultado) {
@@ -290,6 +419,34 @@ async function selecionarParaAdicionar(resultado) {
   } catch (error) {
     console.error(error);
     showToast('Não foi possível carregar os detalhes desse título.', 'error');
+    await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
+  }
+}
+
+async function adicionarDiretoNaLista(resultado) {
+  const container = document.getElementById('catalog-add-results');
+  showSpinner(container);
+
+  try {
+    const detalhes = await getDetails(resultado.tmdb_id, resultado.tipo);
+    const usuarioId = getUserId(sessionAtual);
+    const titulo = await criarTitulo({ ...detalhes, quero_assistir: true }, usuarioId);
+
+    if (titulo.jaExistia) {
+      showToast('Esse título já está na lista.', 'error');
+      await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
+      return;
+    }
+
+    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+    atualizarTotalCatalogo();
+    popularSelects();
+    fecharAdicionar();
+    renderResultados();
+    showToast(`“${detalhes.nome}” foi adicionado à lista.`);
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível adicionar esse título à lista.', 'error');
     await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
   }
 }
@@ -367,6 +524,7 @@ async function salvarTituloDoCatalogo(event) {
     });
 
     titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+    atualizarTotalCatalogo();
     popularSelects();
     fecharAdicionar();
     document.getElementById('f-busca').value = nomeAdicionado;

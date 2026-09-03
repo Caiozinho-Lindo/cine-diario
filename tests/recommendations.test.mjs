@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recomendarDaLista, pontuarTitulo, formatarDuracao } from '../js/recommendations.js';
+import {
+  recomendarDaLista,
+  misturarOrigens,
+  pontuarTitulo,
+  calcularSemelhancaReferencia,
+  motivosDaRecomendacao,
+  formatarDuracao
+} from '../js/recommendations.js';
 
 const caio = 'usuario-caio';
 const noemy = 'usuario-noemy';
@@ -108,4 +115,52 @@ test('formata durações para os cartões', () => {
   assert.equal(formatarDuracao(120), '2h');
   assert.equal(formatarDuracao(135), '2h15');
   assert.equal(formatarDuracao(null), 'Duração não informada');
+});
+
+test('um título de referência pesa mais que uma semelhança genérica', () => {
+  const referencia = titulo('referencia', {
+    tmdb_id: 10,
+    generos: ['Mistério'],
+    palavras_chave: ['investigação', 'crime'],
+    pessoas_chave: ['pessoa:1'],
+    recomendacoes_tmdb: [20]
+  });
+  const relacionado = titulo('relacionado', {
+    tmdb_id: 20,
+    generos: ['Mistério'],
+    palavras_chave: ['investigação'],
+    pessoas_chave: ['pessoa:1']
+  });
+  const distante = titulo('distante', { tmdb_id: 30, generos: ['Comédia'] });
+
+  assert.ok(
+    calcularSemelhancaReferencia(relacionado, referencia)
+      > calcularSemelhancaReferencia(distante, referencia)
+  );
+  assert.ok(
+    pontuarTitulo(relacionado, { referencia, clima: 'qualquer' })
+      > pontuarTitulo(distante, { referencia, clima: 'qualquer' })
+  );
+});
+
+test('Tanto faz garante ao menos uma opção de cada origem', () => {
+  const lista = [titulo('lista-1', { origem_recomendacao: 'lista', pontuacaoRecomendacao: 9 })];
+  const novas = [
+    titulo('nova-1', { origem_recomendacao: 'nova', pontuacaoRecomendacao: 8 }),
+    titulo('nova-2', { origem_recomendacao: 'nova', pontuacaoRecomendacao: 7 })
+  ];
+  const resultado = misturarOrigens(lista, novas, { random: () => 0 });
+
+  assert.equal(resultado.length, 3);
+  assert.ok(resultado.some(item => item.origem_recomendacao === 'lista'));
+  assert.ok(resultado.some(item => item.origem_recomendacao === 'nova'));
+});
+
+test('explica quando pessoas com gosto parecido avaliaram bem', () => {
+  const motivos = motivosDaRecomendacao(titulo('compatível', {
+    usuarios_compativeis: 12,
+    media_tmdb: 8.2
+  }));
+
+  assert.ok(motivos.includes('12 pessoas com gosto parecido deram nota 8 ou mais'));
 });

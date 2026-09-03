@@ -224,52 +224,113 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  margin: 24px 0 18px;
+  margin: 28px 0 20px;
 }
-.catalog-page-header h2 { margin: 0 0 4px; }
+.catalog-page-header h2 { margin: 0 0 4px; font-size: clamp(1.8rem, 4vw, 2.35rem); }
 .catalog-page-header p,
 .catalog-tab-description { color: var(--text-secondary); }
 .catalog-page-header p { margin: 0; }
+.catalog-add-button { min-height: 44px; }
 
 .catalog-tabs {
-  display: inline-flex;
-  gap: 5px;
-  padding: 4px;
-  margin-bottom: 20px;
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
+.catalog-tabs button,
 .catalog-tabs a {
-  padding: 9px 15px;
-  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   color: var(--text-secondary);
   font-size: 0.88rem;
   font-weight: 600;
+  background: transparent;
 }
+.catalog-tabs button:hover,
 .catalog-tabs a:hover { color: var(--text-primary); }
+.catalog-tabs button.active,
 .catalog-tabs a.active {
-  color: #fff;
-  background: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-glow);
+  border-color: var(--accent);
 }
 .catalog-subpage { max-width: 900px; padding-top: 1px; padding-bottom: 60px; }
 .catalog-tab-description { margin: -4px 0 24px; }
 
-/* ---------- Filters bar ---------- */
-.filters-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 22px;
-  background: var(--surface);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
-  padding: 14px;
+/* ---------- Busca e filtros do catálogo ---------- */
+.catalog-search {
+  position: relative;
+  margin-bottom: 16px;
 }
-.filters-bar input[type="search"] { max-width: 260px; }
-.filters-bar select { width: auto; }
-.filters-bar .filters-toggle { display: none; }
+.catalog-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+  line-height: 1;
+  pointer-events: none;
+}
+.catalog-search input[type="search"] {
+  min-height: 50px;
+  padding-left: 46px;
+  border-radius: 11px;
+  background: var(--surface);
+}
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+.catalog-primary-filters {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.catalog-primary-filters select {
+  width: auto;
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: var(--surface);
+}
+.catalog-more-filters { min-height: 40px; }
+.catalog-more-filters.has-active-filters {
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.catalog-extra-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(150px, 0.7fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--surface);
+}
+.catalog-extra-filters .field { margin: 0; }
+.catalog-extra-filters .btn { min-height: 42px; }
+.catalog-results-header {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+.catalog-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 60px;
+}
 
 .catalog-empty-action {
   grid-column: 1 / -1;
@@ -305,9 +366,9 @@
 /* ---------- Cards grid ---------- */
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 20px;
-  padding-bottom: 60px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 22px 14px;
+  padding-bottom: 24px;
 }
 
 .title-card {
@@ -342,6 +403,45 @@
 .title-card .card-footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; }
 .title-card .card-score { font-weight: 700; font-family: var(--font-display); font-size: 1.05rem; }
 .title-card .card-score small { font-size: 0.7rem; color: var(--text-secondary); font-weight: 400; }
+
+.catalog-title-card {
+  min-width: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.catalog-title-card:hover { transform: translateY(-3px); box-shadow: none; }
+.catalog-title-card .poster-wrap {
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: 11px;
+  box-shadow: var(--shadow-card);
+}
+.catalog-title-card .card-body {
+  padding: 9px 1px 0;
+  gap: 4px;
+}
+.catalog-title-card .card-title {
+  overflow: hidden;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-title-card .card-footer {
+  justify-content: flex-start;
+  min-height: 22px;
+}
+.catalog-title-card .card-score {
+  color: var(--success);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.catalog-title-card .card-score small { color: inherit; }
+.catalog-title-card .card-watchlist-label { color: var(--accent-2); }
 
 .chip {
   display: inline-flex;
@@ -526,74 +626,6 @@
 /* Two seats icon used as recurring couple motif */
 .couple-icon { display: inline-flex; align-items: center; gap: 2px; }
 
-/* ==========================================================================
-   Lista "Para assistir" (wishlist)
-   ========================================================================== */
-.wishlist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 160px));
-  gap: 16px;
-}
-.wishlist-card {
-  background: var(--surface-elevated);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-.wishlist-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; background: var(--surface); }
-.wishlist-card-body { padding: 10px; }
-.wishlist-card-title { font-size: 0.86rem; font-weight: 600; line-height: 1.25; margin-bottom: 2px; }
-.wishlist-card-meta { font-size: 0.74rem; color: var(--text-secondary); margin-bottom: 8px; }
-
-/* ==========================================================================
-   Roleta
-   ========================================================================== */
-.roulette-wrap {
-  position: relative;
-  max-width: 420px;
-  margin: 0 auto;
-}
-.roulette-pointer {
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 1.8rem;
-  color: var(--accent);
-  z-index: 2;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));
-}
-.roulette-wheel-outer {
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow: 0 0 0 6px var(--surface-elevated), 0 0 0 8px var(--card-border), 0 10px 30px rgba(0,0,0,0.35);
-}
-#roulette-wheel { display: block; width: 100%; height: auto; }
-
-.roulette-winner { margin-top: 26px; }
-.roulette-winner-card {
-  display: flex;
-  gap: 18px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
-  padding: 18px;
-}
-.roulette-winner-card img {
-  width: 110px;
-  aspect-ratio: 2/3;
-  object-fit: cover;
-  border-radius: var(--radius-sm, 8px);
-  flex-shrink: 0;
-}
-.roulette-winner-info h3 { margin: 2px 0 4px; }
-.roulette-winner-label { font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
-.roulette-winner-info p { font-size: 0.88rem; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
-
-@media (max-width: 560px) {
-  .roulette-winner-card { flex-direction: column; }
-  .roulette-winner-card img { width: 100%; max-width: 160px; }
-}
 /* ---------- Espaço ativo ---------- */
 .space-picker select {
   max-width: 190px;

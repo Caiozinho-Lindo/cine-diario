@@ -13,7 +13,7 @@ O projeto é um site estático em HTML, CSS e JavaScript, com Supabase para aute
 - administradores que convidam, removem e alteram o papel dos participantes;
 - avaliações individuais e visão geral do espaço;
 - catálogo com pesquisa no TMDB, filtros e inclusão no mesmo fluxo;
-- lista “Para assistir” com roleta;
+- lista “Para assistir” integrada às recomendações;
 - recomendador “Escolher hoje”, com clima, participantes e streamings;
 - três finalistas, sorteio e sessão pendente até todos os participantes avaliarem;
 - destaques e estatísticas adaptados à quantidade real de participantes.
@@ -41,8 +41,9 @@ Os arquivos ficam em `supabase/migrations/` e devem ser executados na ordem num�
 4. `004_convites_e_papeis.sql`
 5. `005_finalizar_nomes_de_tema.sql`, somente depois de publicar o código novo
 6. `006_recomendador_e_sessoes.sql`
+7. `007_recomendacoes_compativeis.sql`
 
-A migração 004 cria os convites, simplifica os papéis, remove classificações de espaço e elimina a preferência de página inicial. A migração 005 encerra a compatibilidade temporária com a versão anterior do site. Antes de qualquer migração no ambiente online, exporte as tabelas principais e confira as contagens.
+A migração 004 cria os convites, simplifica os papéis, remove classificações de espaço e elimina a preferência de página inicial. A migração 005 encerra a compatibilidade temporária com a versão anterior do site. A migração 007 adiciona recomendações anônimas entre usuários compatíveis, sem expor identidades ou avaliações individuais. Antes de qualquer migração no ambiente online, exporte as tabelas principais e confira as contagens.
 
 ## Estrutura principal
 
@@ -53,6 +54,7 @@ A migração 004 cria os convites, simplifica os papéis, remove classificaçõe
 ├── css/
 ├── js/
 │   ├── auth.js
+│   ├── compatibility.js
 │   ├── espacos.js
 │   ├── filters.js
 │   ├── statistics.js
@@ -70,8 +72,7 @@ A migração 004 cria os convites, simplifica os papéis, remove classificaçõe
 │       ├── details.js
 │       ├── edit.js
 │       ├── profile.js
-│       ├── recommend.js
-│       └── wishlist.js
+│       └── recommend.js
 ├── pages/
 │   ├── home.html
 │   ├── catalog.html

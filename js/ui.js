@@ -89,16 +89,18 @@ async function hidratarEspacos(container) {
   });
 }
 
-export function renderTituloCard(titulo, modo) {
+export function renderTituloCard(titulo, modo, { compactoCatalogo = false } = {}) {
   const paraAssistir = Boolean(titulo.quero_assistir);
   const notaPrincipal = notaNoModo(titulo, modo);
   const capa = safeImageSrc(titulo.capa_url);
   const pendente = !paraAssistir && estaPendenteNoModo(titulo, modo);
-  const statusChip = paraAssistir
-    ? '<span class="chip chip-watchlist">Na lista</span>'
-    : renderStatusChip(titulo, modo, pendente);
+  const statusChip = compactoCatalogo
+    ? ''
+    : paraAssistir
+      ? '<span class="chip chip-watchlist">Na lista</span>'
+      : renderStatusChip(titulo, modo, pendente);
   const card = document.createElement('article');
-  card.className = 'title-card';
+  card.className = `title-card${compactoCatalogo ? ' catalog-title-card' : ''}`;
   card.dataset.id = titulo.id;
   card.innerHTML = `
     <div class="poster-wrap">
@@ -110,7 +112,7 @@ export function renderTituloCard(titulo, modo) {
       <div class="card-title">${escapeHtml(titulo.nome)}</div>
       <div class="card-meta">${titulo.ano || '—'}${titulo.generos?.length ? ' · ' + escapeHtml(titulo.generos.slice(0, 2).join(', ')) : ''}</div>
       <div class="card-footer">
-        <div class="card-score${paraAssistir ? ' card-watchlist-label' : ''}">${paraAssistir ? '🎲 Para assistir' : `${notaPrincipal !== null ? formatarNota(notaPrincipal) : '—'}<small> /10</small>`}</div>
+        <div class="card-score${paraAssistir ? ' card-watchlist-label' : ''}">${paraAssistir ? 'Para assistir' : `${notaPrincipal !== null ? formatarNota(notaPrincipal) : '—'}<small> /10</small>`}</div>
         ${statusChip}
       </div>
     </div>`;

@@ -6,7 +6,7 @@ import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js';
 import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente } from '../sessoes.js';
-import { initRecommend } from './recommend.js?v=20260902.1';
+import { initRecommend } from './recommend.js?v=20260902.3';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;

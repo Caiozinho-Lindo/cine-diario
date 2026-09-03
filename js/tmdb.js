@@ -42,7 +42,9 @@ function normalizeSearchResult(r) {
     nome_original: isMovie ? r.original_title : r.original_name,
     ano: parseYear(isMovie ? r.release_date : r.first_air_date),
     capa_url: posterUrl(r.poster_path),
-    sinopse: r.overview || ''
+    sinopse: r.overview || '',
+    media_tmdb: Number(r.vote_average) || null,
+    popularidade: Number(r.popularity) || 0
   };
 }
 
@@ -51,7 +53,8 @@ function normalizeSearchResult(r) {
  */
 export async function getDetails(tmdbId, tipo) {
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
-  const url = `${BASE_URL}/${endpoint}/${tmdbId}?language=pt-BR&append_to_response=watch%2Fproviders`;
+  const anexos = 'watch/providers,keywords,credits,recommendations';
+  const url = `${BASE_URL}/${endpoint}/${tmdbId}?language=pt-BR&append_to_response=${encodeURIComponent(anexos)}`;
   const res = await fetch(url, { headers: headers() });
 
   if (!res.ok) {
@@ -71,14 +74,42 @@ export async function getDetails(tmdbId, tipo) {
     backdrop_url: backdropUrl(d.backdrop_path),
     sinopse: d.overview || '',
     duracao_minutos: duracaoDoTitulo(d, tipo),
-    provedores: normalizarProvedores(d['watch/providers']?.results?.BR)
+    provedores: normalizarProvedores(d['watch/providers']?.results?.BR),
+    genero_ids: (d.genres || []).map(g => g.id),
+    palavras_chave: palavrasChave(d, tipo),
+    palavras_chave_ids: idsPalavrasChave(d, tipo),
+    pessoas_chave: pessoasChave(d.credits),
+    paises_origem: paisesOrigem(d, tipo),
+    idioma_original: d.original_language || null,
+    colecao_id: d.belongs_to_collection?.id || null,
+    recomendacoes_tmdb: (d.recommendations?.results || []).map(item => item.id),
+    media_tmdb: Number(d.vote_average) || null,
+    votos_tmdb: Number(d.vote_count) || 0,
+    popularidade: Number(d.popularity) || 0
   };
+}
+
+export async function getTitlesByTmdbIds(itens) {
+  const unicos = new Map();
+  (itens || []).forEach(item => {
+    const id = Number(item.tmdb_id);
+    if (id) unicos.set(`${item.tipo}:${id}`, { ...item, tmdb_id: id });
+  });
+
+  const detalhes = await Promise.all([...unicos.values()].map(async item => {
+    try {
+      return { ...await getDetails(item.tmdb_id, item.tipo), ...item };
+    } catch {
+      return null;
+    }
+  }));
+  return detalhes.filter(Boolean);
 }
 
 /**
  * Descobre sugestões externas quando a lista do espaço não possui resultados.
  */
-export async function discoverTitles({ tipo, duracaoMax, clima, provedores = [] }) {
+export async function discoverTitles({ tipo, duracaoMax, clima, provedores = [], referencia = null, page = 1 }) {
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
   const params = new URLSearchParams({
     language: 'pt-BR',
@@ -86,24 +117,32 @@ export async function discoverTitles({ tipo, duracaoMax, clima, provedores = [] 
     sort_by: 'popularity.desc',
     watch_region: 'BR',
     with_watch_monetization_types: 'flatrate|free|ads',
-    page: '1'
+    page: String(Math.max(1, Math.min(Number(page) || 1, 20)))
   });
 
   const idsProvedores = provedores.map(slug => PROVEDOR_IDS[slug]).filter(Boolean);
-  const idsGeneros = generosTmdbPorClima(clima, tipo);
+  const idsGeneros = referencia?.genero_ids?.length
+    ? referencia.genero_ids.slice(0, 4)
+    : generosTmdbPorClima(clima, tipo);
   if (idsProvedores.length) params.set('with_watch_providers', idsProvedores.join('|'));
   if (idsGeneros.length) params.set('with_genres', idsGeneros.join('|'));
+  if (referencia?.palavras_chave_ids?.length) {
+    params.set('with_keywords', referencia.palavras_chave_ids.slice(0, 5).join('|'));
+  }
   if (duracaoMax) params.set('with_runtime.lte', String(duracaoMax));
 
-  const res = await fetch(`${BASE_URL}/discover/${endpoint}?${params}`, { headers: headers() });
+  const [res, relacionados] = await Promise.all([
+    fetch(`${BASE_URL}/discover/${endpoint}?${params}`, { headers: headers() }),
+    buscarRelacionados(referencia, endpoint)
+  ]);
   if (!res.ok) throw new Error(`Erro ao descobrir títulos no TMDB (status ${res.status})`);
   const data = await res.json();
-  const resumos = (data.results || []).slice(0, 9).map(item => normalizeSearchResult({
-    ...item,
-    media_type: endpoint
-  }));
+  const resumos = [...relacionados, ...(data.results || [])]
+    .map(item => normalizeSearchResult({ ...item, media_type: endpoint }));
+  const unicos = new Map();
+  resumos.forEach(item => unicos.set(`${item.tipo}:${item.tmdb_id}`, item));
 
-  return Promise.all(resumos.map(item => getDetails(item.tmdb_id, item.tipo)));
+  return Promise.all([...unicos.values()].slice(0, 18).map(item => getDetails(item.tmdb_id, item.tipo)));
 }
 
 export const PROVEDOR_IDS = {
@@ -135,6 +174,43 @@ function duracaoDoTitulo(detalhes, tipo) {
   return Number(detalhes.last_episode_to_air?.runtime)
     || Number(detalhes.episode_run_time?.[0])
     || null;
+}
+
+function palavrasChave(detalhes, tipo) {
+  return itensPalavrasChave(detalhes, tipo).map(item => item.name);
+}
+
+function idsPalavrasChave(detalhes, tipo) {
+  return itensPalavrasChave(detalhes, tipo).map(item => item.id);
+}
+
+function itensPalavrasChave(detalhes, tipo) {
+  return (tipo === 'filme' ? detalhes.keywords?.keywords : detalhes.keywords?.results) || [];
+}
+
+function pessoasChave(creditos) {
+  const elenco = (creditos?.cast || []).slice(0, 5).map(item => `pessoa:${item.id}`);
+  const equipe = (creditos?.crew || [])
+    .filter(item => ['Director', 'Writer', 'Screenplay', 'Creator'].includes(item.job))
+    .slice(0, 5)
+    .map(item => `pessoa:${item.id}`);
+  return [...new Set([...elenco, ...equipe])];
+}
+
+function paisesOrigem(detalhes, tipo) {
+  if (tipo === 'serie') return detalhes.origin_country || [];
+  return (detalhes.production_countries || []).map(item => item.iso_3166_1);
+}
+
+async function buscarRelacionados(referencia, endpoint) {
+  if (!referencia?.tmdb_id || referencia.tipo !== (endpoint === 'movie' ? 'filme' : 'serie')) return [];
+  const res = await fetch(
+    `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=1`,
+    { headers: headers() }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.results || []).slice(0, 12);
 }
 
 function normalizarProvedores(regiao) {

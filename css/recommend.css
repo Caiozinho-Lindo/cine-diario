@@ -30,6 +30,9 @@
 .recommend-field legend,
 .recommend-field label,
 .field-label { display: block; margin-bottom: 10px; color: var(--text-primary); font-size: 0.88rem; font-weight: 600; }
+.recommend-field label small { color: var(--text-secondary); font-size: 0.76rem; font-weight: 400; }
+.recommend-field input[type="search"] { max-width: 620px; }
+.recommend-field-hint { margin: 7px 0 0; color: var(--text-secondary); font-size: 0.76rem; }
 .choice-pills { display: flex; flex-wrap: wrap; gap: 9px; }
 .choice-pill {
   min-height: 42px;
@@ -46,7 +49,18 @@
 .series-mode-field > span { display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.78rem; }
 
 .streaming-summary { display: flex; flex-wrap: wrap; gap: 8px; }
-.streaming-tag { padding: 8px 12px; border-radius: 999px; background: var(--accent-glow); font-size: 0.8rem; }
+.streaming-choice {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+.streaming-choice:hover { border-color: var(--accent-2); color: var(--text-primary); }
+.streaming-choice.active { border-color: var(--accent); color: var(--text-primary); background: var(--accent-glow); }
+.streaming-choice.active::before { content: '✓ '; color: var(--accent-2); }
 .streaming-empty { margin: 0; color: var(--text-secondary); font-size: 0.85rem; }
 .streaming-empty a { color: var(--accent-2); text-decoration: underline; }
 
@@ -85,7 +99,11 @@
 .finalist-origin { color: var(--text-secondary); font-size: 0.76rem; }
 .finalist-synopsis { flex: 1; margin: 12px 0; color: var(--text-secondary); font-size: 0.86rem; line-height: 1.5; }
 .finalist-provider { margin-bottom: 5px; color: var(--text-primary); }
-.finalist-origin { margin-bottom: 13px; }
+.finalist-origin { margin-bottom: 6px; }
+.finalist-watched { margin-bottom: 7px; color: #e0a83f; font-size: 0.76rem; }
+.finalist-reasons { display: grid; gap: 5px; margin: 9px 0 14px; }
+.finalist-reason { display: flex; gap: 6px; color: var(--text-secondary); font-size: 0.76rem; line-height: 1.35; }
+.finalist-reason::before { flex: 0 0 auto; color: var(--accent-2); content: '✦'; }
 .finalist-body .btn { width: 100%; }
 .more-finalists { margin-top: 20px; text-align: center; }
 .recommend-empty { text-align: center; }
