@@ -1,7 +1,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260902.3';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260903.1';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente } from '../sessoes.js';
 import {
@@ -9,8 +9,8 @@ import {
   misturarOrigens,
   motivosDaRecomendacao,
   formatarDuracao
-} from '../recommendations.js?v=20260902.3';
-import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260902.3';
+} from '../recommendations.js?v=20260903.1';
+import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 
@@ -362,7 +362,8 @@ function renderFinalista(titulo, referenciaCompleta) {
   const motivos = motivosDaRecomendacao(titulo, {
     historico: historicoEnriquecido,
     participantes: [...participantes],
-    referencia: referenciaCompleta
+    referencia: referenciaCompleta,
+    clima
   });
   return `<article class="finalist-card" data-finalist="${escapeHtml(chaveTitulo(titulo))}">
     <div class="finalist-poster">
@@ -503,7 +504,16 @@ function alternarCarregamento(carregando) {
 }
 
 function resumoBusca(referenciaCompleta) {
-  const climaTexto = ({ rir: 'para rir', emocao: 'com emoção', tensao: 'com tensão', pensar: 'para pensar', qualquer: 'para qualquer clima' })[clima];
+  const climaTexto = ({
+    rir: 'para rir',
+    chorar: 'para chorar',
+    pensar: 'para pensar',
+    tensao: 'com tensão',
+    acao: 'com ação',
+    medo: 'para sentir medo',
+    leve: 'para relaxar',
+    qualquer: 'para qualquer clima'
+  })[clima];
   const fonte = tipo === 'serie' && modoSerie === 'continuar'
     ? 'Do histórico'
     : ({ lista: 'Da lista', novas: 'Sugestões novas', 'tanto-faz': 'Lista e sugestões novas' })[origem];

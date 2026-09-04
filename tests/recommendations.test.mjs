@@ -5,6 +5,7 @@ import {
   misturarOrigens,
   pontuarTitulo,
   calcularSemelhancaReferencia,
+  avaliarCompatibilidadeClima,
   motivosDaRecomendacao,
   formatarDuracao
 } from '../js/recommendations.js';
@@ -163,4 +164,47 @@ test('explica quando pessoas com gosto parecido avaliaram bem', () => {
   }));
 
   assert.ok(motivos.includes('12 pessoas com gosto parecido deram nota 8 ou mais'));
+});
+
+test('mistério tem peso alto em Quero pensar', () => {
+  const misterio = titulo('misterio', { generos: ['Mistério'] });
+  const compatibilidade = avaliarCompatibilidadeClima(misterio, 'pensar');
+
+  assert.equal(compatibilidade.elegivel, true);
+  assert.match(compatibilidade.motivo, /mistério/i);
+});
+
+test('ficção científica de super-herói não entra automaticamente em Quero pensar', () => {
+  const blockbuster = titulo('blockbuster', {
+    generos: ['Ação', 'Aventura', 'Ficção científica'],
+    palavras_chave: ['superhero', 'marvel', 'battle']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(blockbuster, 'pensar').elegivel, false);
+});
+
+test('ficção científica reflexiva pode entrar em Quero pensar', () => {
+  const reflexivo = titulo('reflexivo', {
+    generos: ['Ficção científica', 'Drama'],
+    palavras_chave: ['artificial intelligence', 'consciousness', 'moral dilemma']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(reflexivo, 'pensar').elegivel, true);
+});
+
+test('Quero medo exige terror ou sinais realmente assustadores', () => {
+  const terror = titulo('terror', { generos: ['Terror'] });
+  const policial = titulo('policial', { generos: ['Crime', 'Thriller'] });
+
+  assert.equal(avaliarCompatibilidadeClima(terror, 'medo').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(policial, 'medo').elegivel, false);
+});
+
+test('a justificativa explica primeiro o clima escolhido', () => {
+  const motivos = motivosDaRecomendacao(titulo('investigacao', {
+    generos: ['Mistério'],
+    usuarios_compativeis: 12
+  }), { clima: 'pensar' });
+
+  assert.match(motivos[0], /mistério/i);
 });
