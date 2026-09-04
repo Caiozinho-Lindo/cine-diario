@@ -29,10 +29,10 @@ let sessionAtual = null;
 let perfilAtual = null;
 let dadosSelecionados = null;
 let buscaExternaTimer = null;
+let buscaExternaVersao = 0;
 let secaoCatalogo = 'todos';
 let membrosEspaco = [];
 let limiteResultados = 24;
-let modoAdicionar = 'assistido';
 
 const RESULTADOS_POR_PAGINA = 24;
 
@@ -78,7 +78,7 @@ async function init() {
   popularSelects();
   ligarFiltros();
   ligarNavegacaoCatalogo();
-  ligarAdicaoInline();
+  ligarAdicaoUnificada();
 
   // Suporte a ?filtro=pendentes vindo de outras páginas
   const params = new URLSearchParams(window.location.search);
@@ -92,7 +92,8 @@ async function init() {
   renderResultados();
 
   if (params.get('adicionar') === '1') {
-    abrirAdicionar(document.getElementById('f-busca').value);
+    atualizarUrlCatalogo();
+    document.getElementById('f-busca').focus();
   }
 }
 
@@ -123,6 +124,7 @@ function ligarFiltros() {
       limiteResultados = RESULTADOS_POR_PAGINA;
       atualizarEstadoFiltrosExtras();
       renderResultados();
+      if (id === 'f-busca') agendarBuscaExterna(el.value);
     });
   });
 
@@ -176,14 +178,53 @@ function renderResultados() {
   if (!resultado.length) {
     const busca = filtros.busca.trim();
     if (busca.length >= 2) {
+      const correspondencias = titulos.filter(titulo =>
+        titulo.nome.toLowerCase().includes(busca.toLowerCase())
+      );
+      const correspondenciasNaSecao = filtrarPorSecao(correspondencias);
+      const secaoAlternativa = secaoCatalogo === 'assistidos'
+        ? 'para_assistir'
+        : secaoCatalogo === 'para_assistir'
+          ? 'assistidos'
+          : null;
+      const correspondenciasNaOutraSecao = secaoAlternativa
+        ? correspondencias.filter(titulo => tituloEstaNaSecao(titulo, secaoAlternativa))
+        : [];
+      const estaSomenteNaOutraSecao = Boolean(
+        secaoAlternativa
+        && !correspondenciasNaSecao.length
+        && correspondenciasNaOutraSecao.length
+      );
+      const existeOcultoPorFiltros = correspondenciasNaSecao.length > 0;
+      const rotuloSecaoAlternativa = nomeSecao(secaoAlternativa);
+      const nomeEncontrado = correspondenciasNaOutraSecao[0]?.nome || busca;
       grid.innerHTML = `
         <div class="catalog-empty-action">
           <div class="catalog-empty-icon">🎬</div>
-          <h3>Não encontramos “${escapeHtml(busca)}” no seu catálogo</h3>
-          <p>Quer procurar esse título e adicioná-lo agora?</p>
-          <button class="btn btn-primary" id="search-to-add" type="button">Buscar para adicionar</button>
+          <h3>${estaSomenteNaOutraSecao
+            ? correspondenciasNaOutraSecao.length === 1
+              ? `“${escapeHtml(nomeEncontrado)}” está em “${rotuloSecaoAlternativa}”`
+              : `${correspondenciasNaOutraSecao.length} títulos com esse nome estão em “${rotuloSecaoAlternativa}”`
+            : existeOcultoPorFiltros
+              ? `“${escapeHtml(busca)}” está oculto pelos filtros atuais`
+            : `Nenhum “${escapeHtml(busca)}” no seu catálogo`}</h3>
+          <p>${estaSomenteNaOutraSecao
+            ? secaoAlternativa === 'para_assistir'
+              ? 'Esse título já foi guardado para assistir depois.'
+              : 'Esse título já foi marcado como assistido.'
+            : existeOcultoPorFiltros
+              ? 'Remova os filtros para abrir o item que já foi adicionado.'
+            : 'Veja abaixo outros títulos encontrados para adicionar.'}</p>
+          ${estaSomenteNaOutraSecao
+            ? `<button class="btn btn-secondary" id="open-other-section" type="button">Abrir em ${rotuloSecaoAlternativa}</button>`
+            : existeOcultoPorFiltros
+              ? '<button class="btn btn-secondary" id="clear-search-filters" type="button">Limpar filtros</button>'
+            : ''}
         </div>`;
-      document.getElementById('search-to-add').addEventListener('click', () => abrirAdicionar(busca));
+      document.getElementById('open-other-section')?.addEventListener('click', () => {
+        abrirSecaoComBusca(secaoAlternativa);
+      });
+      document.getElementById('clear-search-filters')?.addEventListener('click', limparFiltrosDaBusca);
     } else {
       showEmptyState(grid, 'Nenhum título encontrado com esses filtros.');
     }
@@ -205,13 +246,24 @@ function atualizarAbasCatalogo() {
     botao.classList.toggle('active', ativa);
     botao.setAttribute('aria-selected', String(ativa));
   });
-  atualizarBotaoAdicionar();
 }
 
 function filtrarPorSecao(lista) {
-  if (secaoCatalogo === 'assistidos') return lista.filter(titulo => !titulo.quero_assistir);
-  if (secaoCatalogo === 'para_assistir') return lista.filter(titulo => titulo.quero_assistir);
+  if (secaoCatalogo === 'assistidos') return lista.filter(titulo => tituloEstaNaSecao(titulo, 'assistidos'));
+  if (secaoCatalogo === 'para_assistir') return lista.filter(titulo => tituloEstaNaSecao(titulo, 'para_assistir'));
   return lista;
+}
+
+function tituloEstaNaSecao(titulo, secao) {
+  if (secao === 'assistidos') return !titulo.quero_assistir;
+  if (secao === 'para_assistir') return Boolean(titulo.quero_assistir);
+  return true;
+}
+
+function nomeSecao(secao) {
+  if (secao === 'assistidos') return 'Assistidos';
+  if (secao === 'para_assistir') return 'Para assistir';
+  return 'Todos';
 }
 
 function normalizarSecao(secao) {
@@ -224,18 +276,27 @@ function atualizarTotalCatalogo() {
     `${total} título${total === 1 ? '' : 's'} no espaço`;
 }
 
-function atualizarBotaoAdicionar() {
-  const botao = document.getElementById('open-add-view');
-  botao.textContent = secaoCatalogo === 'para_assistir'
-    ? '+ Adicionar à lista'
-    : '+ Adicionar título';
-}
-
 function atualizarUrlCatalogo() {
   const url = new URL(window.location.href);
   url.search = '';
   if (secaoCatalogo !== 'todos') url.searchParams.set('secao', secaoCatalogo);
   history.replaceState(null, '', `${url.pathname.split('/').pop()}${url.search}`);
+}
+
+function abrirSecaoComBusca(secao) {
+  secaoCatalogo = normalizarSecao(secao);
+  limparFiltrosDaBusca();
+}
+
+function limparFiltrosDaBusca() {
+  document.getElementById('f-tipo').value = 'todos';
+  document.getElementById('f-avaliacao').value = '';
+  document.getElementById('f-genero').value = '';
+  document.getElementById('f-ano').value = '';
+  atualizarAbasCatalogo();
+  atualizarUrlCatalogo();
+  atualizarEstadoFiltrosExtras();
+  renderResultados();
 }
 
 function alternarFiltrosExtras() {
@@ -279,127 +340,83 @@ function limparFiltrosCatalogo() {
    Adição dentro do catálogo
    ========================================================================== */
 
-function ligarAdicaoInline() {
-  document.getElementById('open-add-view').addEventListener('click', () => abrirAdicionar());
-  document.getElementById('close-add-view').addEventListener('click', fecharAdicionar);
-  document.getElementById('catalog-cancel-add').addEventListener('click', fecharAdicionar);
-  document.getElementById('catalog-change-title').addEventListener('click', voltarParaBuscaAdicionar);
+function ligarAdicaoUnificada() {
+  document.getElementById('close-title-flow').addEventListener('click', fecharFluxoTitulo);
+  document.getElementById('catalog-mark-watched').addEventListener('click', mostrarFormularioAvaliacao);
+  document.getElementById('catalog-add-watchlist').addEventListener('click', adicionarSelecionadoALista);
   document.getElementById('catalog-add-form').addEventListener('submit', salvarTituloDoCatalogo);
 
   const nota = document.getElementById('catalog-rating');
   nota.addEventListener('input', atualizarDisplayNota);
   atualizarDisplayNota();
   atualizarTituloAvaliacao();
-
-  const busca = document.getElementById('catalog-add-search');
-  busca.addEventListener('input', () => {
-    clearTimeout(buscaExternaTimer);
-    buscaExternaTimer = setTimeout(() => buscarParaAdicionar(busca.value), 400);
-  });
 }
 
-function abrirAdicionar(query = '') {
-  modoAdicionar = secaoCatalogo === 'para_assistir' ? 'lista' : 'assistido';
-  document.getElementById('catalog-view').hidden = true;
-  document.getElementById('catalog-add-view').hidden = false;
-  document.getElementById('open-add-view').hidden = true;
-  document.getElementById('catalog-add-form').hidden = true;
-  document.getElementById('catalog-add-search-step').hidden = false;
-  dadosSelecionados = null;
-
-  const busca = document.getElementById('catalog-add-search');
-  busca.value = query;
-  document.getElementById('catalog-add-results').innerHTML = '';
-  document.getElementById('catalog-review-date').value = new Date().toISOString().slice(0, 10);
-  atualizarTituloAvaliacao();
-
-  document.getElementById('catalog-add-title').textContent = modoAdicionar === 'lista'
-    ? 'Adicionar à lista “Para assistir”'
-    : 'Adicionar filme ou série';
-  document.getElementById('catalog-add-description').textContent = modoAdicionar === 'lista'
-    ? 'Pesquise e escolha um título para guardar na lista deste espaço.'
-    : 'Pesquise o título, selecione o resultado correto e registre sua avaliação.';
-
-  const url = new URL(window.location.href);
-  url.search = '';
-  if (secaoCatalogo !== 'todos') url.searchParams.set('secao', secaoCatalogo);
-  url.searchParams.set('adicionar', '1');
-  history.replaceState(null, '', `${url.pathname.split('/').pop()}${url.search}`);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  if (query.trim().length >= 2) buscarParaAdicionar(query);
-  else busca.focus();
-}
-
-function fecharAdicionar() {
+function agendarBuscaExterna(query) {
   clearTimeout(buscaExternaTimer);
-  dadosSelecionados = null;
-  document.getElementById('catalog-add-form').reset();
-  document.getElementById('catalog-add-form').hidden = true;
-  document.getElementById('catalog-add-search-step').hidden = false;
-  document.getElementById('catalog-add-search').value = '';
-  document.getElementById('catalog-add-results').innerHTML = '';
-  document.getElementById('catalog-add-view').hidden = true;
-  document.getElementById('catalog-view').hidden = false;
-  document.getElementById('open-add-view').hidden = false;
-  atualizarUrlCatalogo();
-  atualizarDisplayNota();
-}
-
-async function buscarParaAdicionar(query) {
-  const container = document.getElementById('catalog-add-results');
+  buscaExternaVersao += 1;
   const termo = query.trim();
 
   if (termo.length < 2) {
-    container.innerHTML = '';
+    limparDescoberta();
     return;
   }
 
+  const secao = document.getElementById('catalog-discovery');
+  const container = document.getElementById('catalog-discovery-results');
+  secao.hidden = false;
+  document.getElementById('catalog-discovery-count').textContent = 'Buscando…';
   showSpinner(container);
 
+  const versao = buscaExternaVersao;
+  buscaExternaTimer = setTimeout(() => buscarTitulosExternos(termo, versao), 400);
+}
+
+function limparDescoberta() {
+  document.getElementById('catalog-discovery').hidden = true;
+  document.getElementById('catalog-discovery-results').innerHTML = '';
+  document.getElementById('catalog-discovery-count').textContent = '';
+}
+
+async function buscarTitulosExternos(termo, versao) {
+  const container = document.getElementById('catalog-discovery-results');
   try {
     const resultados = await searchMulti(termo);
-    if (!resultados.length) {
-      showEmptyState(container, 'Nenhum filme ou série encontrado.');
+    if (versao !== buscaExternaVersao) return;
+
+    const novos = resultados
+      .filter(resultado => !encontrarTituloExistente(resultado))
+      .slice(0, 12);
+
+    document.getElementById('catalog-discovery-count').textContent =
+      `${novos.length} novo${novos.length === 1 ? '' : 's'}`;
+
+    if (!novos.length) {
+      showEmptyState(container, 'Todos os resultados encontrados já estão no seu catálogo.');
       return;
     }
 
     container.innerHTML = '';
-    resultados.forEach(resultado => {
-      const existente = encontrarTituloExistente(resultado);
-      const status = textoStatusResultado(existente);
+    novos.forEach(resultado => {
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = `search-result-card${existente ? ' already-added' : ''}`;
+      card.className = 'search-result-card';
       card.innerHTML = `
         <img src="${safeImageSrc(resultado.capa_url)}" alt="Capa de ${escapeHtml(resultado.nome)}" loading="lazy" />
-          <span class="src-body">
+        <span class="src-body">
           <span class="src-title">${escapeHtml(resultado.nome)}</span>
           <span class="src-meta">${resultado.ano || '—'} · ${resultado.tipo === 'filme' ? 'Filme' : 'Série'}</span>
-          <span class="src-status">${status}</span>
+          <span class="src-status">+ Adicionar</span>
         </span>`;
-      card.addEventListener('click', () => {
-        if (existente && (!existente.quero_assistir || modoAdicionar === 'lista')) {
-          window.location.href = `details.html?id=${existente.id}`;
-        } else if (modoAdicionar === 'lista') {
-          adicionarDiretoNaLista(resultado);
-        } else {
-          selecionarParaAdicionar(resultado);
-        }
-      });
+      card.addEventListener('click', () => selecionarTituloNovo(resultado));
       container.appendChild(card);
     });
   } catch (error) {
+    if (versao !== buscaExternaVersao) return;
     console.error(error);
     showEmptyState(container, 'Não foi possível buscar agora. Tente novamente.');
+    document.getElementById('catalog-discovery-count').textContent = '';
   }
-}
-
-function textoStatusResultado(existente) {
-  if (existente?.quero_assistir && modoAdicionar === 'assistido') return '+ Marcar como assistido e avaliar';
-  if (existente?.quero_assistir) return '✓ Já está na lista';
-  if (existente) return '✓ Já está no catálogo';
-  return modoAdicionar === 'lista' ? '+ Adicionar à lista' : '+ Adicionar e avaliar';
 }
 
 function encontrarTituloExistente(resultado) {
@@ -409,69 +426,119 @@ function encontrarTituloExistente(resultado) {
   );
 }
 
-async function selecionarParaAdicionar(resultado) {
-  const container = document.getElementById('catalog-add-results');
+async function selecionarTituloNovo(resultado) {
+  const container = document.getElementById('catalog-discovery-results');
   showSpinner(container);
 
   try {
     dadosSelecionados = await getDetails(resultado.tmdb_id, resultado.tipo);
-    mostrarFormularioAdicionar();
+    mostrarEscolhaTitulo();
   } catch (error) {
     console.error(error);
     showToast('Não foi possível carregar os detalhes desse título.', 'error');
-    await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
+    agendarBuscaExterna(document.getElementById('f-busca').value);
   }
 }
 
-async function adicionarDiretoNaLista(resultado) {
-  const container = document.getElementById('catalog-add-results');
-  showSpinner(container);
-
-  try {
-    const detalhes = await getDetails(resultado.tmdb_id, resultado.tipo);
-    const usuarioId = getUserId(sessionAtual);
-    const titulo = await criarTitulo({ ...detalhes, quero_assistir: true }, usuarioId);
-
-    if (titulo.jaExistia) {
-      showToast('Esse título já está na lista.', 'error');
-      await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
-      return;
-    }
-
-    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
-    atualizarTotalCatalogo();
-    popularSelects();
-    fecharAdicionar();
-    renderResultados();
-    showToast(`“${detalhes.nome}” foi adicionado à lista.`);
-  } catch (error) {
-    console.error(error);
-    showToast('Não foi possível adicionar esse título à lista.', 'error');
-    await buscarParaAdicionar(document.getElementById('catalog-add-search').value);
-  }
+function mostrarEscolhaTitulo() {
+  document.getElementById('catalog-view').hidden = true;
+  document.getElementById('catalog-title-flow').hidden = false;
+  document.getElementById('catalog-add-choice').hidden = false;
+  document.getElementById('catalog-add-form').hidden = true;
+  document.getElementById('catalog-add-title').textContent = 'Como deseja adicionar?';
+  document.getElementById('catalog-add-description').textContent =
+    'Escolha se você já assistiu ou se quer guardar para depois.';
+  renderPreviewSelecionado('catalog-choice-preview');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function mostrarFormularioAdicionar() {
-  const titulo = dadosSelecionados;
-  document.getElementById('catalog-add-search-step').hidden = true;
+function mostrarFormularioAvaliacao() {
+  if (!dadosSelecionados) return;
+
+  document.getElementById('catalog-add-choice').hidden = true;
   document.getElementById('catalog-add-form').hidden = false;
-  document.getElementById('catalog-selected-preview').innerHTML = `
-    <img src="${safeImageSrc(titulo.capa_url)}" alt="Capa de ${escapeHtml(titulo.nome)}" />
-    <div>
-      <strong>${escapeHtml(titulo.nome)}</strong>
-      <div class="selected-title-meta">${titulo.ano || '—'} · ${titulo.tipo === 'filme' ? 'Filme' : 'Série'}</div>
-    </div>`;
+  document.getElementById('catalog-add-title').textContent = `Avaliar ${dadosSelecionados.nome}`;
+  document.getElementById('catalog-add-description').textContent =
+    'A nota é obrigatória para todo título marcado como assistido.';
+  renderPreviewSelecionado('catalog-selected-preview');
   document.getElementById('catalog-review-date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('catalog-rating').value = '7';
   document.getElementById('catalog-observation').value = '';
   atualizarDisplayNota();
 }
 
-function voltarParaBuscaAdicionar() {
+function renderPreviewSelecionado(containerId) {
+  const titulo = dadosSelecionados;
+  document.getElementById(containerId).innerHTML = `
+    <img src="${safeImageSrc(titulo.capa_url)}" alt="Capa de ${escapeHtml(titulo.nome)}" />
+    <div>
+      <strong>${escapeHtml(titulo.nome)}</strong>
+      <div class="selected-title-meta">${titulo.ano || '—'} · ${titulo.tipo === 'filme' ? 'Filme' : 'Série'}</div>
+    </div>`;
+}
+
+function fecharFluxoTitulo() {
   dadosSelecionados = null;
+  document.getElementById('catalog-add-form').reset();
   document.getElementById('catalog-add-form').hidden = true;
-  document.getElementById('catalog-add-search-step').hidden = false;
-  document.getElementById('catalog-add-search').focus();
+  document.getElementById('catalog-add-choice').hidden = false;
+  document.getElementById('catalog-title-flow').hidden = true;
+  document.getElementById('catalog-view').hidden = false;
+  atualizarUrlCatalogo();
+  atualizarDisplayNota();
+  const busca = document.getElementById('f-busca');
+  busca.focus();
+  agendarBuscaExterna(busca.value);
+}
+
+async function adicionarSelecionadoALista() {
+  if (!dadosSelecionados) return;
+
+  const botao = document.getElementById('catalog-add-watchlist');
+  botao.disabled = true;
+  const textoOriginal = botao.innerHTML;
+  botao.innerHTML = '<strong>Adicionando…</strong><span>Aguarde um instante.</span>';
+
+  try {
+    const usuarioId = getUserId(sessionAtual);
+    const nomeAdicionado = dadosSelecionados.nome;
+    const titulo = await criarTitulo({ ...dadosSelecionados, quero_assistir: true }, usuarioId);
+
+    if (titulo.jaExistia) {
+      showToast('Esse título já está no catálogo.', 'error');
+      await exibirTituloAdicionado(nomeAdicionado, titulo.quero_assistir ? 'para_assistir' : 'assistidos');
+      return;
+    }
+
+    await exibirTituloAdicionado(nomeAdicionado, 'para_assistir');
+    showToast(`“${nomeAdicionado}” foi adicionado à lista “Para assistir”.`);
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível adicionar esse título à lista.', 'error');
+  } finally {
+    botao.disabled = false;
+    botao.innerHTML = textoOriginal;
+  }
+}
+
+async function exibirTituloAdicionado(nome, secao) {
+  titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+  atualizarTotalCatalogo();
+  popularSelects();
+  fecharFluxoTitulo();
+
+  secaoCatalogo = secao;
+  document.getElementById('f-tipo').value = 'todos';
+  document.getElementById('f-avaliacao').value = '';
+  document.getElementById('f-genero').value = '';
+  document.getElementById('f-ano').value = '';
+  document.getElementById('f-busca').value = nome;
+  limiteResultados = RESULTADOS_POR_PAGINA;
+  atualizarAbasCatalogo();
+  atualizarUrlCatalogo();
+  atualizarEstadoFiltrosExtras();
+  renderResultados();
+  agendarBuscaExterna(nome);
 }
 
 function atualizarDisplayNota() {
@@ -523,18 +590,13 @@ async function salvarTituloDoCatalogo(event) {
       dataAvaliacao: document.getElementById('catalog-review-date').value
     });
 
-    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
-    atualizarTotalCatalogo();
-    popularSelects();
-    fecharAdicionar();
-    document.getElementById('f-busca').value = nomeAdicionado;
-    renderResultados();
-    showToast(`“${nomeAdicionado}” foi adicionado ao catálogo.`);
+    await exibirTituloAdicionado(nomeAdicionado, 'assistidos');
+    showToast(`“${nomeAdicionado}” foi adicionado e avaliado.`);
   } catch (error) {
     console.error(error);
     showToast('Não foi possível adicionar o título.', 'error');
   } finally {
     botao.disabled = false;
-    botao.textContent = 'Adicionar ao catálogo';
+    botao.textContent = 'Adicionar e salvar avaliação';
   }
 }

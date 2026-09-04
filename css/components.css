@@ -263,7 +263,7 @@
 /* ---------- Busca e filtros do catálogo ---------- */
 .catalog-search {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 .catalog-search-icon {
   position: absolute;
@@ -280,6 +280,11 @@
   padding-left: 46px;
   border-radius: 11px;
   background: var(--surface);
+}
+.catalog-search-help {
+  margin: 0 2px 16px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 .catalog-toolbar {
   display: flex;
@@ -329,7 +334,30 @@
 .catalog-load-more-wrap {
   display: flex;
   justify-content: center;
-  padding: 4px 0 60px;
+  padding: 4px 0 28px;
+}
+
+.catalog-discovery {
+  margin: 4px 0 60px;
+  padding-top: 24px;
+  border-top: 1px solid var(--card-border);
+}
+.catalog-discovery-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.catalog-discovery-header h3 { margin: 3px 0 0; }
+.catalog-discovery-header > span {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+.catalog-discovery-results {
+  max-height: none;
+  overflow: visible;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
 }
 
 .catalog-empty-action {
@@ -361,6 +389,34 @@
   padding: 22px;
 }
 .catalog-add-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.catalog-add-choice-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.catalog-choice-button {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 92px;
+  padding: 18px;
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.catalog-choice-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.catalog-choice-button strong { font-size: 1rem; }
+.catalog-choice-button span {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
 .selected-title-meta { font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px; }
 
 /* ---------- Cards grid ---------- */

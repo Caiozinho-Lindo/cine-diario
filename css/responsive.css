@@ -40,9 +40,11 @@
   .catalog-primary-filters select,
   .catalog-primary-filters .btn { width: 100%; min-width: 0; }
   .catalog-extra-filters { grid-template-columns: 1fr; }
+  .catalog-discovery-header { align-items: flex-start; flex-direction: column; }
   .catalog-heading .btn,
   .catalog-add-header .btn { width: 100%; }
   .catalog-add-form { padding: 16px; }
+  .catalog-add-choice-actions { grid-template-columns: 1fr; }
   .catalog-add-actions .btn { width: 100%; }
 
   .form-row { grid-template-columns: 1fr; }
