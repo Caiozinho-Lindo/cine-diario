@@ -2,11 +2,11 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getAllTitulosComAvaliacoes } from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
-import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260906.1';
 import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
-import { getSessaoPendente } from '../sessoes.js';
-import { initRecommend } from './recommend.js?v=20260903.1';
+import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
+import { initRecommend } from './recommend.js?v=20260906.2';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -22,7 +22,7 @@ async function init() {
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   usuarioIdAtual = getUserId(session);
   const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioIdAtual);
-  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  aplicarTema(perfilAtual?.tema);
   document.getElementById('hero-title').textContent = membrosEspaco.length === 1
     ? 'Seu histórico de filmes e séries'
     : `O histórico de ${espacoAtivo.nome}`;
@@ -65,6 +65,10 @@ async function renderSessaoPendente() {
   const minhaParticipacao = (sessao.participantes || [])
     .find(item => item.usuario_id === usuarioIdAtual);
   const precisoConfirmar = Boolean(minhaParticipacao) && !minhaParticipacao.confirmado_em;
+  const membroAtual = membrosEspaco.find(membro => membro.usuario_id === usuarioIdAtual);
+  const possoCancelar = !sessao.criado_por
+    || sessao.criado_por === usuarioIdAtual
+    || membroAtual?.papel === 'administrador';
   const banner = document.getElementById('pending-session-banner');
   banner.hidden = false;
   banner.innerHTML = `
@@ -78,7 +82,22 @@ async function renderSessaoPendente() {
     </div>
     ${precisoConfirmar
       ? `<a class="btn btn-primary btn-sm" href="edit.html?edit=${encodeURIComponent(sessao.titulo_id)}&sessao=${encodeURIComponent(sessao.id)}">Confirmar e avaliar</a>`
-      : `<a class="btn btn-secondary btn-sm" href="details.html?id=${encodeURIComponent(sessao.titulo_id)}">Ver título</a>`}`;
+      : `<a class="btn btn-secondary btn-sm" href="details.html?id=${encodeURIComponent(sessao.titulo_id)}">Ver título</a>`}
+    ${possoCancelar ? '<button class="pending-session-cancel" data-cancel-pending type="button">Cancelar escolha</button>' : ''}`;
+
+  banner.querySelector('[data-cancel-pending]')?.addEventListener('click', async event => {
+    const botao = event.currentTarget;
+    botao.disabled = true;
+    try {
+      await cancelarSessao(sessao.id);
+      showToast('Escolha cancelada. O título continua em “Para assistir”.');
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      showToast('Não foi possível cancelar a escolha.', 'error');
+      botao.disabled = false;
+    }
+  });
 }
 
 function renderTudo(modo) {

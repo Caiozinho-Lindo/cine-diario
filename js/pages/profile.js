@@ -20,11 +20,14 @@ import {
   removerMembroEspaco,
   normalizarCodigo
 } from '../espacos.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260906.1';
 import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao } from '../ui.js';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
+import { supabase } from '../supabaseClient.js';
 
 const CHAVE_CONVITE_PENDENTE = 'cine_diario_convite_pendente';
+const TIPOS_AVATAR = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const TAMANHO_MAXIMO_AVATAR = 5 * 1024 * 1024;
 
 let session;
 let perfilAtual;
@@ -33,6 +36,10 @@ let membrosEspaco = [];
 let modoAtivo;
 let espacosUsuario = [];
 let conviteAtual = null;
+let avatarAtual = '';
+let arquivoAvatarPendente = null;
+let avatarTemporario = '';
+let removerAvatarPendente = false;
 
 init();
 
@@ -44,7 +51,7 @@ async function init() {
   espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   modoAtivo = normalizarModoAtivo(membrosEspaco, getUserId(session));
-  aplicarTema(perfilAtual.tema, perfilAtual.cor_destaque);
+  aplicarTema(perfilAtual.tema);
   renderCabecalho();
 
   preencherPerfil(perfilAtual);
@@ -68,10 +75,27 @@ function renderCabecalho() {
 
 function preencherPerfil(perfil) {
   document.getElementById('profile-name').value = perfil.nome_exibicao || perfil.nome || '';
-  document.getElementById('profile-avatar').value = perfil.avatar_url || '';
-  document.getElementById('profile-theme').value = normalizarTemaPerfil(perfil.tema);
-  document.getElementById('profile-color').value = perfil.cor_destaque || '#c98fd0';
+  avatarAtual = perfil.avatar_url || '';
+  arquivoAvatarPendente = null;
+  removerAvatarPendente = false;
+  liberarAvatarTemporario();
+  renderTemas(normalizarTema(perfil.tema));
   renderPreviaPerfil();
+}
+
+function renderTemas(temaAtivo) {
+  document.getElementById('profile-theme-options').innerHTML = TEMAS_PERFIL.map(tema => `
+    <label class="theme-option">
+      <input type="radio" name="profile-theme" value="${escapeHtml(tema.id)}" ${tema.id === temaAtivo ? 'checked' : ''} />
+      <span class="theme-option-preview" aria-hidden="true">
+        ${tema.cores.map(cor => `<i style="background:${escapeHtml(cor)}"></i>`).join('')}
+      </span>
+      <span class="theme-option-copy">
+        <strong>${escapeHtml(tema.nome)}</strong>
+        <small>${escapeHtml(tema.descricao)}</small>
+      </span>
+      <span class="theme-option-check" aria-hidden="true">✓</span>
+    </label>`).join('');
 }
 
 async function carregarStreamings() {
@@ -100,10 +124,6 @@ function iconeStreaming(slug) {
   return icones[slug] || '<span>▶</span>';
 }
 
-function normalizarTemaPerfil(tema) {
-  return ({ caio: 'azul', noemy: 'lavanda', casal: 'cinema' })[tema] || tema || 'cinema';
-}
-
 async function renderEspacos() {
   const [espacos, ativo] = await Promise.all([getEspacosDoUsuario(), getEspacoAtivo()]);
   espacosUsuario = espacos;
@@ -126,18 +146,57 @@ async function renderEspacos() {
 
 function renderPreviaPerfil() {
   const nome = document.getElementById('profile-name').value.trim() || 'Seu nome';
-  const avatar = document.getElementById('profile-avatar').value.trim();
+  const avatar = removerAvatarPendente ? '' : (avatarTemporario || avatarAtual);
+  const fonteAvatar = avatarTemporario ? escapeHtml(avatarTemporario) : safeImageSrc(avatar);
   const inicial = nome.charAt(0).toUpperCase() || '•';
   document.getElementById('profile-preview').innerHTML = `
-    <span class="profile-preview-avatar">
-      ${avatar ? `<img src="${safeImageSrc(avatar)}" alt="" data-avatar-preview />` : escapeHtml(inicial)}
-    </span>
-    <span><strong>${escapeHtml(nome)}</strong><small>Assim você aparece no Cine Diário</small></span>`;
+    <button class="profile-preview-avatar" data-avatar-picker type="button" aria-label="Escolher foto do perfil">
+      ${avatar ? `<img src="${fonteAvatar}" alt="" data-avatar-preview />` : `<span>${escapeHtml(inicial)}</span>`}
+      <span class="profile-avatar-edit" aria-hidden="true">📷</span>
+    </button>
+    <span><strong>${escapeHtml(nome)}</strong><small>Clique na foto para trocar</small></span>`;
+
+  document.getElementById('remove-profile-avatar').hidden = !avatar;
 
   const imagem = document.querySelector('[data-avatar-preview]');
   if (imagem) imagem.addEventListener('error', () => {
-    imagem.parentElement.textContent = inicial;
+    const fallback = document.createElement('span');
+    fallback.textContent = inicial;
+    imagem.replaceWith(fallback);
   }, { once: true });
+}
+
+function selecionarAvatar(event) {
+  const arquivo = event.target.files?.[0];
+  if (!arquivo) return;
+  event.target.value = '';
+
+  if (!TIPOS_AVATAR.has(arquivo.type)) {
+    showToast('Escolha uma imagem JPG, PNG ou WebP.', 'error');
+    return;
+  }
+  if (arquivo.size > TAMANHO_MAXIMO_AVATAR) {
+    showToast('A foto deve ter no máximo 5 MB.', 'error');
+    return;
+  }
+
+  liberarAvatarTemporario();
+  arquivoAvatarPendente = arquivo;
+  removerAvatarPendente = false;
+  avatarTemporario = URL.createObjectURL(arquivo);
+  renderPreviaPerfil();
+}
+
+function removerAvatarSelecionado() {
+  liberarAvatarTemporario();
+  arquivoAvatarPendente = null;
+  removerAvatarPendente = true;
+  renderPreviaPerfil();
+}
+
+function liberarAvatarTemporario() {
+  if (avatarTemporario) URL.revokeObjectURL(avatarTemporario);
+  avatarTemporario = '';
 }
 
 function renderDetalhesEspaco() {
@@ -219,9 +278,12 @@ function ligarEventos() {
   document.getElementById('active-space-panel').addEventListener('click', tratarAcaoEspaco);
   document.getElementById('active-space-panel').addEventListener('change', alterarPapelPeloControle);
   document.getElementById('profile-name').addEventListener('input', renderPreviaPerfil);
-  document.getElementById('profile-avatar').addEventListener('input', renderPreviaPerfil);
-  document.getElementById('profile-theme').addEventListener('change', aplicarPreviaVisual);
-  document.getElementById('profile-color').addEventListener('input', aplicarPreviaVisual);
+  document.getElementById('profile-preview').addEventListener('click', event => {
+    if (event.target.closest('[data-avatar-picker]')) document.getElementById('profile-avatar-file').click();
+  });
+  document.getElementById('profile-avatar-file').addEventListener('change', selecionarAvatar);
+  document.getElementById('remove-profile-avatar').addEventListener('click', removerAvatarSelecionado);
+  document.getElementById('profile-theme-options').addEventListener('change', aplicarPreviaVisual);
   document.getElementById('join-code').addEventListener('input', event => {
     event.target.value = normalizarCodigo(event.target.value);
   });
@@ -234,40 +296,90 @@ function alternarFormulario(id, campoFoco) {
 }
 
 function aplicarPreviaVisual() {
-  aplicarTema(
-    document.getElementById('profile-theme').value,
-    document.getElementById('profile-color').value
-  );
+  aplicarTema(getTemaSelecionado());
+}
+
+function getTemaSelecionado() {
+  return document.querySelector('input[name="profile-theme"]:checked')?.value || 'cinema';
 }
 
 async function salvarPerfil(event) {
   event.preventDefault();
   const btn = document.getElementById('save-profile-btn');
   btn.disabled = true;
+  let caminhoNovoAvatar = null;
+  let perfilFoiAtualizado = false;
   try {
-    const tema = document.getElementById('profile-theme').value;
+    const tema = getTemaSelecionado();
     const streamingsSelecionados = [...document.querySelectorAll('input[name="streaming"]:checked')]
       .map(input => input.value);
+    let novaUrlAvatar = removerAvatarPendente ? null : (avatarAtual || null);
+
+    if (arquivoAvatarPendente) {
+      const avatarEnviado = await enviarAvatar(arquivoAvatarPendente);
+      novaUrlAvatar = avatarEnviado.url;
+      caminhoNovoAvatar = avatarEnviado.caminho;
+    }
+
+    const avatarAnterior = avatarAtual;
     perfilAtual = await atualizarPerfil(getUserId(session), {
       nome_exibicao: document.getElementById('profile-name').value.trim(),
-      avatar_url: document.getElementById('profile-avatar').value.trim() || null,
+      avatar_url: novaUrlAvatar,
       tema,
-      cor_destaque: document.getElementById('profile-color').value
+      cor_destaque: null
     });
+    perfilFoiAtualizado = true;
     await salvarMeusStreamings(getUserId(session), streamingsSelecionados);
+
+    if (avatarAnterior && avatarAnterior !== novaUrlAvatar) {
+      await excluirAvatarArmazenado(avatarAnterior);
+    }
+
     const membroAtual = membrosEspaco.find(membro => membro.usuario_id === getUserId(session));
     if (membroAtual) membroAtual.perfil = { ...membroAtual.perfil, ...perfilAtual };
-    aplicarTema(tema, perfilAtual.cor_destaque);
+    aplicarTema(tema);
+    preencherPerfil(perfilAtual);
     renderCabecalho();
-    renderPreviaPerfil();
     renderDetalhesEspaco();
     showToast('Perfil e streamings atualizados.');
   } catch (error) {
     console.error(error);
+    if (caminhoNovoAvatar && !perfilFoiAtualizado) {
+      await supabase.storage.from('avatars').remove([caminhoNovoAvatar]);
+    }
     showToast('Não foi possível atualizar o perfil.', 'error');
   } finally {
     btn.disabled = false;
   }
+}
+
+async function enviarAvatar(arquivo) {
+  const extensoes = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp'
+  };
+  const caminho = `${getUserId(session)}/perfil-${Date.now()}.${extensoes[arquivo.type]}`;
+  const { error } = await supabase.storage.from('avatars').upload(caminho, arquivo, {
+    cacheControl: '3600',
+    contentType: arquivo.type,
+    upsert: false
+  });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(caminho);
+  return { caminho, url: data.publicUrl };
+}
+
+async function excluirAvatarArmazenado(url) {
+  const marcador = '/storage/v1/object/public/avatars/';
+  const indice = String(url).indexOf(marcador);
+  if (indice < 0) return;
+
+  const caminhoCodificado = String(url).slice(indice + marcador.length).split('?')[0];
+  const caminho = decodeURIComponent(caminhoCodificado);
+  const { error } = await supabase.storage.from('avatars').remove([caminho]);
+  if (error) console.warn('Não foi possível remover o avatar anterior.', error);
 }
 
 async function salvarEspaco(event) {

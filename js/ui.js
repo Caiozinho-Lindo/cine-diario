@@ -3,7 +3,7 @@
 
 import { formatarNota } from './statistics.js';
 import { resolveRootPath, logout } from './auth.js';
-import { nomeDoModo, notaNoModo, setModoAtivo } from './themes.js';
+import { nomeDoModo, notaNoModo, setModoAtivo } from './themes.js?v=20260906.1';
 import { getEspacosDoUsuario, getEspacoAtivo, setEspacoAtivo } from './espacos.js';
 
 export function renderNavbar(container, {

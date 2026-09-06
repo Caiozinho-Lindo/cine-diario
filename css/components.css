@@ -199,6 +199,9 @@
 .pending-session-copy strong,
 .pending-session-copy small { display: block; }
 .pending-session-copy small { margin-top: 3px; color: var(--text-secondary); }
+.pending-session-cancel { padding: 6px 3px; border: 0; color: var(--text-secondary); background: transparent; font: inherit; font-size: 0.78rem; cursor: pointer; }
+.pending-session-cancel:hover { color: var(--danger); text-decoration: underline; }
+.pending-session-cancel:disabled { cursor: wait; opacity: 0.6; }
 
 @media (max-width: 640px) {
   .pending-session-home { align-items: stretch; flex-wrap: wrap; }

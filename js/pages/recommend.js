@@ -3,7 +3,7 @@ import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
 import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260903.1';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
-import { criarSessaoPendente, getSessaoPendente } from '../sessoes.js';
+import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
   recomendarDaLista,
   misturarOrigens,
@@ -11,7 +11,7 @@ import {
   formatarDuracao
 } from '../recommendations.js?v=20260903.1';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 
 let session;
@@ -32,6 +32,7 @@ let finalistas = [];
 let idsExibidos = new Set();
 let paginaDescoberta = 1;
 let inicializado = false;
+let modoIncorporado = false;
 const participantes = new Set();
 const streamingsAtivos = new Set();
 const detalhesCache = new Map();
@@ -41,6 +42,7 @@ if (document.body.dataset.page === 'recommend') initRecommend();
 export async function initRecommend(contexto = {}) {
   if (inicializado) return;
   inicializado = true;
+  modoIncorporado = Boolean(contexto.embedded);
   session = contexto.session || await requireSession();
   if (!session) return;
 
@@ -50,7 +52,7 @@ export async function initRecommend(contexto = {}) {
   membros = contexto.membros || await getMembrosDoEspaco(espacoAtivo.id);
   participantes.clear();
   membros.forEach(membro => participantes.add(membro.usuario_id));
-  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  aplicarTema(perfilAtual?.tema);
 
   if (!contexto.embedded) {
     renderNavbar(document.getElementById('navbar'), {
@@ -461,6 +463,10 @@ function renderSessao(sessaoPendente) {
   const nomes = ids.map(id => nomeMembro(membros.find(membro => membro.usuario_id === id))).filter(Boolean);
   const minhaParticipacao = participacoes.find(item => (item.usuario_id || item) === usuarioId);
   const possoConfirmar = Boolean(minhaParticipacao) && !minhaParticipacao?.confirmado_em;
+  const membroAtual = membros.find(membro => membro.usuario_id === usuarioId);
+  const possoCancelar = !sessaoPendente.criado_por
+    || sessaoPendente.criado_por === usuarioId
+    || membroAtual?.papel === 'administrador';
   mostrarEtapa('session');
   document.getElementById('recommend-session').innerHTML = `<div class="session-layout">
     <article class="recommend-panel">
@@ -479,15 +485,30 @@ function renderSessao(sessaoPendente) {
           ? `<a class="btn btn-primary" href="edit.html?edit=${encodeURIComponent(sessaoPendente.titulo_id || titulo?.id)}&sessao=${encodeURIComponent(sessaoPendente.id)}">Confirmar e avaliar</a>`
           : `<a class="btn btn-primary" href="details.html?id=${encodeURIComponent(sessaoPendente.titulo_id || titulo?.id)}">Ver título</a>`}
         <button class="btn btn-secondary" data-restart type="button">Escolher outro</button>
+        ${possoCancelar ? '<button class="session-cancel" data-cancel-session type="button">Cancelar escolha</button>' : ''}
       </div>
     </article>
-    <aside class="recommend-panel session-side">
-      <span class="eyebrow">Na próxima visita</span>
-      <h3>Sessão pendente</h3>
-      <p>Um aviso discreto aparecerá no Início. O título só será marcado como assistido depois da confirmação e da avaliação obrigatória.</p>
-    </aside>
   </div>`;
   document.querySelector('[data-restart]').addEventListener('click', () => mostrarEtapa('setup'));
+  document.querySelector('[data-cancel-session]')?.addEventListener('click', event => cancelarEscolhaAtual(sessaoPendente, event.currentTarget));
+}
+
+async function cancelarEscolhaAtual(sessaoPendente, botao) {
+  botao.disabled = true;
+  try {
+    await cancelarSessao(sessaoPendente.id);
+    showToast('Escolha cancelada. O título continua em “Para assistir”.');
+    if (modoIncorporado) {
+      window.location.reload();
+      return;
+    }
+    document.getElementById('recommend-session').innerHTML = '';
+    mostrarEtapa('setup');
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível cancelar a escolha.', 'error');
+    botao.disabled = false;
+  }
 }
 
 function mostrarEtapa(etapa) {

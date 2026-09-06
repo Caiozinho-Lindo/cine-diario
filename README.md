@@ -42,8 +42,10 @@ Os arquivos ficam em `supabase/migrations/` e devem ser executados na ordem num�
 5. `005_finalizar_nomes_de_tema.sql`, somente depois de publicar o código novo
 6. `006_recomendador_e_sessoes.sql`
 7. `007_recomendacoes_compativeis.sql`
+8. `008_avatares_storage.sql`
+9. `009_cancelar_sessao.sql`
 
-A migração 004 cria os convites, simplifica os papéis, remove classificações de espaço e elimina a preferência de página inicial. A migração 005 encerra a compatibilidade temporária com a versão anterior do site. A migração 007 adiciona recomendações anônimas entre usuários compatíveis, sem expor identidades ou avaliações individuais. Antes de qualquer migração no ambiente online, exporte as tabelas principais e confira as contagens.
+A migração 004 cria os convites, simplifica os papéis, remove classificações de espaço e elimina a preferência de página inicial. A migração 005 encerra a compatibilidade temporária com a versão anterior do site. A migração 007 adiciona recomendações anônimas entre usuários compatíveis, sem expor identidades ou avaliações individuais. A migração 008 cria o armazenamento de fotos de perfil, com leitura pública e escrita restrita à pasta da própria conta. A migração 009 permite cancelar uma escolha pendente sem remover o título da lista “Para assistir”. Antes de qualquer migração no ambiente online, exporte as tabelas principais e confira as contagens.
 
 ## Estrutura principal
 

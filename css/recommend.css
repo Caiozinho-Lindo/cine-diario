@@ -110,21 +110,22 @@
 .recommend-empty h3 { margin-bottom: 7px; }
 .recommend-empty p { color: var(--text-secondary); }
 
-.session-layout { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 18px; }
+.session-layout { display: block; }
 .session-status { display: flex; align-items: flex-start; gap: 14px; }
 .session-status-icon { display: grid; place-items: center; flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; color: var(--accent-2); background: var(--accent-glow); font-size: 1.25rem; }
 .session-status h2 { margin: 2px 0 6px; }
-.session-status p,
-.session-side p { color: var(--text-secondary); }
+.session-status p { color: var(--text-secondary); }
 .session-data { margin: 20px 0; padding: 12px 0; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
 .session-data div { display: flex; justify-content: space-between; gap: 18px; padding: 6px 0; font-size: 0.86rem; }
 .session-data span { color: var(--text-secondary); }
 .session-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.session-cancel { align-self: center; padding: 7px 4px; border: 0; color: var(--text-secondary); background: transparent; font: inherit; font-size: 0.82rem; cursor: pointer; }
+.session-cancel:hover { color: var(--danger); text-decoration: underline; }
+.session-cancel:disabled { cursor: wait; opacity: 0.6; }
 
 @media (max-width: 780px) {
   .recommend-fields,
-  .finalists-grid,
-  .session-layout { grid-template-columns: 1fr; }
+  .finalists-grid { grid-template-columns: 1fr; }
   .recommend-field-wide { grid-column: auto; }
   .recommend-panel-footer,
   .results-heading { align-items: stretch; flex-direction: column; }

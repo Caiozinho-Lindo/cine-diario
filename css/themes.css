@@ -1,5 +1,5 @@
 /* ==========================================================================
-   THEMES — três identidades visuais disponíveis no perfil
+   THEMES — identidades visuais disponíveis no perfil
    ========================================================================== */
 
 /* ---------- Azul-marinho: cinematográfico, tecnológico ---------- */
@@ -54,6 +54,150 @@
   --success: #6fbf9a;
   --danger: #e08a8a;
   --nav-bg: rgba(21, 15, 34, 0.85);
+}
+
+/* ---------- Claro: neutro, arejado e confortável durante o dia ---------- */
+.theme-claro {
+  --bg-base: linear-gradient(180deg, #f4f2ee 0%, #e9eef2 100%);
+  --surface: #ffffff;
+  --surface-elevated: #f7f5f1;
+  --card-border: rgba(38, 55, 70, 0.16);
+  --text-primary: #1f2a33;
+  --text-secondary: #63717c;
+  --accent: #2b5f87;
+  --accent-2: #357bab;
+  --accent-glow: rgba(43, 95, 135, 0.18);
+  --input-bg: #ffffff;
+  --input-border: rgba(38, 55, 70, 0.24);
+  --success: #347d5a;
+  --danger: #b44d54;
+  --nav-bg: rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- Noir: preto e branco inspirado no cinema clássico ---------- */
+.theme-noir {
+  --bg-base: linear-gradient(180deg, #070707 0%, #171717 100%);
+  --surface: #111111;
+  --surface-elevated: #1b1b1b;
+  --card-border: rgba(255, 255, 255, 0.16);
+  --text-primary: #f2f2f2;
+  --text-secondary: #a9a9a9;
+  --accent: #eeeeee;
+  --accent-2: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.16);
+  --input-bg: #0a0a0a;
+  --input-border: rgba(255, 255, 255, 0.25);
+  --success: #c8c8c8;
+  --danger: #d47a7a;
+  --nav-bg: rgba(5, 5, 5, 0.92);
+}
+
+/* ---------- Aranha: contraste de vermelho e azul ---------- */
+.theme-aranha {
+  --bg-base: linear-gradient(145deg, #071426 0%, #102a50 58%, #2a0b18 100%);
+  --surface: #0c1d36;
+  --surface-elevated: #11294a;
+  --card-border: rgba(91, 151, 226, 0.23);
+  --text-primary: #f5f8ff;
+  --text-secondary: #aabbd3;
+  --accent: #e32636;
+  --accent-2: #4d98f0;
+  --accent-glow: rgba(227, 38, 54, 0.24);
+  --input-bg: #08172a;
+  --input-border: rgba(77, 152, 240, 0.3);
+  --success: #59bd91;
+  --danger: #ff6874;
+  --nav-bg: rgba(5, 17, 34, 0.9);
+}
+
+/* ---------- Matrix: preto e verde digital ---------- */
+.theme-matrix {
+  --bg-base: linear-gradient(180deg, #030806 0%, #07130d 100%);
+  --surface: #07100c;
+  --surface-elevated: #0b1c13;
+  --card-border: rgba(39, 209, 127, 0.2);
+  --text-primary: #e5ffef;
+  --text-secondary: #88b69b;
+  --accent: #27d17f;
+  --accent-2: #8af7bd;
+  --accent-glow: rgba(39, 209, 127, 0.2);
+  --input-bg: #030a07;
+  --input-border: rgba(39, 209, 127, 0.3);
+  --success: #4ee49b;
+  --danger: #dd6d72;
+  --nav-bg: rgba(2, 8, 5, 0.92);
+}
+
+/* ---------- Clássico: sépia, dourado e salas antigas ---------- */
+.theme-classico {
+  --bg-base: linear-gradient(180deg, #17110c 0%, #2b2016 100%);
+  --surface: #211910;
+  --surface-elevated: #302417;
+  --card-border: rgba(214, 183, 120, 0.22);
+  --text-primary: #f2e4c5;
+  --text-secondary: #bda980;
+  --accent: #d6b778;
+  --accent-2: #f0dfb5;
+  --accent-glow: rgba(214, 183, 120, 0.2);
+  --input-bg: #17110c;
+  --input-border: rgba(214, 183, 120, 0.3);
+  --success: #91b67c;
+  --danger: #d98576;
+  --nav-bg: rgba(23, 17, 12, 0.92);
+}
+
+/* ---------- Poderoso Chefão: preto, vinho e dourado ---------- */
+.theme-chefao {
+  --bg-base: linear-gradient(155deg, #050505 0%, #13090c 58%, #251016 100%);
+  --surface: #100c0d;
+  --surface-elevated: #1b1114;
+  --card-border: rgba(200, 164, 95, 0.2);
+  --text-primary: #f3eadc;
+  --text-secondary: #b8a99c;
+  --accent: #9c2f42;
+  --accent-2: #d6b56f;
+  --accent-glow: rgba(156, 47, 66, 0.24);
+  --input-bg: #090707;
+  --input-border: rgba(200, 164, 95, 0.28);
+  --success: #77ad81;
+  --danger: #db6c75;
+  --nav-bg: rgba(5, 5, 5, 0.94);
+}
+
+/* ---------- Tubarão: profundidade oceânica e alerta vermelho ---------- */
+.theme-tubarao {
+  --bg-base: linear-gradient(180deg, #031522 0%, #082c42 58%, #04121c 100%);
+  --surface: #071d2a;
+  --surface-elevated: #0b2a3b;
+  --card-border: rgba(105, 190, 222, 0.2);
+  --text-primary: #f2f8fa;
+  --text-secondary: #a5c2ce;
+  --accent: #d5393e;
+  --accent-2: #69beda;
+  --accent-glow: rgba(213, 57, 62, 0.22);
+  --input-bg: #041722;
+  --input-border: rgba(105, 190, 222, 0.28);
+  --success: #63bf9b;
+  --danger: #ed6266;
+  --nav-bg: rgba(3, 18, 29, 0.92);
+}
+
+/* ---------- Star Wars: espaço profundo, amarelo e azul luminoso ---------- */
+.theme-star-wars {
+  --bg-base: linear-gradient(180deg, #020308 0%, #070b16 65%, #03050a 100%);
+  --surface: #090c14;
+  --surface-elevated: #111726;
+  --card-border: rgba(241, 207, 50, 0.2);
+  --text-primary: #f5f5ef;
+  --text-secondary: #a9b2c4;
+  --accent: #e1bd18;
+  --accent-2: #4c9cff;
+  --accent-glow: rgba(59, 143, 245, 0.22);
+  --input-bg: #04060b;
+  --input-border: rgba(76, 156, 255, 0.28);
+  --success: #63c79c;
+  --danger: #e7656d;
+  --nav-bg: rgba(2, 3, 8, 0.94);
 }
 
 /* ==========================================================================
@@ -134,6 +278,79 @@
   background-size: 60px 60px;
   pointer-events: none;
   z-index: 0;
+}
+
+/* --- Temas adicionais: luzes próprias sem imagens externas --- */
+.theme-claro .bg-decor::before,
+.theme-noir .bg-decor::before,
+.theme-aranha .bg-decor::before,
+.theme-matrix .bg-decor::before,
+.theme-classico .bg-decor::before,
+.theme-chefao .bg-decor::before,
+.theme-tubarao .bg-decor::before,
+.theme-star-wars .bg-decor::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.theme-claro .bg-decor::before {
+  background: radial-gradient(ellipse 700px 360px at 85% 0%, rgba(43,95,135,0.10), transparent 65%);
+}
+.theme-noir .bg-decor::before {
+  background: linear-gradient(112deg, transparent 28%, rgba(255,255,255,0.045) 45%, transparent 61%);
+}
+.theme-aranha .bg-decor::before {
+  background:
+    radial-gradient(ellipse 600px 450px at 0% 15%, rgba(47,125,225,0.2), transparent 62%),
+    radial-gradient(ellipse 650px 450px at 100% 90%, rgba(227,38,54,0.15), transparent 62%);
+}
+.theme-matrix .bg-decor::before {
+  opacity: 0.16;
+  background-image: repeating-linear-gradient(90deg, transparent 0 48px, rgba(39,209,127,0.18) 49px 50px);
+}
+.theme-classico .bg-decor::before {
+  background: radial-gradient(ellipse 750px 500px at 50% -10%, rgba(214,183,120,0.14), transparent 65%);
+}
+.theme-chefao .bg-decor::before {
+  background:
+    radial-gradient(ellipse 650px 480px at 100% 100%, rgba(101,29,42,0.22), transparent 66%),
+    linear-gradient(115deg, transparent 40%, rgba(200,164,95,0.035) 50%, transparent 60%);
+}
+.theme-tubarao .bg-decor::before {
+  background:
+    radial-gradient(ellipse 850px 260px at 50% 0%, rgba(105,190,218,0.18), transparent 70%),
+    repeating-radial-gradient(ellipse at 50% 115%, transparent 0 80px, rgba(105,190,218,0.035) 82px 84px);
+}
+.theme-star-wars .bg-decor::before {
+  background:
+    radial-gradient(ellipse 620px 420px at 0% 0%, rgba(59,143,245,0.12), transparent 65%),
+    radial-gradient(ellipse 520px 360px at 100% 100%, rgba(241,207,50,0.07), transparent 65%);
+}
+.theme-claro .bg-decor::after,
+.theme-noir .bg-decor::after,
+.theme-aranha .bg-decor::after,
+.theme-matrix .bg-decor::after,
+.theme-classico .bg-decor::after,
+.theme-chefao .bg-decor::after,
+.theme-tubarao .bg-decor::after,
+.theme-star-wars .bg-decor::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+.theme-star-wars .bg-decor::after {
+  opacity: 0.12;
+  background-image:
+    radial-gradient(circle, #fff 0 1px, transparent 1.3px),
+    radial-gradient(circle, #4c9cff 0 1px, transparent 1.4px);
+  background-position: 0 0, 27px 35px;
+  background-size: 74px 74px, 97px 97px;
 }
 
 /* ---------- Login screen decor ---------- */

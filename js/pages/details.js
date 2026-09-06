@@ -8,7 +8,7 @@ import {
   avaliacaoNoModo,
   nomeDoModo,
   usuarioDoModo
-} from '../themes.js';
+} from '../themes.js?v=20260906.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar, safeImageSrc, escapeHtml,
@@ -33,7 +33,7 @@ async function init() {
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioIdAtual);
-  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  aplicarTema(perfilAtual?.tema);
   abaAtiva = modoAtivo;
 
   renderNavbar(document.getElementById('navbar'), {

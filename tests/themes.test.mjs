@@ -9,11 +9,13 @@ globalThis.sessionStorage = {
 };
 
 const {
+  TEMAS_PERFIL,
   modoDoMembro,
   usuarioDoModo,
   normalizarModoAtivo,
   notaNoModo,
-  nomeDoModo
+  nomeDoModo,
+  normalizarTema
 } = await import('../js/themes.js');
 
 const membros = [
@@ -51,4 +53,23 @@ test('obtém a nota da pessoa escolhida sem depender de nomes fixos', () => {
 test('identifica o próprio diário e exibe o nome dos demais membros', () => {
   assert.equal(nomeDoModo('membro:usuario-a', membros, 'usuario-a'), 'Meu diário');
   assert.equal(nomeDoModo('membro:usuario-c', membros, 'usuario-a'), 'Carla');
+});
+
+test('oferece temas claros, escuros e inspirados em cinema', () => {
+  const ids = TEMAS_PERFIL.map(tema => tema.id);
+  assert.ok(ids.length >= 8);
+  assert.ok(ids.includes('claro'));
+  assert.ok(ids.includes('noir'));
+  assert.ok(ids.includes('aranha'));
+  assert.ok(ids.includes('classico'));
+  assert.ok(ids.includes('chefao'));
+  assert.ok(ids.includes('tubarao'));
+  assert.ok(ids.includes('star-wars'));
+});
+
+test('mantém compatibilidade com os nomes antigos de tema', () => {
+  assert.equal(normalizarTema('caio'), 'azul');
+  assert.equal(normalizarTema('noemy'), 'lavanda');
+  assert.equal(normalizarTema('casal'), 'cinema');
+  assert.equal(normalizarTema('tema-inexistente'), 'cinema');
 });

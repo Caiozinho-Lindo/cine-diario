@@ -1,7 +1,7 @@
 // js/pages/edit.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { confirmarSessao } from '../sessoes.js';
@@ -33,7 +33,7 @@ async function init() {
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   const usuarioId = getUserId(sessionAtual);
   const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
-  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  aplicarTema(perfilAtual?.tema);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',

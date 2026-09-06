@@ -64,6 +64,25 @@ export async function confirmarSessao(sessaoId) {
   return data;
 }
 
+export async function cancelarSessao(sessaoId) {
+  if (!sessaoId) return null;
+  const fallback = lerFallbackPorId(sessaoId);
+  const { data, error } = await supabase
+    .rpc('cancelar_sessao', { p_sessao_id: sessaoId })
+    .single();
+
+  if (error) {
+    if (fallback && recursoAindaNaoMigrado(error)) {
+      removerFallback(fallback.espaco_id);
+      return { ...fallback, status: 'cancelada' };
+    }
+    throw error;
+  }
+
+  removerFallback(data.espaco_id);
+  return data;
+}
+
 function criarFallback(espacoId, titulo, participantes) {
   return {
     id: `local-${Date.now()}`,

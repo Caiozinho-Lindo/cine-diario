@@ -11,7 +11,7 @@ import {
   salvarAvaliacao
 } from '../titulos.js';
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar,
@@ -47,7 +47,7 @@ async function init() {
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
-  aplicarTema(perfilAtual?.tema, perfilAtual?.cor_destaque);
+  aplicarTema(perfilAtual?.tema);
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'catalog',
