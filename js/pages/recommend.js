@@ -1,7 +1,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260909.2';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260909.3';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
@@ -9,16 +9,16 @@ import {
   misturarOrigens,
   motivosDaRecomendacao,
   formatarDuracao
-} from '../recommendations.js?v=20260909.2';
+} from '../recommendations.js?v=20260909.3';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
-import { abrirModalDescoberta } from '../discovery.js?v=20260909.2';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
+import { abrirModalDescoberta } from '../discovery.js?v=20260909.3';
 import {
   bloquearRecomendacao,
   filtrarRecomendacoesBloqueadas,
   getRecomendacoesBloqueadas
-} from '../recommendationBlocks.js?v=20260909.2';
+} from '../recommendationBlocks.js?v=20260909.3';
 
 let session;
 let perfilAtual;
@@ -51,12 +51,16 @@ export async function initRecommend(contexto = {}) {
   inicializado = true;
   modoIncorporado = Boolean(contexto.embedded);
   session = contexto.session || await requireSession();
-  if (!session) return;
+  if (!session) {
+    if (!modoIncorporado) concluirCarregamentoInicial();
+    return;
+  }
 
   perfilAtual = contexto.perfilAtual || await getCurrentProfile(session);
   usuarioId = contexto.usuarioId || getUserId(session);
   espacoAtivo = contexto.espacoAtivo || await getEspacoAtivo();
   membros = contexto.membros || await getMembrosDoEspaco(espacoAtivo.id);
+  const contextoTitulos = { espaco: espacoAtivo, membros, usuarioId };
   participantes.clear();
   membros.forEach(membro => participantes.add(membro.usuario_id));
   aplicarTema(perfilAtual?.tema);
@@ -76,10 +80,10 @@ export async function initRecommend(contexto = {}) {
 
   try {
     [desejos, historico, streamingsPorUsuario, bloqueiosRecomendacao] = await Promise.all([
-      getListaDesejos(),
+      getListaDesejos({ contexto: contextoTitulos }),
       contexto.historicoInicial
         ? Promise.resolve(contexto.historicoInicial)
-        : getAllTitulosComAvaliacoes(),
+        : getAllTitulosComAvaliacoes({ contexto: contextoTitulos }),
       getStreamingsDosUsuarios(membros.map(membro => membro.usuario_id)),
       getRecomendacoesBloqueadas(usuarioId).catch(error => {
         console.warn('[recomendações bloqueadas]', error);
@@ -96,6 +100,8 @@ export async function initRecommend(contexto = {}) {
   } catch (error) {
     console.error(error);
     showToast('Não foi possível preparar o recomendador.', 'error');
+  } finally {
+    if (!modoIncorporado) concluirCarregamentoInicial();
   }
 }
 

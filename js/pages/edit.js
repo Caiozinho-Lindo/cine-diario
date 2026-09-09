@@ -2,7 +2,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { confirmarSessao } from '../sessoes.js';
 
@@ -18,7 +18,10 @@ init();
 
 async function init() {
   sessionAtual = await requireSession();
-  if (!sessionAtual) return;
+  if (!sessionAtual) {
+    concluirCarregamentoInicial();
+    return;
+  }
 
   const params = new URLSearchParams(window.location.search);
   editId = params.get('edit');
@@ -28,41 +31,49 @@ async function init() {
     return;
   }
 
-  perfilAtual = await getCurrentProfile(sessionAtual);
-  const espacoAtivo = await getEspacoAtivo();
-  membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
-  const usuarioId = getUserId(sessionAtual);
-  const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
-  aplicarTema(perfilAtual?.tema);
+  try {
+    perfilAtual = await getCurrentProfile(sessionAtual);
+    const espacoAtivo = await getEspacoAtivo();
+    membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
+    const usuarioId = getUserId(sessionAtual);
+    const contextoTitulos = { espaco: espacoAtivo, membros: membrosEspaco, usuarioId };
+    const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
+    aplicarTema(perfilAtual?.tema);
 
-  renderNavbar(document.getElementById('navbar'), {
-    activePage: 'catalog',
-    modoAtivo,
-    perfilAtual,
-    membros: membrosEspaco,
-    usuarioId,
-    onModoChange: () => {}
-  });
+    renderNavbar(document.getElementById('navbar'), {
+      activePage: 'catalog',
+      modoAtivo,
+      perfilAtual,
+      membros: membrosEspaco,
+      usuarioId,
+      onModoChange: () => {}
+    });
 
-  if (!perfilAtual) {
-    showToast('Este usuário não está associado a um perfil.', 'error');
+    if (!perfilAtual) {
+      showToast('Este usuário não está associado a um perfil.', 'error');
+    }
+
+    configurarSecoesDeAvaliacao();
+
+    document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
+    atualizarDisplayNota();
+
+    await iniciarModoEdicao(editId, contextoTitulos);
+
+    document.getElementById('title-form').addEventListener('submit', onSubmit);
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível preparar a tela de edição.', 'error');
+  } finally {
+    concluirCarregamentoInicial();
   }
-
-  configurarSecoesDeAvaliacao();
-
-  document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
-  atualizarDisplayNota();
-
-  await iniciarModoEdicao(editId);
-
-  document.getElementById('title-form').addEventListener('submit', onSubmit);
 }
 
-async function iniciarModoEdicao(id) {
+async function iniciarModoEdicao(id, contextoTitulos = null) {
   document.getElementById('page-heading').textContent = 'Editar e avaliar';
 
   try {
-    tituloExistente = await getTituloComAvaliacoes(id);
+    tituloExistente = await getTituloComAvaliacoes(id, { contexto: contextoTitulos });
     dadosSelecionados = { ...tituloExistente };
     mostrarFormulario();
 

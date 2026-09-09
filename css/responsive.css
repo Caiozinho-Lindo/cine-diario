@@ -50,6 +50,7 @@
   .catalog-add-form { padding: 16px; }
   .catalog-add-choice-actions { grid-template-columns: 1fr; }
   .catalog-add-actions .btn { width: 100%; }
+  .personal-discovery-heading { align-items: flex-start; flex-direction: column; }
   .personal-discovery-actions { flex-direction: column; }
   .discovery-modal-box {
     grid-template-columns: 1fr;

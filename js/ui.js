@@ -72,7 +72,36 @@ export function renderNavbar(container, {
     if (onModoChange) onModoChange(seletorModo.value);
   });
   container.querySelector('#logout-btn').addEventListener('click', logout);
+  prepararNavegacaoLeve(container);
   hidratarEspacos(container).catch(error => console.error('[espaços]', error));
+}
+
+function prepararNavegacaoLeve(container) {
+  const links = [...container.querySelectorAll('.navbar-brand, .navbar-links a')]
+    .map(link => link.href)
+    .filter(Boolean);
+  const visitados = new Set();
+  const preparar = href => {
+    if (visitados.has(href)) return;
+    visitados.add(href);
+    const prefetch = document.createElement('link');
+    prefetch.rel = 'prefetch';
+    prefetch.href = href;
+    document.head.appendChild(prefetch);
+  };
+
+  container.querySelectorAll('.navbar-brand, .navbar-links a').forEach(link => {
+    ['pointerenter', 'focus', 'touchstart'].forEach(evento => {
+      link.addEventListener(evento, () => preparar(link.href), { once: true, passive: true });
+    });
+  });
+
+  const prepararTodas = () => links.forEach(preparar);
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(prepararTodas, { timeout: 1600 });
+  } else {
+    window.setTimeout(prepararTodas, 1200);
+  }
 }
 
 async function hidratarEspacos(container) {
@@ -201,3 +230,21 @@ export function showEmptyState(container, message) {
   container.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
 }
 export function showSpinner(container) { container.innerHTML = '<div class="spinner"></div>'; }
+
+export function showCardSkeletons(container, quantidade = 8) {
+  container.innerHTML = Array.from({ length: quantidade }, () => `
+    <article class="title-card title-card-skeleton" aria-hidden="true">
+      <div class="poster-wrap"></div>
+      <div class="card-body">
+        <div class="skeleton-line skeleton-line-title"></div>
+        <div class="skeleton-line skeleton-line-short"></div>
+      </div>
+    </article>`).join('');
+}
+
+export function concluirCarregamentoInicial() {
+  document.body.classList.remove('app-loading');
+  document.body.classList.add('app-ready');
+  const carregamento = document.getElementById('app-startup');
+  if (carregamento) carregamento.hidden = true;
+}

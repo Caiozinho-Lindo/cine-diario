@@ -13,6 +13,76 @@
   font-weight: 600;
 }
 
+/* ---------- Carregamento inicial ---------- */
+.app-startup {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 35%, var(--accent-glow), transparent 38%),
+    var(--bg);
+}
+.app-loading .app-startup { display: grid; }
+.app-loading > .navbar,
+.app-loading > main { visibility: hidden; }
+.app-startup-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(320px, 100%);
+  padding: 28px;
+  text-align: center;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-soft);
+}
+.app-startup-logo {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  color: var(--accent-2);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.app-startup-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+.app-startup-card span {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.app-startup-pulse {
+  width: 58px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface);
+}
+.app-startup-pulse::after {
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  content: '';
+  animation: startup-pulse 1s ease-in-out infinite;
+}
+@keyframes startup-pulse {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(240%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-startup-pulse::after { animation: none; }
+}
+
 .login-screen {
   position: relative;
   min-height: 100vh;
@@ -59,6 +129,28 @@
 .btn-block { width: 100%; }
 .btn-sm { padding: 0.4em 0.9em; font-size: 0.85rem; }
 .btn-icon { padding: 0.5em; border-radius: 50%; }
+.btn-dice {
+  width: 44px;
+  min-width: 44px;
+  min-height: 42px;
+  padding-inline: 0;
+  border-radius: 999px;
+  font-size: 1.05rem;
+}
+.btn-dice:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+.btn-dice.is-loading {
+  animation: dice-spin 700ms ease-in-out infinite;
+}
+@keyframes dice-spin {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(12deg) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-dice.is-loading { animation: none; }
+}
 
 /* ---------- Navbar ---------- */
 .navbar {
@@ -368,7 +460,14 @@
   padding: 28px 0 60px;
 }
 .personal-discovery-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
+}
+.personal-discovery-heading > div {
+  min-width: 0;
 }
 .personal-discovery-heading h2 {
   margin: 4px 0 5px;
@@ -695,6 +794,37 @@
 .title-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-soft); }
 .title-card .poster-wrap { position: relative; aspect-ratio: 2/3; background: var(--surface); }
 .title-card .poster-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.title-card-skeleton {
+  pointer-events: none;
+}
+.title-card-skeleton .poster-wrap,
+.title-card-skeleton .skeleton-line {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-elevated) 76%, var(--accent) 24%);
+}
+.title-card-skeleton .poster-wrap::after,
+.title-card-skeleton .skeleton-line::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
+  content: '';
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+.title-card-skeleton .skeleton-line {
+  height: 13px;
+  border-radius: 999px;
+}
+.title-card-skeleton .skeleton-line-title { width: 82%; }
+.title-card-skeleton .skeleton-line-short { width: 52%; margin-top: 9px; }
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-card-skeleton .poster-wrap::after,
+  .title-card-skeleton .skeleton-line::after { animation: none; }
+}
 .title-card .badge-type {
   position: absolute; top: 8px; left: 8px;
   background: rgba(0,0,0,0.55); color: #fff;

@@ -205,6 +205,11 @@
   .finalist-actions { grid-template-columns: 1fr; }
   .recommend-panel-footer .btn,
   .results-actions .btn { width: 100%; }
+  .results-actions .btn-dice,
+  .more-finalists .btn-dice {
+    align-self: center;
+    width: 48px;
+  }
 }
 
 @media (max-width: 520px) {

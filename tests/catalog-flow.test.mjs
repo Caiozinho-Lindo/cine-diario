@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 const catalogHtml = await readFile(new URL('../pages/catalog.html', import.meta.url), 'utf8');
 const catalogJs = await readFile(new URL('../js/pages/catalog.js', import.meta.url), 'utf8');
 const discoveryJs = await readFile(new URL('../js/discovery.js', import.meta.url), 'utf8');
+const titulosJs = await readFile(new URL('../js/titulos.js', import.meta.url), 'utf8');
+const uiJs = await readFile(new URL('../js/ui.js', import.meta.url), 'utf8');
 
 test('o catálogo usa uma única caixa de busca', () => {
   const buscas = catalogHtml.match(/type="search"/g) || [];
@@ -59,4 +61,36 @@ test('o Descobrir do catálogo usa o mesmo bloqueio da Home', () => {
   assert.match(catalogJs, /bloquearRecomendacao/);
   assert.match(catalogJs, /onBloquear: ocultarDescobertaCatalogo/);
   assert.match(discoveryJs, /filtrarRecomendacoesBloqueadas/);
+});
+
+test('o Descobrir do catálogo tem mais recomendações com dado', () => {
+  assert.match(catalogHtml, /id="catalog-discovery-more"/);
+  assert.match(catalogHtml, /aria-label="Mais recomendações"/);
+  assert.match(catalogHtml, />🎲<\/button>/);
+  assert.match(catalogJs, /renovarDescobertasCatalogo/);
+  assert.match(catalogJs, /rodadaDescobertasCatalogo \+= 1/);
+  assert.match(catalogJs, /criarCacheRodadasDescoberta/);
+  assert.match(catalogJs, /cacheDescobertasCatalogo\.preparar\(rodadaDescobertasCatalogo \+ 1\)/);
+  assert.match(discoveryJs, /page: paginaRelacionada\(rodada\)/);
+});
+
+test('o catálogo abre com cache leve e atualiza pelo Supabase em segundo plano', () => {
+  assert.match(catalogJs, /getTitulosCacheSnapshot/);
+  assert.match(catalogJs, /aplicarTitulosNoCatalogo\(cacheTitulos\)/);
+  assert.match(catalogJs, /atualizarCatalogoEmSegundoPlano/);
+  assert.match(catalogJs, /contexto: contextoTitulos/);
+  assert.match(catalogJs, /showCardSkeletons\(grid, 8\)/);
+});
+
+test('ações que mudam títulos limpam o cache local', () => {
+  assert.match(titulosJs, /CACHE_PREFIXO_TITULOS/);
+  assert.match(titulosJs, /salvarTitulosCacheSnapshot/);
+  assert.match(titulosJs, /invalidarCacheTitulos/);
+  assert.match(titulosJs, /removerCachePorPrefixo\(CACHE_PREFIXO_TITULOS\)/);
+});
+
+test('a navegação principal prepara páginas vizinhas sem mudar o fluxo', () => {
+  assert.match(uiJs, /prepararNavegacaoLeve/);
+  assert.match(uiJs, /prefetch\.rel = 'prefetch'/);
+  assert.match(uiJs, /requestIdleCallback/);
 });

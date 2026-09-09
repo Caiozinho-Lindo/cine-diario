@@ -8,7 +8,8 @@ import { searchMulti, getDetails } from '../tmdb.js';
 import {
   getAllTitulosComAvaliacoes,
   criarTitulo,
-  salvarAvaliacao
+  salvarAvaliacao,
+  getTitulosCacheSnapshot
 } from '../titulos.js';
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
@@ -17,9 +18,10 @@ import { getMeusStreamings } from '../streamings.js';
 import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
+  criarCacheRodadasDescoberta,
   montarSecoesDescoberta
-} from '../discovery.js?v=20260909.2';
-import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.2';
+} from '../discovery.js?v=20260909.3';
+import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
 import {
   renderNavbar,
   renderTituloCard,
@@ -27,8 +29,10 @@ import {
   escapeHtml,
   showEmptyState,
   showSpinner,
-  showToast
-} from '../ui.js?v=20260902.2';
+  showCardSkeletons,
+  showToast,
+  concluirCarregamentoInicial
+} from '../ui.js?v=20260909.4';
 
 let titulos = [];
 let modoAtivo = 'geral';
@@ -43,6 +47,11 @@ let usuarioIdAtual = null;
 let limiteResultados = 24;
 let descobertasCatalogo = null;
 let carregamentoDescobertas = null;
+let rodadaCarregamentoDescobertas = null;
+let rodadaDescobertasCatalogo = 0;
+let cacheDescobertasCatalogo = null;
+let interfacePreparada = false;
+let parametrosIniciaisAplicados = false;
 
 const RESULTADOS_POR_PAGINA = 24;
 
@@ -50,7 +59,10 @@ init();
 
 async function init() {
   sessionAtual = await requireSession();
-  if (!sessionAtual) return;
+  if (!sessionAtual) {
+    concluirCarregamentoInicial();
+    return;
+  }
 
   perfilAtual = await getCurrentProfile(sessionAtual);
   const usuarioId = getUserId(sessionAtual);
@@ -74,37 +86,84 @@ async function init() {
   });
 
   const grid = document.getElementById('cards-grid');
-  showSpinner(grid);
+  const contextoTitulos = { espaco: espacoAtivo, membros: membrosEspaco, usuarioId };
+  const cacheTitulos = getTitulosCacheSnapshot({
+    incluirDesejos: true,
+    espacoId: espacoAtivo.id,
+    usuarioId
+  });
+
+  if (cacheTitulos) {
+    aplicarTitulosNoCatalogo(cacheTitulos);
+    concluirCarregamentoInicial();
+    void atualizarCatalogoEmSegundoPlano(contextoTitulos);
+    return;
+  }
+
+  showCardSkeletons(grid, 8);
 
   try {
-    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+    const titulosAtualizados = await getAllTitulosComAvaliacoes({
+      incluirDesejos: true,
+      contexto: contextoTitulos
+    });
+    aplicarTitulosNoCatalogo(titulosAtualizados);
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar títulos.', 'error');
     showEmptyState(grid, 'Não foi possível carregar os títulos.');
+    concluirCarregamentoInicial();
     return;
   }
 
+  concluirCarregamentoInicial();
+}
+
+function aplicarTitulosNoCatalogo(novosTitulos) {
+  titulos = novosTitulos;
+  prepararCacheDescobertasCatalogo();
   atualizarTotalCatalogo();
   popularSelects();
-  ligarFiltros();
-  ligarNavegacaoCatalogo();
-  ligarAdicaoUnificada();
 
-  // Suporte a ?filtro=pendentes vindo de outras páginas
+  if (!interfacePreparada) {
+    ligarFiltros();
+    ligarNavegacaoCatalogo();
+    ligarAdicaoUnificada();
+    document.getElementById('catalog-discovery-more')?.addEventListener('click', renovarDescobertasCatalogo);
+    interfacePreparada = true;
+  }
+
+  aplicarParametrosIniciais();
+  renderResultados();
+}
+
+function aplicarParametrosIniciais() {
+  if (parametrosIniciaisAplicados) return;
+  parametrosIniciaisAplicados = true;
   const params = new URLSearchParams(window.location.search);
   secaoCatalogo = normalizarSecao(params.get('secao'));
   atualizarAbasCatalogo();
+
   if (params.get('filtro')) {
     document.getElementById('f-avaliacao').value = params.get('filtro');
     abrirFiltrosExtras();
   }
 
-  renderResultados();
-
   if (params.get('adicionar') === '1') {
     atualizarUrlCatalogo();
     document.getElementById('f-busca').focus();
+  }
+}
+
+async function atualizarCatalogoEmSegundoPlano(contextoTitulos) {
+  try {
+    const titulosAtualizados = await getAllTitulosComAvaliacoes({
+      incluirDesejos: true,
+      contexto: contextoTitulos
+    });
+    aplicarTitulosNoCatalogo(titulosAtualizados);
+  } catch (error) {
+    console.warn('[atualização em segundo plano]', error);
   }
 }
 
@@ -370,34 +429,65 @@ function limparFiltrosCatalogo() {
   renderResultados();
 }
 
-async function renderDescobertasCatalogo() {
+async function renderDescobertasCatalogo({ manterAtual = false } = {}) {
   const grid = document.getElementById('catalog-personal-discovery-grid');
+  if (!cacheDescobertasCatalogo) prepararCacheDescobertasCatalogo();
   if (descobertasCatalogo) {
     preencherDescobertasCatalogo(grid, descobertasCatalogo);
     return;
   }
-  if (carregamentoDescobertas) return carregamentoDescobertas;
+  if (carregamentoDescobertas && rodadaCarregamentoDescobertas === rodadaDescobertasCatalogo) {
+    return carregamentoDescobertas;
+  }
 
-  showSpinner(grid);
+  if (!cacheDescobertasCatalogo.temPronta(rodadaDescobertasCatalogo) && !manterAtual) showSpinner(grid);
+  rodadaCarregamentoDescobertas = rodadaDescobertasCatalogo;
   carregamentoDescobertas = (async () => {
     try {
-      const streamings = await getMeusStreamings(usuarioIdAtual);
-      descobertasCatalogo = await carregarDescobertasPessoais({
-        historico: titulos.filter(titulo => !titulo.quero_assistir),
-        catalogo: titulos,
-        usuarioId: usuarioIdAtual,
-        streamings,
-        limite: 16
-      });
+      descobertasCatalogo = await cacheDescobertasCatalogo.obter(rodadaDescobertasCatalogo);
       if (secaoCatalogo === 'descobrir') preencherDescobertasCatalogo(grid, descobertasCatalogo);
+      cacheDescobertasCatalogo.preparar(rodadaDescobertasCatalogo + 1);
     } catch (error) {
       console.error('[descobrir]', error);
       grid.innerHTML = '<div class="personal-discovery-empty"><strong>Não foi possível preparar suas sugestões agora.</strong>Tente novamente em alguns instantes.</div>';
     } finally {
       carregamentoDescobertas = null;
+      rodadaCarregamentoDescobertas = null;
     }
   })();
   return carregamentoDescobertas;
+}
+
+function prepararCacheDescobertasCatalogo() {
+  cacheDescobertasCatalogo = criarCacheRodadasDescoberta(async rodada => {
+    const streamings = await getMeusStreamings(usuarioIdAtual);
+    return carregarDescobertasPessoais({
+      historico: titulos.filter(titulo => !titulo.quero_assistir),
+      catalogo: titulos,
+      usuarioId: usuarioIdAtual,
+      streamings,
+      limite: 16,
+      rodada
+    });
+  });
+}
+
+async function renovarDescobertasCatalogo() {
+  const botao = document.getElementById('catalog-discovery-more');
+  if (botao) {
+    botao.disabled = true;
+    botao.classList.add('is-loading');
+  }
+  rodadaDescobertasCatalogo += 1;
+  descobertasCatalogo = null;
+  try {
+    await renderDescobertasCatalogo({ manterAtual: true });
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.classList.remove('is-loading');
+    }
+  }
 }
 
 function preencherDescobertasCatalogo(grid, resultado) {
@@ -439,6 +529,7 @@ function preencherDescobertasCatalogo(grid, resultado) {
 async function ocultarDescobertaCatalogo(titulo) {
   try {
     await bloquearRecomendacao(titulo, usuarioIdAtual);
+    cacheDescobertasCatalogo?.limpar();
     showToast(`“${titulo.nome}” não aparecerá mais nas suas recomendações.`);
     descobertasCatalogo = null;
     await renderDescobertasCatalogo();
@@ -463,6 +554,7 @@ async function adicionarDescobertaCatalogo(titulo, botao) {
     titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
     atualizarTotalCatalogo();
     popularSelects();
+    cacheDescobertasCatalogo?.limpar();
     descobertasCatalogo = null;
     await renderDescobertasCatalogo();
   } catch (error) {

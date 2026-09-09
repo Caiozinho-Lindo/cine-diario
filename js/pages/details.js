@@ -12,8 +12,8 @@ import {
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar, safeImageSrc, escapeHtml,
-  showToast, confirmarAcao
-} from '../ui.js';
+  showToast, confirmarAcao, concluirCarregamentoInicial
+} from '../ui.js?v=20260909.4';
 
 let titulo = null;
 let modoAtivo = 'geral';
@@ -26,12 +26,16 @@ init();
 
 async function init() {
   const session = await requireSession();
-  if (!session) return;
+  if (!session) {
+    concluirCarregamentoInicial();
+    return;
+  }
 
   perfilAtual = await getCurrentProfile(session);
   usuarioIdAtual = getUserId(session);
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
+  const contextoTitulos = { espaco: espacoAtivo, membros: membrosEspaco, usuarioId: usuarioIdAtual };
   modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioIdAtual);
   aplicarTema(perfilAtual?.tema);
   abaAtiva = modoAtivo;
@@ -54,15 +58,18 @@ async function init() {
 
   if (!id) {
     root.innerHTML = '<div class="empty-state">Título não especificado.</div>';
+    concluirCarregamentoInicial();
     return;
   }
 
   try {
-    titulo = await getTituloComAvaliacoes(id);
+    titulo = await getTituloComAvaliacoes(id, { contexto: contextoTitulos });
     render();
   } catch (err) {
     console.error(err);
     root.innerHTML = '<div class="empty-state">Não foi possível carregar este título.</div>';
+  } finally {
+    concluirCarregamentoInicial();
   }
 }
 

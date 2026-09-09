@@ -1,6 +1,7 @@
 // Preferências visuais e visão de avaliações do espaço ativo.
 
 const STORAGE_KEY = 'diario_modo_ativo';
+const CHAVE_TEMA_INICIAL = 'cine_diario_tema_inicial';
 export const TEMAS_PERFIL = [
   {
     id: 'cinema',
@@ -131,11 +132,12 @@ export function normalizarTema(tema = 'cinema') {
   return TEMAS_PERFIL.some(item => item.id === temaNormalizado) ? temaNormalizado : 'cinema';
 }
 
-export function aplicarTema(tema = 'cinema') {
+export function aplicarTema(tema = 'cinema', { lembrar = true } = {}) {
   const body = document.body;
   const temaVisual = normalizarTema(tema);
   THEME_CLASSES.forEach(classe => body.classList.remove(classe));
   body.classList.add(`theme-${temaVisual}`);
+  if (lembrar) salvarTemaInicial(temaVisual);
   body.style.removeProperty('--accent');
   body.style.removeProperty('--accent-2');
   body.style.removeProperty('--accent-glow');
@@ -144,5 +146,13 @@ export function aplicarTema(tema = 'cinema') {
     const decor = document.createElement('div');
     decor.className = 'bg-decor';
     body.prepend(decor);
+  }
+}
+
+export function salvarTemaInicial(tema = 'cinema') {
+  try {
+    localStorage.setItem(CHAVE_TEMA_INICIAL, normalizarTema(tema));
+  } catch {
+    // Se o navegador bloquear armazenamento local, o tema continua vindo do perfil.
   }
 }

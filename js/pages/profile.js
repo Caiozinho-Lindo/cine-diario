@@ -21,7 +21,7 @@ import {
   normalizarCodigo
 } from '../espacos.js';
 import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260906.1';
-import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao } from '../ui.js';
+import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 import { supabase } from '../supabaseClient.js';
 
@@ -45,21 +45,31 @@ init();
 
 async function init() {
   session = await requireSession();
-  if (!session) return;
+  if (!session) {
+    concluirCarregamentoInicial();
+    return;
+  }
 
-  perfilAtual = await getCurrentProfile(session);
-  espacoAtivo = await getEspacoAtivo();
-  membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
-  modoAtivo = normalizarModoAtivo(membrosEspaco, getUserId(session));
-  aplicarTema(perfilAtual.tema);
-  renderCabecalho();
+  try {
+    perfilAtual = await getCurrentProfile(session);
+    espacoAtivo = await getEspacoAtivo();
+    membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
+    modoAtivo = normalizarModoAtivo(membrosEspaco, getUserId(session));
+    aplicarTema(perfilAtual.tema);
+    renderCabecalho();
 
-  preencherPerfil(perfilAtual);
-  await carregarStreamings();
-  await renderEspacos();
-  renderDetalhesEspaco();
-  ligarEventos();
-  await processarConvitePendente();
+    preencherPerfil(perfilAtual);
+    await carregarStreamings();
+    await renderEspacos();
+    renderDetalhesEspaco();
+    ligarEventos();
+    await processarConvitePendente();
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível carregar o perfil.', 'error');
+  } finally {
+    concluirCarregamentoInicial();
+  }
 }
 
 function renderCabecalho() {
@@ -296,7 +306,7 @@ function alternarFormulario(id, campoFoco) {
 }
 
 function aplicarPreviaVisual() {
-  aplicarTema(getTemaSelecionado());
+  aplicarTema(getTemaSelecionado(), { lembrar: false });
 }
 
 function getTemaSelecionado() {

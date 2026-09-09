@@ -5,6 +5,8 @@ import { CONFIG } from './supabaseClient.js';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p';
+const detalhesCache = new Map();
+const relacionadosCache = new Map();
 
 function headers() {
   return {
@@ -52,6 +54,17 @@ function normalizeSearchResult(r) {
  * Busca detalhes completos (gêneros, backdrop) de um título específico.
  */
 export async function getDetails(tmdbId, tipo) {
+  const chaveCache = `${tipo}:${tmdbId}`;
+  if (detalhesCache.has(chaveCache)) return detalhesCache.get(chaveCache);
+  const carregamento = buscarDetails(tmdbId, tipo).catch(error => {
+    detalhesCache.delete(chaveCache);
+    throw error;
+  });
+  detalhesCache.set(chaveCache, carregamento);
+  return carregamento;
+}
+
+async function buscarDetails(tmdbId, tipo) {
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
   const anexos = 'watch/providers,keywords,credits,recommendations';
   const url = `${BASE_URL}/${endpoint}/${tmdbId}?language=pt-BR&append_to_response=${encodeURIComponent(anexos)}`;
@@ -106,7 +119,18 @@ export async function getTitlesByTmdbIds(itens) {
   return detalhes.filter(Boolean);
 }
 
-export async function getRelatedTitles(referencias, { limite = 30 } = {}) {
+export async function getRelatedTitles(referencias, { limite = 30, page = 1 } = {}) {
+  const chaveCache = chaveRelacionados(referencias, limite, page);
+  if (relacionadosCache.has(chaveCache)) return relacionadosCache.get(chaveCache);
+  const carregamento = buscarRelatedTitles(referencias, { limite, page }).catch(error => {
+    relacionadosCache.delete(chaveCache);
+    throw error;
+  });
+  relacionadosCache.set(chaveCache, carregamento);
+  return carregamento;
+}
+
+async function buscarRelatedTitles(referencias, { limite = 30, page = 1 } = {}) {
   const unicas = new Map();
   (referencias || []).forEach(referencia => {
     const id = Number(referencia?.tmdb_id);
@@ -119,7 +143,7 @@ export async function getRelatedTitles(referencias, { limite = 30 } = {}) {
     const endpoint = referencia.tipo === 'filme' ? 'movie' : 'tv';
     try {
       const res = await fetch(
-        `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=1`,
+        `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=${Math.max(1, Math.min(Number(page) || 1, 5))}`,
         { headers: headers() }
       );
       if (!res.ok) return [];
@@ -173,6 +197,15 @@ export async function getRelatedTitles(referencias, { limite = 30 } = {}) {
     }
   }));
   return detalhes.filter(Boolean);
+}
+
+function chaveRelacionados(referencias, limite, page) {
+  const refs = (referencias || [])
+    .map(item => `${item?.tipo}:${item?.tmdb_id}`)
+    .filter(chave => !chave.endsWith(':undefined') && !chave.endsWith(':null'))
+    .sort()
+    .join('|');
+  return `${refs}::${Math.max(1, Math.min(Number(limite) || 30, 40))}::${Math.max(1, Math.min(Number(page) || 1, 5))}`;
 }
 
 /**

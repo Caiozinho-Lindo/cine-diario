@@ -3,8 +3,10 @@
 
 import { supabase } from './supabaseClient.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from './espacos.js';
+import { lerCache, salvarCache, removerCachePorPrefixo } from './dataCache.js';
 
 const TEMPORADA_OBRA_INTEIRA = 0;
+const CACHE_PREFIXO_TITULOS = 'cine_diario_cache_titulos_v1:';
 
 async function contextoAtivo() {
   const espaco = await getEspacoAtivo();
@@ -13,8 +15,8 @@ async function contextoAtivo() {
   return { espaco, membros, usuarioId: user?.id || null };
 }
 
-export async function getAllTitulosComAvaliacoes({ incluirDesejos = false } = {}) {
-  const { espaco, membros, usuarioId } = await contextoAtivo();
+export async function getAllTitulosComAvaliacoes({ incluirDesejos = false, contexto = null } = {}) {
+  const { espaco, membros, usuarioId } = contexto || await contextoAtivo();
   let consultaTitulos = supabase
     .from('titulos')
     .select('*')
@@ -33,11 +35,13 @@ export async function getAllTitulosComAvaliacoes({ incluirDesejos = false } = {}
     .eq('temporada', TEMPORADA_OBRA_INTEIRA);
   if (avaliacoesError) throw avaliacoesError;
 
-  return titulos.map(titulo => enrichTitulo(titulo, avaliacoes, membros, usuarioId));
+  const enriquecidos = titulos.map(titulo => enrichTitulo(titulo, avaliacoes, membros, usuarioId));
+  salvarTitulosCacheSnapshot(enriquecidos, { incluirDesejos, espacoId: espaco.id, usuarioId });
+  return enriquecidos;
 }
 
-export async function getTituloComAvaliacoes(id) {
-  const { espaco, membros, usuarioId } = await contextoAtivo();
+export async function getTituloComAvaliacoes(id, { contexto = null } = {}) {
+  const { espaco, membros, usuarioId } = contexto || await contextoAtivo();
   let consultaTitulo = supabase
     .from('titulos')
     .select('*')
@@ -94,6 +98,7 @@ export async function criarTitulo(dadosTitulo, usuarioId) {
       const { data, error } = await atualizacao.select().single();
       if (error) throw error;
       await salvarEstadoBiblioteca(usuarioId, data.id, 'assistido', data.data_assistido);
+      invalidarCacheTitulos();
       return data;
     }
   }
@@ -106,11 +111,12 @@ export async function criarTitulo(dadosTitulo, usuarioId) {
     payload.quero_assistir ? 'quero_assistir' : 'assistido',
     payload.data_assistido
   );
+  invalidarCacheTitulos();
   return data;
 }
 
-export async function getListaDesejos() {
-  const espaco = await getEspacoAtivo();
+export async function getListaDesejos({ contexto = null } = {}) {
+  const espaco = contexto?.espaco || await getEspacoAtivo();
   let consulta = supabase
     .from('titulos')
     .select('*')
@@ -130,6 +136,7 @@ export async function atualizarTitulo(id, campos) {
   if (espaco.id) atualizacao = atualizacao.eq('espaco_id', espaco.id);
   const { data, error } = await atualizacao.select().single();
   if (error) throw error;
+  invalidarCacheTitulos();
   return data;
 }
 
@@ -142,6 +149,7 @@ export async function excluirTitulo(id) {
   if (espaco.id) exclusao = exclusao.eq('espaco_id', espaco.id);
   const { error } = await exclusao;
   if (error) throw error;
+  invalidarCacheTitulos();
 }
 
 export async function salvarAvaliacao({ tituloId, usuarioId, nota, observacao, dataAvaliacao }) {
@@ -163,7 +171,27 @@ export async function salvarAvaliacao({ tituloId, usuarioId, nota, observacao, d
   if (error) throw error;
 
   await salvarEstadoBiblioteca(usuarioId, tituloId, 'assistido', dataAvaliacao);
+  invalidarCacheTitulos();
   return data;
+}
+
+export function getTitulosCacheSnapshot({ incluirDesejos = false, espacoId = '', usuarioId = '' } = {}) {
+  if (!espacoId || !usuarioId) return null;
+  const valor = lerCache(chaveCacheTitulos({ incluirDesejos, espacoId, usuarioId }));
+  return Array.isArray(valor) ? valor : null;
+}
+
+export function salvarTitulosCacheSnapshot(titulos, { incluirDesejos = false, espacoId = '', usuarioId = '' } = {}) {
+  if (!espacoId || !usuarioId || !Array.isArray(titulos)) return;
+  salvarCache(chaveCacheTitulos({ incluirDesejos, espacoId, usuarioId }), titulos);
+}
+
+export function invalidarCacheTitulos() {
+  removerCachePorPrefixo(CACHE_PREFIXO_TITULOS);
+}
+
+function chaveCacheTitulos({ incluirDesejos, espacoId, usuarioId }) {
+  return `${CACHE_PREFIXO_TITULOS}${usuarioId}:${espacoId}:${incluirDesejos ? 'todos' : 'assistidos'}`;
 }
 
 async function salvarEstadoBiblioteca(usuarioId, tituloId, status, dataAssistido = null) {

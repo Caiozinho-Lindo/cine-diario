@@ -1,30 +1,47 @@
 // js/pages/home.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
-import { getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
+import {
+  getAllTitulosComAvaliacoes,
+  criarTitulo,
+  getTitulosCacheSnapshot
+} from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
 import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260906.1';
-import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
+import {
+  renderNavbar,
+  renderTituloCard,
+  safeImageSrc,
+  escapeHtml,
+  showToast,
+  concluirCarregamentoInicial
+} from '../ui.js?v=20260909.4';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
-import { initRecommend } from './recommend.js?v=20260909.2';
+import { initRecommend } from './recommend.js?v=20260909.3';
 import { getMeusStreamings } from '../streamings.js';
 import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
-} from '../discovery.js?v=20260909.2';
-import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.2';
+  criarCacheRodadasDescoberta,
+} from '../discovery.js?v=20260909.3';
+import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
 let catalogoCompleto = [];
 let modoAtual = 'geral';
 let limparCarrosselCatalogo = () => {};
+let rodadaDescobertas = 0;
+let cacheDescobertas = null;
 
 init();
 
 async function init() {
   const session = await requireSession();
-  if (!session) return;
+  if (!session) {
+    concluirCarregamentoInicial();
+    return;
+  }
 
   const perfilAtual = await getCurrentProfile(session);
   const espacoAtivo = await getEspacoAtivo();
@@ -47,12 +64,40 @@ async function init() {
     }
   });
 
+  document.getElementById('home-discovery-more')?.addEventListener('click', renovarDescobertas);
+
   renderSessaoPendente().catch(error => console.error('[sessão pendente]', error));
 
+  const contextoTitulos = { espaco: espacoAtivo, membros: membrosEspaco, usuarioId: usuarioIdAtual };
+  const cacheTitulos = getTitulosCacheSnapshot({
+    incluirDesejos: true,
+    espacoId: espacoAtivo.id,
+    usuarioId: usuarioIdAtual
+  });
+
   try {
-    catalogoCompleto = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
-    window._titulos = catalogoCompleto.filter(titulo => !titulo.quero_assistir);
-    renderTudo(modoAtivo);
+    if (cacheTitulos) {
+      aplicarCatalogo(cacheTitulos, modoAtivo);
+      await initRecommend({
+        embedded: true,
+        session,
+        perfilAtual,
+        espacoAtivo,
+        membros: membrosEspaco,
+        usuarioId: usuarioIdAtual,
+        historicoInicial: window._titulos
+      });
+      concluirCarregamentoInicial();
+      void renderDescobertasPessoais(window._titulos);
+      void atualizarCatalogoEmSegundoPlano(contextoTitulos, modoAtivo);
+      return;
+    }
+
+    const titulosAtualizados = await getAllTitulosComAvaliacoes({
+      incluirDesejos: true,
+      contexto: contextoTitulos
+    });
+    aplicarCatalogo(titulosAtualizados, modoAtivo);
     await initRecommend({
       embedded: true,
       session,
@@ -62,10 +107,32 @@ async function init() {
       usuarioId: usuarioIdAtual,
       historicoInicial: window._titulos
     });
-    await renderDescobertasPessoais(window._titulos);
+    concluirCarregamentoInicial();
+    void renderDescobertasPessoais(window._titulos);
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar dados. Verifique sua conexão e configuração do Supabase.', 'error');
+    concluirCarregamentoInicial();
+  }
+}
+
+function aplicarCatalogo(titulos, modo) {
+  catalogoCompleto = titulos;
+  window._titulos = catalogoCompleto.filter(titulo => !titulo.quero_assistir);
+  prepararCacheDescobertas();
+  renderTudo(modo);
+}
+
+async function atualizarCatalogoEmSegundoPlano(contextoTitulos, modo) {
+  try {
+    const titulosAtualizados = await getAllTitulosComAvaliacoes({
+      incluirDesejos: true,
+      contexto: contextoTitulos
+    });
+    aplicarCatalogo(titulosAtualizados, modo);
+    await renderDescobertasPessoais(window._titulos, { manterAtual: true });
+  } catch (error) {
+    console.warn('[atualização em segundo plano]', error);
   }
 }
 
@@ -150,21 +217,17 @@ function renderCatalogoRecente(titulos, modo) {
   configurarCarrosselCatalogo();
 }
 
-async function renderDescobertasPessoais(historico) {
+async function renderDescobertasPessoais(historico, { manterAtual = false } = {}) {
   const grid = document.getElementById('home-discovery-grid');
   if (!grid) return;
+  if (!cacheDescobertas) prepararCacheDescobertas();
 
-  renderCarregamentoDescobertas(grid);
+  if (!cacheDescobertas?.temPronta(rodadaDescobertas) && !manterAtual) {
+    renderCarregamentoDescobertas(grid);
+  }
 
   try {
-    const streamings = await getMeusStreamings(usuarioIdAtual);
-    const resultado = await carregarDescobertasPessoais({
-      historico,
-      catalogo: catalogoCompleto,
-      usuarioId: usuarioIdAtual,
-      streamings,
-      limite: 4
-    });
+    const resultado = await cacheDescobertas.obter(rodadaDescobertas);
 
     grid.innerHTML = '';
     if (!resultado.itens.length) {
@@ -181,10 +244,42 @@ async function renderDescobertasPessoais(historico) {
       }));
     });
     grid.appendChild(lista);
+    cacheDescobertas.preparar(rodadaDescobertas + 1);
   } catch (error) {
     console.error('[descobrir]', error);
     grid.innerHTML = '<div class="personal-discovery-empty"><strong>Não foi possível preparar suas sugestões agora.</strong>Tente novamente em alguns instantes.</div>';
   }
+}
+
+async function renovarDescobertas() {
+  const botao = document.getElementById('home-discovery-more');
+  if (botao) {
+    botao.disabled = true;
+    botao.classList.add('is-loading');
+  }
+  rodadaDescobertas += 1;
+  try {
+    await renderDescobertasPessoais(window._titulos || [], { manterAtual: true });
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.classList.remove('is-loading');
+    }
+  }
+}
+
+function prepararCacheDescobertas() {
+  cacheDescobertas = criarCacheRodadasDescoberta(async rodada => {
+    const streamings = await getMeusStreamings(usuarioIdAtual);
+    return carregarDescobertasPessoais({
+      historico: window._titulos || [],
+      catalogo: catalogoCompleto,
+      usuarioId: usuarioIdAtual,
+      streamings,
+      limite: 4,
+      rodada
+    });
+  });
 }
 
 function renderCarregamentoDescobertas(grid) {
@@ -207,6 +302,7 @@ function renderCarregamentoDescobertas(grid) {
 async function ocultarDescoberta(titulo) {
   try {
     await bloquearRecomendacao(titulo, usuarioIdAtual);
+    cacheDescobertas?.limpar();
     showToast(`“${titulo.nome}” não aparecerá mais nas suas recomendações.`);
     await renderDescobertasPessoais(window._titulos || []);
   } catch (error) {
@@ -224,6 +320,7 @@ async function adicionarDescobertaALista(titulo, botao) {
     botao.textContent = salvo.jaExistia ? 'Já está no catálogo' : '✓ Na sua lista';
     if (!salvo.jaExistia) {
       catalogoCompleto.unshift({ ...titulo, ...salvo, quero_assistir: true });
+      cacheDescobertas?.limpar();
       renderCatalogoRecente(catalogoCompleto, modoAtual);
       showToast(`“${titulo.nome}” foi adicionado a “Para assistir”.`);
     }

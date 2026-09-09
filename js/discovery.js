@@ -1,21 +1,61 @@
-import { getDetails, getRelatedTitles } from './tmdb.js?v=20260909.2';
+import { getDetails, getRelatedTitles } from './tmdb.js?v=20260909.3';
 import {
   calcularSemelhancaReferencia,
   motivoDaDescobertaPessoal,
   pontuarTitulo,
   selecionarReferenciasPessoais
-} from './recommendations.js?v=20260909.2';
-import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.2';
+} from './recommendations.js?v=20260909.3';
+import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.3';
 import { escapeHtml, safeImageSrc } from './ui.js';
+
+export function criarCacheRodadasDescoberta(carregarRodada) {
+  const rodadas = new Map();
+
+  const obter = rodada => {
+    const chave = Number(rodada) || 0;
+    const existente = rodadas.get(chave);
+    if (existente?.status === 'ready') return Promise.resolve(existente.resultado);
+    if (existente?.promise) return existente.promise;
+
+    const registro = {
+      status: 'loading',
+      promise: Promise.resolve()
+        .then(() => carregarRodada(chave))
+        .then(resultado => {
+          registro.status = 'ready';
+          registro.resultado = resultado;
+          return resultado;
+        })
+        .catch(error => {
+          rodadas.delete(chave);
+          throw error;
+        })
+    };
+    rodadas.set(chave, registro);
+    return registro.promise;
+  };
+
+  return {
+    obter,
+    temPronta: rodada => rodadas.get(Number(rodada) || 0)?.status === 'ready',
+    preparar: rodada => { void obter(rodada).catch(() => {}); },
+    limpar: () => rodadas.clear()
+  };
+}
 
 export async function carregarDescobertasPessoais({
   historico = [],
   catalogo = [],
   usuarioId,
   streamings = [],
-  limite = 12
+  limite = 12,
+  rodada = 0
 } = {}) {
-  const referenciasBase = selecionarReferenciasPessoais(historico, usuarioId, 6);
+  const referenciasBase = alternarLista(
+    selecionarReferenciasPessoais(historico, usuarioId, 10),
+    Number(rodada) || 0,
+    2
+  ).slice(0, 6);
   if (!referenciasBase.length) return { itens: [], motivoVazio: 'sem-historico' };
 
   const referencias = await Promise.all(referenciasBase.map(async referencia => {
@@ -32,14 +72,15 @@ export async function carregarDescobertasPessoais({
   }));
 
   const candidatos = await getRelatedTitles(referencias, {
-    limite: Math.max(12, Math.min(32, limite * 2))
+    limite: Math.max(12, Math.min(32, limite * 2)),
+    page: paginaRelacionada(rodada)
   });
   const existentes = new Set((catalogo || []).map(chaveTitulo));
   const servicos = new Set(streamings || []);
   const historicoEnriquecido = mesclarReferenciasNoHistorico(historico, referencias);
   const bloqueios = await getRecomendacoesBloqueadas(usuarioId);
 
-  const itens = filtrarRecomendacoesBloqueadas(candidatos, bloqueios)
+  const ranqueados = filtrarRecomendacoesBloqueadas(candidatos, bloqueios)
     .filter(titulo => !existentes.has(chaveTitulo(titulo)))
     .filter(titulo => !servicos.size || (titulo.provedores || [])
       .some(provedor => servicos.has(provedor.slug || provedor)))
@@ -57,7 +98,9 @@ export async function carregarDescobertasPessoais({
     .sort((a, b) =>
       b.pontuacao_descoberta - a.pontuacao_descoberta
       || (b.media_tmdb || 0) - (a.media_tmdb || 0)
-    )
+    );
+
+  const itens = alternarLista(ranqueados, Number(rodada) || 0, Math.max(1, limite))
     .slice(0, Math.max(1, limite));
 
   return {
@@ -310,4 +353,14 @@ function normalizarLista(lista) {
 
 function chaveTitulo(titulo) {
   return `${titulo?.tipo}:${titulo?.tmdb_id || titulo?.id}`;
+}
+
+function alternarLista(lista, rodada, passo = 1) {
+  if (!Array.isArray(lista) || lista.length <= 1 || !rodada) return lista || [];
+  const inicio = Math.abs(Math.trunc(rodada) * passo) % lista.length;
+  return [...lista.slice(inicio), ...lista.slice(0, inicio)];
+}
+
+function paginaRelacionada(rodada) {
+  return Math.max(1, Math.min(5, (Number(rodada) || 0) + 1));
 }

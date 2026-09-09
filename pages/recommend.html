@@ -7,11 +7,20 @@
 <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="../css/global.css" />
 <link rel="stylesheet" href="../css/themes.css?v=20260906.1" />
-<link rel="stylesheet" href="../css/components.css?v=20260909.2" />
-<link rel="stylesheet" href="../css/recommend.css?v=20260909.2" />
-<link rel="stylesheet" href="../css/responsive.css" />
+<link rel="stylesheet" href="../css/components.css?v=20260909.4" />
+<link rel="stylesheet" href="../css/recommend.css?v=20260909.3" />
+<link rel="stylesheet" href="../css/responsive.css?v=20260909.3" />
 </head>
-<body class="theme-cinema" data-page="recommend">
+<body class="theme-cinema app-loading" data-page="recommend">
+  <script src="../js/themeBoot.js?v=20260909.4"></script>
+  <div id="app-startup" class="app-startup" role="status" aria-live="polite">
+    <div class="app-startup-card">
+      <div class="app-startup-logo" aria-hidden="true">▤</div>
+      <strong>Cine Diário</strong>
+      <span>Preparando seu diário...</span>
+      <div class="app-startup-pulse" aria-hidden="true"></div>
+    </div>
+  </div>
   <nav class="navbar" id="navbar"></nav>
 
   <main class="container recommend-page">
@@ -95,7 +104,7 @@
         </div>
         <div class="results-actions">
           <button class="btn btn-secondary" data-action="back" type="button">Alterar respostas</button>
-          <button class="btn btn-primary" id="recommend-raffle" type="button">🎲 Ainda em dúvida? Sortear</button>
+          <button class="btn btn-primary btn-dice" id="recommend-raffle" type="button" aria-label="Sortear uma opção" title="Sortear uma opção">🎲</button>
         </div>
       </header>
       <div id="recommend-loading" class="recommend-panel recommend-loading-state" hidden>
@@ -113,7 +122,7 @@
       <div id="recommend-empty" class="recommend-panel recommend-empty" hidden></div>
       <div id="recommend-finalists" class="finalists-grid"></div>
       <div class="more-finalists">
-        <button id="recommend-more" class="btn btn-secondary" type="button">Mostrar outras três opções</button>
+        <button id="recommend-more" class="btn btn-secondary btn-dice" type="button" aria-label="Mostrar outras opções" title="Mostrar outras opções">🎲</button>
       </div>
     </section>
 
@@ -121,6 +130,6 @@
   </main>
 
   <script src="../config.js"></script>
-  <script type="module" src="../js/pages/recommend.js?v=20260909.2"></script>
+  <script type="module" src="../js/pages/recommend.js?v=20260909.4"></script>
 </body>
 </html>

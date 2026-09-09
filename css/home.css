@@ -21,6 +21,13 @@
   color: var(--text-secondary);
 }
 
+.home-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .hub-recommend .recommend-panel {
   box-shadow: var(--shadow-card);
 }
@@ -105,6 +112,9 @@
   .home-section { margin-top: 42px; }
   .home-section-heading { align-items: stretch; flex-direction: column; }
   .home-section-heading .btn { width: 100%; }
+  .home-section-actions { justify-content: space-between; }
+  .home-section-actions .btn-dice { width: 44px; }
+  .home-section-actions .btn:not(.btn-dice) { flex: 1; }
   .home-discovery-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-catalog-carousel { padding-inline: 0; }
   .home-catalog-grid { grid-auto-columns: calc((100% - 14px) / 2); gap: 14px; }
