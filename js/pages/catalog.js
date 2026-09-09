@@ -18,7 +18,8 @@ import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
   montarSecoesDescoberta
-} from '../discovery.js?v=20260907.5';
+} from '../discovery.js?v=20260909.2';
+import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.2';
 import {
   renderNavbar,
   renderTituloCard,
@@ -417,7 +418,6 @@ function preencherDescobertasCatalogo(grid, resultado) {
     secao.innerHTML = `
       <header class="discovery-reason-heading">
         <div>
-          <span class="eyebrow">${escapeHtml(grupo.etiqueta)}</span>
           <h3>${escapeHtml(grupo.titulo)}</h3>
           ${grupo.descricao ? `<p>${escapeHtml(grupo.descricao)}</p>` : ''}
         </div>
@@ -427,10 +427,26 @@ function preencherDescobertasCatalogo(grid, resultado) {
 
     const lista = secao.querySelector('.discovery-catalog-grid');
     grupo.itens.forEach(titulo => {
-      lista.appendChild(criarCardDescobertaCatalogo(titulo, { onAdicionar: adicionarDescobertaCatalogo }));
+      lista.appendChild(criarCardDescobertaCatalogo(titulo, {
+        onAdicionar: adicionarDescobertaCatalogo,
+        onBloquear: ocultarDescobertaCatalogo
+      }));
     });
     grid.appendChild(secao);
   });
+}
+
+async function ocultarDescobertaCatalogo(titulo) {
+  try {
+    await bloquearRecomendacao(titulo, usuarioIdAtual);
+    showToast(`“${titulo.nome}” não aparecerá mais nas suas recomendações.`);
+    descobertasCatalogo = null;
+    await renderDescobertasCatalogo();
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível ocultar essa recomendação.', 'error');
+    throw error;
+  }
 }
 
 async function adicionarDescobertaCatalogo(titulo, botao) {

@@ -1,7 +1,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260903.1';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260909.2';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
@@ -9,10 +9,16 @@ import {
   misturarOrigens,
   motivosDaRecomendacao,
   formatarDuracao
-} from '../recommendations.js?v=20260903.1';
+} from '../recommendations.js?v=20260909.2';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast } from '../ui.js';
+import { abrirModalDescoberta } from '../discovery.js?v=20260909.2';
+import {
+  bloquearRecomendacao,
+  filtrarRecomendacoesBloqueadas,
+  getRecomendacoesBloqueadas
+} from '../recommendationBlocks.js?v=20260909.2';
 
 let session;
 let perfilAtual;
@@ -29,6 +35,7 @@ let origem = 'lista';
 let modoSerie = 'nova';
 let referencia = null;
 let finalistas = [];
+let bloqueiosRecomendacao = [];
 let idsExibidos = new Set();
 let paginaDescoberta = 1;
 let inicializado = false;
@@ -68,12 +75,16 @@ export async function initRecommend(contexto = {}) {
   ligarEventos();
 
   try {
-    [desejos, historico, streamingsPorUsuario] = await Promise.all([
+    [desejos, historico, streamingsPorUsuario, bloqueiosRecomendacao] = await Promise.all([
       getListaDesejos(),
       contexto.historicoInicial
         ? Promise.resolve(contexto.historicoInicial)
         : getAllTitulosComAvaliacoes(),
-      getStreamingsDosUsuarios(membros.map(membro => membro.usuario_id))
+      getStreamingsDosUsuarios(membros.map(membro => membro.usuario_id)),
+      getRecomendacoesBloqueadas(usuarioId).catch(error => {
+        console.warn('[recomendações bloqueadas]', error);
+        return [];
+      })
     ]);
     historicoEnriquecido = historico;
     iniciarStreamings();
@@ -129,6 +140,11 @@ function ligarEventos() {
   document.getElementById('recommend-more').addEventListener('click', mostrarOutras);
   document.getElementById('recommend-raffle').addEventListener('click', sortearFinalista);
   document.getElementById('recommend-finalists').addEventListener('click', event => {
+    const detalhes = event.target.closest('[data-details]')?.dataset.details;
+    if (detalhes) {
+      mostrarDetalhesFinalista(detalhes);
+      return;
+    }
     const id = event.target.closest('[data-choose]')?.dataset.choose;
     if (id) escolherTitulo(id);
   });
@@ -317,7 +333,7 @@ function obterDetalhes(tmdbId, tipoTitulo) {
 
 function recomendar(candidatos, referenciaCompleta, limite) {
   return recomendarDaLista({
-    candidatos,
+    candidatos: filtrarRecomendacoesBloqueadas(candidatos, bloqueiosRecomendacao),
     historico: historicoEnriquecido,
     participantes: [...participantes],
     tipo,
@@ -380,9 +396,33 @@ function renderFinalista(titulo, referenciaCompleta) {
       ${origemFinalista(titulo, criador)}
       ${titulo.assistido_por?.length ? `<div class="finalist-watched">Já assistido por ${escapeHtml(titulo.assistido_por.join(', '))}</div>` : ''}
       <div class="finalist-reasons">${motivos.map(motivo => `<span class="finalist-reason">${escapeHtml(motivo)}</span>`).join('')}</div>
-      <button class="btn btn-primary" data-choose="${escapeHtml(chaveTitulo(titulo))}" type="button">Escolher este</button>
+      <div class="finalist-actions">
+        <button class="btn btn-secondary" data-details="${escapeHtml(chaveTitulo(titulo))}" type="button">Detalhes</button>
+        <button class="btn btn-primary" data-choose="${escapeHtml(chaveTitulo(titulo))}" type="button">Escolher este</button>
+      </div>
     </div>
   </article>`;
+}
+
+function mostrarDetalhesFinalista(chave) {
+  const titulo = finalistas.find(item => chaveTitulo(item) === chave);
+  if (!titulo) return;
+  abrirModalDescoberta(titulo, { onBloquear: bloquearFinalista });
+}
+
+async function bloquearFinalista(titulo) {
+  try {
+    await bloquearRecomendacao(titulo, usuarioId);
+    bloqueiosRecomendacao = await getRecomendacoesBloqueadas(usuarioId);
+    idsExibidos.add(chaveTitulo(titulo));
+    finalistas = finalistas.filter(item => chaveTitulo(item) !== chaveTitulo(titulo));
+    showToast(`“${titulo.nome}” não aparecerá mais nas suas recomendações.`);
+    renderResultados();
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível ocultar essa recomendação.', 'error');
+    throw error;
+  }
 }
 
 function renderVazio(titulo, texto) {

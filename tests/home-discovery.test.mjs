@@ -10,8 +10,13 @@ test('a Home mostra uma prévia de Descobrir levando ao catálogo', () => {
   assert.match(homeHtml, /id="descobrir-para-voce"/);
   assert.match(homeHtml, /href="catalog\.html\?secao=descobrir"/);
   assert.match(homeJs, /carregarDescobertasPessoais/);
-  assert.match(homeJs, /montarSecoesDescoberta/);
   assert.match(homeJs, /criarCardDescobertaCatalogo/);
+  assert.doesNotMatch(homeJs, /Sugestões seguras/);
+});
+
+test('a Home usa o bloqueio compartilhado de recomendações', () => {
+  assert.match(homeJs, /bloquearRecomendacao/);
+  assert.match(homeJs, /onBloquear: ocultarDescoberta/);
 });
 
 test('o carrossel de adicionados recentemente avança a cada cinco segundos', () => {

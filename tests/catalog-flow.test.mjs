@@ -54,3 +54,9 @@ test('o Descobrir do catálogo agrupa sugestões por filme de referência', () =
   assert.match(catalogJs, /discovery-reason-group/);
   assert.match(catalogJs, /criarCardDescobertaCatalogo/);
 });
+
+test('o Descobrir do catálogo usa o mesmo bloqueio da Home', () => {
+  assert.match(catalogJs, /bloquearRecomendacao/);
+  assert.match(catalogJs, /onBloquear: ocultarDescobertaCatalogo/);
+  assert.match(discoveryJs, /filtrarRecomendacoesBloqueadas/);
+});

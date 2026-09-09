@@ -7,8 +7,8 @@
 <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="../css/global.css" />
 <link rel="stylesheet" href="../css/themes.css?v=20260906.1" />
-<link rel="stylesheet" href="../css/components.css?v=20260906.2" />
-<link rel="stylesheet" href="../css/recommend.css?v=20260906.2" />
+<link rel="stylesheet" href="../css/components.css?v=20260909.2" />
+<link rel="stylesheet" href="../css/recommend.css?v=20260909.2" />
 <link rel="stylesheet" href="../css/responsive.css" />
 </head>
 <body class="theme-cinema" data-page="recommend">
@@ -98,7 +98,18 @@
           <button class="btn btn-primary" id="recommend-raffle" type="button">🎲 Ainda em dúvida? Sortear</button>
         </div>
       </header>
-      <div id="recommend-loading" class="recommend-panel" hidden><div class="spinner"></div></div>
+      <div id="recommend-loading" class="recommend-panel recommend-loading-state" hidden>
+        <div class="recommend-loading-copy" role="status" aria-live="polite">
+          <span class="eyebrow">Preparando</span>
+          <h3>Encontrando três boas opções...</h3>
+          <p>Estou cruzando seu histórico, o clima escolhido e seus streamings.</p>
+        </div>
+        <div class="recommend-loading-grid" aria-hidden="true">
+          <article class="recommend-card-skeleton"><span></span><strong></strong><small></small><p></p><button tabindex="-1"></button></article>
+          <article class="recommend-card-skeleton"><span></span><strong></strong><small></small><p></p><button tabindex="-1"></button></article>
+          <article class="recommend-card-skeleton"><span></span><strong></strong><small></small><p></p><button tabindex="-1"></button></article>
+        </div>
+      </div>
       <div id="recommend-empty" class="recommend-panel recommend-empty" hidden></div>
       <div id="recommend-finalists" class="finalists-grid"></div>
       <div class="more-finalists">
@@ -110,6 +121,6 @@
   </main>
 
   <script src="../config.js"></script>
-  <script type="module" src="../js/pages/recommend.js?v=20260906.2"></script>
+  <script type="module" src="../js/pages/recommend.js?v=20260909.2"></script>
 </body>
 </html>

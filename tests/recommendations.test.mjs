@@ -202,6 +202,97 @@ test('Quero medo exige terror ou sinais realmente assustadores', () => {
   assert.equal(avaliarCompatibilidadeClima(policial, 'medo').elegivel, false);
 });
 
+test('Quero chorar não aceita drama pesado sem sinal emocional', () => {
+  const poderosoChefao = titulo('poderoso-chefao', {
+    generos: ['Drama', 'Crime'],
+    sinopse: 'Um patriarca de uma familia mafiosa transfere o controle do império clandestino ao filho.'
+  });
+  const oppenheimer = titulo('oppenheimer', {
+    generos: ['Drama', 'História'],
+    sinopse: 'A trajetória de um cientista no desenvolvimento de uma arma decisiva durante a guerra.'
+  });
+  const emocionante = titulo('emocionante', {
+    generos: ['Drama'],
+    sinopse: 'Uma história de perda, superação e sacrifício familiar.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(poderosoChefao, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(oppenheimer, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(emocionante, 'chorar').elegivel, true);
+});
+
+test('Quero chorar não aceita aventura familiar ou animação leve', () => {
+  const mario = titulo('super-mario-galaxy', {
+    generos: ['Animação', 'Família', 'Aventura'],
+    sinopse: 'Mario viaja por galáxias coloridas com amigos em uma aventura divertida para salvar o reino.'
+  });
+  const animacaoComovente = titulo('animacao-comovente', {
+    generos: ['Animação', 'Drama', 'Família'],
+    sinopse: 'Uma família enfrenta uma grande perda e encontra superação depois de um sacrifício emocionante.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(mario, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(animacaoComovente, 'chorar').elegivel, true);
+});
+
+test('Quero rir exige comédia ou sinal claro de humor', () => {
+  const animacaoAventura = titulo('animacao-aventura', {
+    generos: ['Animação', 'Família', 'Aventura'],
+    sinopse: 'Uma jornada colorida por mundos mágicos.'
+  });
+  const comedia = titulo('comedia-romantica', {
+    generos: ['Comédia', 'Romance'],
+    sinopse: 'Um casal improvável vive situações engraçadas.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(animacaoAventura, 'rir').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(comedia, 'rir').elegivel, true);
+});
+
+test('Quero ação exige ação, aventura ou sinais claros de combate', () => {
+  const dramaGuerra = titulo('drama-guerra', {
+    generos: ['Drama', 'Guerra'],
+    sinopse: 'Soldados enfrentam o peso emocional da guerra longe do front.'
+  });
+  const aventura = titulo('aventura', { generos: ['Aventura'] });
+  const guerraComBatalha = titulo('guerra-com-batalha', {
+    generos: ['Guerra'],
+    sinopse: 'Uma batalha intensa muda o rumo da missão.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(dramaGuerra, 'acao').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(aventura, 'acao').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(guerraComBatalha, 'acao').elegivel, true);
+});
+
+test('Quero tensão exige suspense, perigo ou investigação', () => {
+  const romanceDramatico = titulo('romance-dramatico', {
+    generos: ['Romance', 'Drama'],
+    sinopse: 'Duas pessoas repensam uma relação antiga.'
+  });
+  const suspense = titulo('suspense-investigativo', {
+    generos: ['Thriller', 'Mistério'],
+    sinopse: 'Uma investigação revela uma conspiração perigosa.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(romanceDramatico, 'tensao').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(suspense, 'tensao').elegivel, true);
+});
+
+test('Quero medo não confunde suspense policial comum com terror', () => {
+  const suspensePolicial = titulo('suspense-policial', {
+    generos: ['Thriller', 'Crime', 'Mistério'],
+    sinopse: 'Um detetive investiga uma conspiração dentro da polícia.'
+  });
+  const assassinoAssustador = titulo('assassino-assustador', {
+    generos: ['Thriller', 'Crime'],
+    sinopse: 'Um assassino em série aterroriza a cidade.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(suspensePolicial, 'medo').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(assassinoAssustador, 'medo').elegivel, true);
+});
+
 test('a justificativa explica primeiro o clima escolhido', () => {
   const motivos = motivosDaRecomendacao(titulo('investigacao', {
     generos: ['Mistério'],

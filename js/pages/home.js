@@ -6,13 +6,13 @@ import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=202
 import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
-import { initRecommend } from './recommend.js?v=20260906.2';
+import { initRecommend } from './recommend.js?v=20260909.2';
 import { getMeusStreamings } from '../streamings.js';
 import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
-  montarSecoesDescoberta
-} from '../discovery.js?v=20260907.5';
+} from '../discovery.js?v=20260909.2';
+import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.2';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -154,6 +154,8 @@ async function renderDescobertasPessoais(historico) {
   const grid = document.getElementById('home-discovery-grid');
   if (!grid) return;
 
+  renderCarregamentoDescobertas(grid);
+
   try {
     const streamings = await getMeusStreamings(usuarioIdAtual);
     const resultado = await carregarDescobertasPessoais({
@@ -170,34 +172,47 @@ async function renderDescobertasPessoais(historico) {
       return;
     }
 
-    montarSecoesDescoberta(resultado.itens, {
-      maxGruposSeguros: 2,
-      maxItensPorGrupo: 4,
-      incluirAposta: true,
-      maxApostas: 4
-    }).forEach(grupo => {
-      const secao = document.createElement('section');
-      secao.className = `discovery-reason-group${grupo.tipo === 'aposta' ? ' discovery-reason-group-risk' : ''}`;
-      secao.innerHTML = `
-        <header class="discovery-reason-heading">
-          <div>
-            <span class="eyebrow">${escapeHtml(grupo.etiqueta)}</span>
-            <h3>${escapeHtml(grupo.titulo)}</h3>
-            ${grupo.descricao ? `<p>${escapeHtml(grupo.descricao)}</p>` : ''}
-          </div>
-          <span>${grupo.itens.length} título${grupo.itens.length === 1 ? '' : 's'}</span>
-        </header>
-        <div class="cards-grid discovery-catalog-grid home-discovery-section-grid"></div>`;
-
-      const lista = secao.querySelector('.home-discovery-section-grid');
-      grupo.itens.forEach(titulo => {
-        lista.appendChild(criarCardDescobertaCatalogo(titulo, { onAdicionar: adicionarDescobertaALista }));
-      });
-      grid.appendChild(secao);
+    const lista = document.createElement('div');
+    lista.className = 'cards-grid discovery-catalog-grid home-discovery-section-grid';
+    resultado.itens.slice(0, 4).forEach(titulo => {
+      lista.appendChild(criarCardDescobertaCatalogo(titulo, {
+        onAdicionar: adicionarDescobertaALista,
+        onBloquear: ocultarDescoberta
+      }));
     });
+    grid.appendChild(lista);
   } catch (error) {
     console.error('[descobrir]', error);
     grid.innerHTML = '<div class="personal-discovery-empty"><strong>Não foi possível preparar suas sugestões agora.</strong>Tente novamente em alguns instantes.</div>';
+  }
+}
+
+function renderCarregamentoDescobertas(grid) {
+  grid.innerHTML = `
+    <div class="personal-discovery-loading" role="status" aria-live="polite">
+      <div class="discovery-loading-heading">
+        <span class="eyebrow">Preparando</span>
+        <strong>Buscando sugestões com o seu gosto...</strong>
+        <small>Relacionando filmes bem avaliados com novas descobertas.</small>
+      </div>
+      <div class="cards-grid discovery-catalog-grid home-discovery-section-grid" aria-hidden="true">
+        <article class="discovery-title-card discovery-card-skeleton"><span></span><strong></strong><small></small><button tabindex="-1"></button></article>
+        <article class="discovery-title-card discovery-card-skeleton"><span></span><strong></strong><small></small><button tabindex="-1"></button></article>
+        <article class="discovery-title-card discovery-card-skeleton"><span></span><strong></strong><small></small><button tabindex="-1"></button></article>
+        <article class="discovery-title-card discovery-card-skeleton"><span></span><strong></strong><small></small><button tabindex="-1"></button></article>
+      </div>
+    </div>`;
+}
+
+async function ocultarDescoberta(titulo) {
+  try {
+    await bloquearRecomendacao(titulo, usuarioIdAtual);
+    showToast(`“${titulo.nome}” não aparecerá mais nas suas recomendações.`);
+    await renderDescobertasPessoais(window._titulos || []);
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível ocultar essa recomendação.', 'error');
+    throw error;
   }
 }
 

@@ -387,6 +387,78 @@
   grid-column: 1 / -1;
   margin: 42px auto;
 }
+.personal-discovery-loading {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+.discovery-loading-heading {
+  display: grid;
+  gap: 5px;
+}
+.discovery-loading-heading strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.discovery-loading-heading small {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+.discovery-card-skeleton {
+  min-height: 318px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.discovery-card-skeleton span,
+.discovery-card-skeleton strong,
+.discovery-card-skeleton small,
+.discovery-card-skeleton button {
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--surface), var(--accent-glow), var(--surface));
+  background-size: 220% 100%;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+.discovery-card-skeleton span {
+  height: 185px;
+  margin: -12px -12px 13px;
+  border-radius: var(--radius-md) var(--radius-md) 16px 16px;
+}
+.discovery-card-skeleton strong {
+  width: 78%;
+  height: 18px;
+  margin-bottom: 9px;
+}
+.discovery-card-skeleton small {
+  width: 58%;
+  height: 12px;
+  margin-bottom: 18px;
+}
+.discovery-card-skeleton button {
+  width: 100%;
+  height: 34px;
+  border: 0;
+}
+@keyframes skeleton-pulse {
+  0% { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discovery-card-skeleton span,
+  .discovery-card-skeleton strong,
+  .discovery-card-skeleton small,
+  .discovery-card-skeleton button {
+    animation: none;
+  }
+}
 .personal-discovery-card {
   min-width: 0;
   overflow: hidden;
@@ -840,6 +912,20 @@
 }
 .discovery-modal-tags {
   margin: 18px 0 0;
+}
+.discovery-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+.discovery-block-button {
+  color: var(--danger);
+}
+.discovery-block-button:hover {
+  border-color: var(--danger);
 }
 
 /* ---------- Add / edit form (search + review) ---------- */

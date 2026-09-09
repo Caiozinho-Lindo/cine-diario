@@ -74,6 +74,71 @@
 .results-actions { display: flex; gap: 9px; }
 
 .finalists-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.recommend-loading-state {
+  display: grid;
+  gap: 18px;
+}
+.recommend-loading-state[hidden] {
+  display: none;
+}
+.recommend-loading-copy h3 {
+  margin: 4px 0 5px;
+  font-size: 1.25rem;
+}
+.recommend-loading-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+.recommend-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.recommend-card-skeleton {
+  min-height: 390px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.recommend-card-skeleton span,
+.recommend-card-skeleton strong,
+.recommend-card-skeleton small,
+.recommend-card-skeleton p,
+.recommend-card-skeleton button {
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--surface), var(--accent-glow), var(--surface));
+  background-size: 220% 100%;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+.recommend-card-skeleton span {
+  height: 150px;
+  margin: -16px -16px 18px;
+  border-radius: var(--radius-md) var(--radius-md) 18px 18px;
+}
+.recommend-card-skeleton strong {
+  width: 72%;
+  height: 22px;
+  margin-bottom: 10px;
+}
+.recommend-card-skeleton small {
+  width: 46%;
+  height: 13px;
+  margin-bottom: 18px;
+}
+.recommend-card-skeleton p {
+  height: 82px;
+  margin-bottom: 28px;
+}
+.recommend-card-skeleton button {
+  width: 100%;
+  height: 40px;
+  margin-top: auto;
+  border: 0;
+}
 .finalist-card {
   position: relative;
   display: flex;
@@ -104,6 +169,12 @@
 .finalist-reasons { display: grid; gap: 5px; margin: 9px 0 14px; }
 .finalist-reason { display: flex; gap: 6px; color: var(--text-secondary); font-size: 0.76rem; line-height: 1.35; }
 .finalist-reason::before { flex: 0 0 auto; color: var(--accent-2); content: '✦'; }
+.finalist-actions {
+  display: grid;
+  grid-template-columns: 0.85fr 1fr;
+  gap: 9px;
+  margin-top: auto;
+}
 .finalist-body .btn { width: 100%; }
 .more-finalists { margin-top: 20px; text-align: center; }
 .recommend-empty { text-align: center; }
@@ -125,11 +196,13 @@
 
 @media (max-width: 780px) {
   .recommend-fields,
-  .finalists-grid { grid-template-columns: 1fr; }
+  .finalists-grid,
+  .recommend-loading-grid { grid-template-columns: 1fr; }
   .recommend-field-wide { grid-column: auto; }
   .recommend-panel-footer,
   .results-heading { align-items: stretch; flex-direction: column; }
   .results-actions { flex-direction: column; }
+  .finalist-actions { grid-template-columns: 1fr; }
   .recommend-panel-footer .btn,
   .results-actions .btn { width: 100%; }
 }
@@ -143,4 +216,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .finalist-card { transition: none; }
+  .recommend-card-skeleton span,
+  .recommend-card-skeleton strong,
+  .recommend-card-skeleton small,
+  .recommend-card-skeleton p,
+  .recommend-card-skeleton button { animation: none; }
 }

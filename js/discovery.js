@@ -1,10 +1,11 @@
-import { getDetails, getRelatedTitles } from './tmdb.js?v=20260907.5';
+import { getDetails, getRelatedTitles } from './tmdb.js?v=20260909.2';
 import {
   calcularSemelhancaReferencia,
   motivoDaDescobertaPessoal,
   pontuarTitulo,
   selecionarReferenciasPessoais
-} from './recommendations.js?v=20260907.5';
+} from './recommendations.js?v=20260909.2';
+import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.2';
 import { escapeHtml, safeImageSrc } from './ui.js';
 
 export async function carregarDescobertasPessoais({
@@ -36,8 +37,9 @@ export async function carregarDescobertasPessoais({
   const existentes = new Set((catalogo || []).map(chaveTitulo));
   const servicos = new Set(streamings || []);
   const historicoEnriquecido = mesclarReferenciasNoHistorico(historico, referencias);
+  const bloqueios = await getRecomendacoesBloqueadas(usuarioId);
 
-  const itens = candidatos
+  const itens = filtrarRecomendacoesBloqueadas(candidatos, bloqueios)
     .filter(titulo => !existentes.has(chaveTitulo(titulo)))
     .filter(titulo => !servicos.size || (titulo.provedores || [])
       .some(provedor => servicos.has(provedor.slug || provedor)))
@@ -64,7 +66,7 @@ export async function carregarDescobertasPessoais({
   };
 }
 
-export function criarCardDescoberta(titulo, { onAdicionar } = {}) {
+export function criarCardDescoberta(titulo, { onAdicionar, onBloquear } = {}) {
   const card = document.createElement('article');
   card.className = 'personal-discovery-card';
   const provedores = (titulo.provedores || []).map(item => item.nome || item.slug).filter(Boolean);
@@ -93,14 +95,14 @@ export function criarCardDescoberta(titulo, { onAdicionar } = {}) {
     </div>`;
 
   const botaoDetalhes = card.querySelector('[data-discovery-details]');
-  botaoDetalhes.addEventListener('click', () => abrirModalDescoberta(titulo));
+  botaoDetalhes.addEventListener('click', () => abrirModalDescoberta(titulo, { onBloquear }));
 
   const botaoAdicionar = card.querySelector('[data-discovery-add]');
   botaoAdicionar.addEventListener('click', () => onAdicionar?.(titulo, botaoAdicionar, card));
   return card;
 }
 
-export function criarCardDescobertaCatalogo(titulo, { onAdicionar } = {}) {
+export function criarCardDescobertaCatalogo(titulo, { onAdicionar, onBloquear } = {}) {
   const card = document.createElement('article');
   card.className = 'title-card catalog-title-card discovery-title-card';
   const provedores = (titulo.provedores || []).map(item => item.nome || item.slug).filter(Boolean);
@@ -130,7 +132,7 @@ export function criarCardDescobertaCatalogo(titulo, { onAdicionar } = {}) {
     </div>`;
 
   const botaoDetalhes = card.querySelector('[data-discovery-details]');
-  botaoDetalhes.addEventListener('click', () => abrirModalDescoberta(titulo));
+  botaoDetalhes.addEventListener('click', () => abrirModalDescoberta(titulo, { onBloquear }));
 
   const botaoAdicionar = card.querySelector('[data-discovery-add]');
   botaoAdicionar.addEventListener('click', () => onAdicionar?.(titulo, botaoAdicionar, card));
@@ -160,7 +162,7 @@ export function montarSecoesDescoberta(itens, {
       if (!selecionados.length) return null;
       return {
         tipo: 'segura',
-        etiqueta: 'Sugestões seguras',
+        etiqueta: '',
         titulo: `Sugestões relacionadas a: ${referencia}`,
         descricao: 'Filmes próximos de algo que você já avaliou bem.',
         itens: selecionados
@@ -180,15 +182,15 @@ export function montarSecoesDescoberta(itens, {
     ...seguras,
     ...(apostas.length ? [{
       tipo: 'aposta',
-      etiqueta: 'Para variar um pouco',
-      titulo: 'Uma aposta um pouco diferente',
+      etiqueta: '',
+      titulo: 'Para variar um pouco',
       descricao: 'Ainda conversa com seu histórico, mas foge do caminho mais óbvio.',
       itens: apostas
     }] : [])
   ];
 }
 
-function abrirModalDescoberta(titulo) {
+export function abrirModalDescoberta(titulo, { onBloquear } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay discovery-modal-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -220,6 +222,10 @@ function abrirModalDescoberta(titulo) {
             : ''}
           ${provedores.length ? `<span>${escapeHtml(provedores.slice(0, 3).join(', '))}</span>` : ''}
         </div>
+        ${onBloquear ? `
+          <div class="discovery-modal-actions">
+            <button class="btn btn-secondary discovery-block-button" data-action="block" type="button">Não recomendar este título</button>
+          </div>` : ''}
       </div>
     </div>`;
 
@@ -231,8 +237,24 @@ function abrirModalDescoberta(titulo) {
     if (event.key === 'Escape') fechar();
   };
 
-  overlay.addEventListener('click', event => {
-    if (event.target === overlay || event.target.dataset.action === 'close') fechar();
+  overlay.addEventListener('click', async event => {
+    if (event.target === overlay || event.target.dataset.action === 'close') {
+      fechar();
+      return;
+    }
+    if (event.target.dataset.action === 'block') {
+      const botao = event.target;
+      botao.disabled = true;
+      botao.textContent = 'Removendo…';
+      try {
+        await onBloquear(titulo);
+        fechar();
+      } catch (error) {
+        console.error(error);
+        botao.disabled = false;
+        botao.textContent = 'Não recomendar este título';
+      }
+    }
   });
   document.addEventListener('keydown', aoTeclar);
   document.body.appendChild(overlay);
