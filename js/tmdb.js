@@ -106,6 +106,75 @@ export async function getTitlesByTmdbIds(itens) {
   return detalhes.filter(Boolean);
 }
 
+export async function getRelatedTitles(referencias, { limite = 30 } = {}) {
+  const unicas = new Map();
+  (referencias || []).forEach(referencia => {
+    const id = Number(referencia?.tmdb_id);
+    if (id && ['filme', 'serie'].includes(referencia.tipo)) {
+      unicas.set(`${referencia.tipo}:${id}`, { ...referencia, tmdb_id: id });
+    }
+  });
+
+  const lotes = await Promise.all([...unicas.values()].slice(0, 6).map(async referencia => {
+    const endpoint = referencia.tipo === 'filme' ? 'movie' : 'tv';
+    try {
+      const res = await fetch(
+        `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=1`,
+        { headers: headers() }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.results || []).slice(0, 12).map(item => ({
+        ...normalizeSearchResult({ ...item, media_type: endpoint }),
+        referencia_nome: referencia.nome,
+        referencia_nota: Number(referencia.nota_pessoal) || 0
+      }));
+    } catch {
+      return [];
+    }
+  }));
+
+  const combinados = new Map();
+  lotes.flat().forEach(item => {
+    const chave = `${item.tipo}:${item.tmdb_id}`;
+    const atual = combinados.get(chave);
+    if (!atual) {
+      combinados.set(chave, {
+        ...item,
+        referencias_relacionadas: item.referencia_nome ? [item.referencia_nome] : []
+      });
+      return;
+    }
+    atual.referencias_relacionadas = [...new Set([
+      ...(atual.referencias_relacionadas || []),
+      item.referencia_nome
+    ].filter(Boolean))];
+    atual.referencia_nota = Math.max(atual.referencia_nota || 0, item.referencia_nota || 0);
+    atual.popularidade = Math.max(atual.popularidade || 0, item.popularidade || 0);
+  });
+
+  const resumos = [...combinados.values()]
+    .sort((a, b) =>
+      (b.referencias_relacionadas?.length || 0) - (a.referencias_relacionadas?.length || 0)
+      || (b.referencia_nota || 0) - (a.referencia_nota || 0)
+      || (b.popularidade || 0) - (a.popularidade || 0)
+    )
+    .slice(0, Math.max(1, Math.min(Number(limite) || 30, 40)));
+
+  const detalhes = await Promise.all(resumos.map(async resumo => {
+    try {
+      return {
+        ...resumo,
+        ...await getDetails(resumo.tmdb_id, resumo.tipo),
+        referencias_relacionadas: resumo.referencias_relacionadas
+      };
+    } catch {
+      return resumo;
+    }
+  }));
+  return detalhes.filter(Boolean);
+}
+
 /**
  * Descobre sugestões externas quando a lista do espaço não possui resultados.
  */

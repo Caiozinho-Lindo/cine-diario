@@ -179,6 +179,53 @@ export function calcularSemelhancaReferencia(titulo, referencia) {
   return pontos;
 }
 
+export function selecionarReferenciasPessoais(historico, usuarioId, limite = 6) {
+  if (!usuarioId) return [];
+
+  return (historico || [])
+    .map(titulo => {
+      const avaliacao = avaliacaoDoUsuario(titulo, usuarioId);
+      return avaliacao ? { ...titulo, nota_pessoal: Number(avaliacao.nota) } : null;
+    })
+    .filter(titulo => titulo?.tmdb_id && Number.isFinite(titulo.nota_pessoal) && titulo.nota_pessoal >= 7)
+    .sort((a, b) => {
+      const porNota = b.nota_pessoal - a.nota_pessoal;
+      if (porNota) return porNota;
+      return dataDaAvaliacao(b, usuarioId) - dataDaAvaliacao(a, usuarioId);
+    })
+    .slice(0, Math.max(1, limite));
+}
+
+export function motivoDaDescobertaPessoal(titulo, referencias = []) {
+  const placarGeneros = new Map();
+  const generosCandidato = new Map(
+    normalizarLista(titulo?.generos).map((genero, indice) => [genero, titulo.generos[indice]])
+  );
+
+  referencias.forEach(referencia => {
+    const peso = Math.max(1, Number(referencia.nota_pessoal) - 6);
+    normalizarLista(referencia.generos)
+      .filter(genero => generosCandidato.has(genero))
+      .forEach(genero => placarGeneros.set(genero, (placarGeneros.get(genero) || 0) + peso));
+  });
+
+  const genero = [...placarGeneros.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (genero) {
+    const nome = String(generosCandidato.get(genero) || genero);
+    return `Porque você gostou de ${nome.charAt(0).toLowerCase()}${nome.slice(1)}`;
+  }
+
+  const nomesRelacionados = new Set(titulo?.referencias_relacionadas || []);
+  const referencia = referencias.find(item => nomesRelacionados.has(item.nome))
+    || referencias
+      .map(item => ({ item, pontos: calcularSemelhancaReferencia(titulo, item) }))
+      .sort((a, b) => b.pontos - a.pontos)[0]?.item;
+
+  return referencia?.nome
+    ? `Porque você gostou de “${referencia.nome}”`
+    : 'Uma descoberta baseada nas suas avaliações';
+}
+
 export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
   const configuracao = CLIMAS[clima] || CLIMAS.qualquer;
   if (clima === 'qualquer') {
@@ -307,6 +354,17 @@ function generoBemAvaliadoEmComum(titulo, historico, participantes) {
   });
   const melhor = [...placar.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   return melhor ? nomesGeneros.get(melhor) || melhor : null;
+}
+
+function avaliacaoDoUsuario(titulo, usuarioId) {
+  if (titulo?.avaliacaoAtual?.usuario_id === usuarioId) return titulo.avaliacaoAtual;
+  return (titulo?.avaliacoesMembros || [])
+    .find(item => item.membro?.usuario_id === usuarioId)?.avaliacao || null;
+}
+
+function dataDaAvaliacao(titulo, usuarioId) {
+  const avaliacao = avaliacaoDoUsuario(titulo, usuarioId);
+  return new Date(avaliacao?.data_avaliacao || titulo?.criado_em || 0).getTime() || 0;
 }
 
 function motivoDoClima(clima, generos, temas) {

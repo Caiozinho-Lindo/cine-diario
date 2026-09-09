@@ -363,6 +363,185 @@
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
 }
 
+/* ---------- Descobertas pessoais ---------- */
+.personal-discovery-view {
+  padding: 28px 0 60px;
+}
+.personal-discovery-heading {
+  margin-bottom: 18px;
+}
+.personal-discovery-heading h2 {
+  margin: 4px 0 5px;
+  font-size: 1.55rem;
+}
+.personal-discovery-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.personal-discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.personal-discovery-grid > .spinner {
+  grid-column: 1 / -1;
+  margin: 42px auto;
+}
+.personal-discovery-card {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.personal-discovery-poster {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--surface);
+}
+.personal-discovery-poster::after {
+  content: '';
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+.personal-discovery-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.personal-discovery-poster > span {
+  position: absolute;
+  z-index: 1;
+  left: 10px;
+  bottom: 9px;
+  padding: 3px 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.58);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.personal-discovery-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 15px;
+}
+.personal-discovery-body h3 {
+  margin: 0 0 4px;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+.personal-discovery-meta,
+.personal-discovery-streaming,
+.personal-discovery-details p,
+.personal-discovery-details small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+.personal-discovery-meta,
+.personal-discovery-streaming,
+.personal-discovery-details p { margin: 0; }
+.personal-discovery-reason {
+  margin: 0;
+  color: var(--accent-2);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.personal-discovery-details {
+  padding-top: 10px;
+  border-top: 1px solid var(--card-border);
+}
+.personal-discovery-details p {
+  line-height: 1.55;
+  margin-bottom: 8px;
+}
+.personal-discovery-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+.personal-discovery-actions .btn {
+  flex: 1;
+  white-space: nowrap;
+}
+.personal-discovery-empty {
+  grid-column: 1 / -1;
+  padding: 36px 24px;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-lg);
+}
+.personal-discovery-empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+.discovery-reason-group {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+}
+.discovery-reason-group + .discovery-reason-group {
+  margin-top: 18px;
+  padding-top: 22px;
+  border-top: 1px solid var(--card-border);
+}
+.discovery-reason-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.discovery-reason-heading h3 {
+  margin: 3px 0 0;
+  font-size: 1.28rem;
+}
+.discovery-reason-heading p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+.discovery-reason-heading > span {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+.discovery-reason-group-risk .discovery-reason-heading h3 {
+  color: var(--accent-2);
+}
+.discovery-catalog-grid {
+  max-height: none;
+  overflow: visible;
+}
+.discovery-title-card .card-body {
+  min-height: 170px;
+}
+.discovery-title-card .card-discovery-hint {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+.discovery-card-actions {
+  display: grid;
+  grid-template-columns: 0.9fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.discovery-card-actions .btn {
+  min-height: 36px;
+  padding-inline: 8px;
+}
+
 .catalog-empty-action {
   grid-column: 1 / -1;
   text-align: center;
@@ -612,6 +791,56 @@
 .modal-box h3 { margin-bottom: 10px; }
 .modal-box p { color: var(--text-secondary); margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.discovery-modal-overlay {
+  align-items: center;
+}
+.discovery-modal-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 22px;
+  max-width: 760px;
+  padding: 22px;
+}
+.discovery-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.discovery-modal-poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+}
+.discovery-modal-content {
+  min-width: 0;
+  padding: 8px 34px 0 0;
+}
+.discovery-modal-content h3 {
+  margin: 4px 0 8px;
+  font-size: 1.5rem;
+}
+.discovery-modal-content p {
+  line-height: 1.6;
+}
+.discovery-modal-meta {
+  margin-bottom: 14px;
+}
+.discovery-modal-tags {
+  margin: 18px 0 0;
+}
 
 /* ---------- Add / edit form (search + review) ---------- */
 .search-box { position: relative; margin-bottom: 20px; }

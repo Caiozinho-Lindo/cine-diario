@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const catalogHtml = await readFile(new URL('../pages/catalog.html', import.meta.url), 'utf8');
 const catalogJs = await readFile(new URL('../js/pages/catalog.js', import.meta.url), 'utf8');
+const discoveryJs = await readFile(new URL('../js/discovery.js', import.meta.url), 'utf8');
 
 test('o catálogo usa uma única caixa de busca', () => {
   const buscas = catalogHtml.match(/type="search"/g) || [];
@@ -38,4 +39,18 @@ test('os filtros visíveis não repetem as mesmas faixas de nota', () => {
   assert.doesNotMatch(catalogHtml, /value="menor_7"/);
   assert.match(catalogHtml, /value="pendentes"/);
   assert.match(catalogHtml, /value="abaixo_7"/);
+});
+
+test('o catálogo tem uma aba Descobrir baseada no perfil pessoal', () => {
+  assert.match(catalogHtml, /data-catalog-section="descobrir"/);
+  assert.match(catalogHtml, /id="catalog-personal-discovery"/);
+  assert.match(catalogJs, /secaoCatalogo === 'descobrir'/);
+  assert.match(catalogJs, /getMeusStreamings/);
+});
+
+test('o Descobrir do catálogo agrupa sugestões por filme de referência', () => {
+  assert.match(catalogJs, /montarSecoesDescoberta/);
+  assert.match(discoveryJs, /Sugestões relacionadas a:/);
+  assert.match(catalogJs, /discovery-reason-group/);
+  assert.match(catalogJs, /criarCardDescobertaCatalogo/);
 });

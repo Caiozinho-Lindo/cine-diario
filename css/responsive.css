@@ -4,10 +4,14 @@
 
 @media (max-width: 1050px) {
   .cards-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .personal-discovery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-discovery-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 880px) {
   .cards-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .personal-discovery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-discovery-grid { grid-template-columns: 1fr; }
   .catalog-toolbar { align-items: flex-start; flex-direction: column; }
   .catalog-primary-filters { justify-content: flex-start; width: 100%; }
 }
@@ -46,6 +50,19 @@
   .catalog-add-form { padding: 16px; }
   .catalog-add-choice-actions { grid-template-columns: 1fr; }
   .catalog-add-actions .btn { width: 100%; }
+  .personal-discovery-actions { flex-direction: column; }
+  .discovery-modal-box {
+    grid-template-columns: 1fr;
+    max-height: min(760px, calc(100vh - 32px));
+    overflow-y: auto;
+  }
+  .discovery-modal-poster {
+    max-width: 210px;
+    margin: 0 auto;
+  }
+  .discovery-modal-content {
+    padding-right: 0;
+  }
 
   .form-row { grid-template-columns: 1fr; }
 
@@ -57,4 +74,5 @@
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .personal-discovery-grid { grid-template-columns: 1fr; }
 }

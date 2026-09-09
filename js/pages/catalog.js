@@ -13,6 +13,12 @@ import {
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
+import { getMeusStreamings } from '../streamings.js';
+import {
+  carregarDescobertasPessoais,
+  criarCardDescobertaCatalogo,
+  montarSecoesDescoberta
+} from '../discovery.js?v=20260907.5';
 import {
   renderNavbar,
   renderTituloCard,
@@ -32,7 +38,10 @@ let buscaExternaTimer = null;
 let buscaExternaVersao = 0;
 let secaoCatalogo = 'todos';
 let membrosEspaco = [];
+let usuarioIdAtual = null;
 let limiteResultados = 24;
+let descobertasCatalogo = null;
+let carregamentoDescobertas = null;
 
 const RESULTADOS_POR_PAGINA = 24;
 
@@ -44,6 +53,7 @@ async function init() {
 
   perfilAtual = await getCurrentProfile(sessionAtual);
   const usuarioId = getUserId(sessionAtual);
+  usuarioIdAtual = usuarioId;
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioId);
@@ -151,6 +161,12 @@ function ligarNavegacaoCatalogo() {
 }
 
 function renderResultados() {
+  atualizarVisibilidadeSecao();
+  if (secaoCatalogo === 'descobrir') {
+    void renderDescobertasCatalogo();
+    return;
+  }
+
   const filtros = {
     busca: document.getElementById('f-busca').value,
     tipo: document.getElementById('f-tipo').value,
@@ -248,6 +264,22 @@ function atualizarAbasCatalogo() {
   });
 }
 
+function atualizarVisibilidadeSecao() {
+  const descobrindo = secaoCatalogo === 'descobrir';
+  document.querySelector('.catalog-search').hidden = descobrindo;
+  document.querySelector('.catalog-search-help').hidden = descobrindo;
+  document.querySelector('.catalog-primary-filters').hidden = descobrindo;
+  document.querySelector('.catalog-results-header').hidden = descobrindo;
+  document.getElementById('cards-grid').hidden = descobrindo;
+  document.querySelector('.catalog-load-more-wrap').hidden = descobrindo;
+  document.getElementById('catalog-personal-discovery').hidden = !descobrindo;
+  if (descobrindo) {
+    document.getElementById('catalog-extra-filters').hidden = true;
+    document.getElementById('catalog-discovery').hidden = true;
+    document.getElementById('toggle-extra-filters').setAttribute('aria-expanded', 'false');
+  }
+}
+
 function filtrarPorSecao(lista) {
   if (secaoCatalogo === 'assistidos') return lista.filter(titulo => tituloEstaNaSecao(titulo, 'assistidos'));
   if (secaoCatalogo === 'para_assistir') return lista.filter(titulo => tituloEstaNaSecao(titulo, 'para_assistir'));
@@ -263,11 +295,12 @@ function tituloEstaNaSecao(titulo, secao) {
 function nomeSecao(secao) {
   if (secao === 'assistidos') return 'Assistidos';
   if (secao === 'para_assistir') return 'Para assistir';
+  if (secao === 'descobrir') return 'Descobrir';
   return 'Todos';
 }
 
 function normalizarSecao(secao) {
-  return ['assistidos', 'para_assistir'].includes(secao) ? secao : 'todos';
+  return ['assistidos', 'para_assistir', 'descobrir'].includes(secao) ? secao : 'todos';
 }
 
 function atualizarTotalCatalogo() {
@@ -334,6 +367,94 @@ function limparFiltrosCatalogo() {
   limiteResultados = RESULTADOS_POR_PAGINA;
   atualizarEstadoFiltrosExtras();
   renderResultados();
+}
+
+async function renderDescobertasCatalogo() {
+  const grid = document.getElementById('catalog-personal-discovery-grid');
+  if (descobertasCatalogo) {
+    preencherDescobertasCatalogo(grid, descobertasCatalogo);
+    return;
+  }
+  if (carregamentoDescobertas) return carregamentoDescobertas;
+
+  showSpinner(grid);
+  carregamentoDescobertas = (async () => {
+    try {
+      const streamings = await getMeusStreamings(usuarioIdAtual);
+      descobertasCatalogo = await carregarDescobertasPessoais({
+        historico: titulos.filter(titulo => !titulo.quero_assistir),
+        catalogo: titulos,
+        usuarioId: usuarioIdAtual,
+        streamings,
+        limite: 16
+      });
+      if (secaoCatalogo === 'descobrir') preencherDescobertasCatalogo(grid, descobertasCatalogo);
+    } catch (error) {
+      console.error('[descobrir]', error);
+      grid.innerHTML = '<div class="personal-discovery-empty"><strong>Não foi possível preparar suas sugestões agora.</strong>Tente novamente em alguns instantes.</div>';
+    } finally {
+      carregamentoDescobertas = null;
+    }
+  })();
+  return carregamentoDescobertas;
+}
+
+function preencherDescobertasCatalogo(grid, resultado) {
+  grid.innerHTML = '';
+  if (!resultado.itens.length) {
+    const conteudo = resultado.motivoVazio === 'sem-historico'
+      ? ['Suas sugestões começam pelas suas notas.', 'Avalie alguns títulos para o Cine Diário aprender do que você gosta.']
+      : resultado.motivoVazio === 'sem-streaming'
+        ? ['Nada novo apareceu nos seus streamings agora.', 'Ajuste os serviços no perfil ou confira novamente mais tarde.']
+        : ['Nenhuma sugestão nova encontrada agora.', 'Seu catálogo já pode conter as melhores correspondências.'];
+    grid.innerHTML = `<div class="personal-discovery-empty"><strong>${conteudo[0]}</strong>${conteudo[1]}</div>`;
+    return;
+  }
+
+  montarSecoesDescoberta(resultado.itens).forEach(grupo => {
+    const secao = document.createElement('section');
+    secao.className = `discovery-reason-group${grupo.tipo === 'aposta' ? ' discovery-reason-group-risk' : ''}`;
+    secao.innerHTML = `
+      <header class="discovery-reason-heading">
+        <div>
+          <span class="eyebrow">${escapeHtml(grupo.etiqueta)}</span>
+          <h3>${escapeHtml(grupo.titulo)}</h3>
+          ${grupo.descricao ? `<p>${escapeHtml(grupo.descricao)}</p>` : ''}
+        </div>
+        <span>${grupo.itens.length} título${grupo.itens.length === 1 ? '' : 's'}</span>
+      </header>
+      <div class="cards-grid discovery-catalog-grid"></div>`;
+
+    const lista = secao.querySelector('.discovery-catalog-grid');
+    grupo.itens.forEach(titulo => {
+      lista.appendChild(criarCardDescobertaCatalogo(titulo, { onAdicionar: adicionarDescobertaCatalogo }));
+    });
+    grid.appendChild(secao);
+  });
+}
+
+async function adicionarDescobertaCatalogo(titulo, botao) {
+  botao.disabled = true;
+  botao.textContent = 'Adicionando…';
+  try {
+    const salvo = await criarTitulo({ ...titulo, quero_assistir: true }, usuarioIdAtual);
+    if (salvo.jaExistia) {
+      botao.textContent = 'Já está no catálogo';
+      return;
+    }
+
+    showToast(`“${titulo.nome}” foi adicionado a “Para assistir”.`);
+    titulos = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+    atualizarTotalCatalogo();
+    popularSelects();
+    descobertasCatalogo = null;
+    await renderDescobertasCatalogo();
+  } catch (error) {
+    console.error(error);
+    botao.disabled = false;
+    botao.textContent = '+ Para assistir';
+    showToast('Não foi possível adicionar esse título.', 'error');
+  }
 }
 
 /* ==========================================================================

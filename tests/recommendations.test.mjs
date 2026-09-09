@@ -7,6 +7,8 @@ import {
   calcularSemelhancaReferencia,
   avaliarCompatibilidadeClima,
   motivosDaRecomendacao,
+  motivoDaDescobertaPessoal,
+  selecionarReferenciasPessoais,
   formatarDuracao
 } from '../js/recommendations.js';
 
@@ -207,4 +209,29 @@ test('a justificativa explica primeiro o clima escolhido', () => {
   }), { clima: 'pensar' });
 
   assert.match(motivos[0], /mistério/i);
+});
+
+test('Descobrir considera somente as avaliações do usuário conectado', () => {
+  const historico = [
+    historicoAvaliado('preferido-caio', ['Ficção científica'], { [caio]: 9, [noemy]: 2 }),
+    historicoAvaliado('preferido-noemy', ['Romance'], { [caio]: 4, [noemy]: 10 })
+  ].map((item, indice) => ({ ...item, tmdb_id: indice + 1 }));
+
+  const referencias = selecionarReferenciasPessoais(historico, caio);
+
+  assert.deepEqual(referencias.map(item => item.id), ['preferido-caio']);
+});
+
+test('Descobrir explica a sugestão sempre no singular', () => {
+  const referencia = titulo('referencia-pessoal', {
+    nome: 'Interestelar',
+    generos: ['Ficção científica'],
+    nota_pessoal: 10
+  });
+  const candidato = titulo('nova-descoberta', { generos: ['Ficção científica', 'Drama'] });
+
+  assert.equal(
+    motivoDaDescobertaPessoal(candidato, [referencia]),
+    'Porque você gostou de ficção científica'
+  );
 });

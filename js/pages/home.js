@@ -1,15 +1,24 @@
 // js/pages/home.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
-import { getAllTitulosComAvaliacoes } from '../titulos.js';
+import { getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
 import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260906.1';
 import { renderNavbar, renderTituloCard, safeImageSrc, escapeHtml, showToast } from '../ui.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import { initRecommend } from './recommend.js?v=20260906.2';
+import { getMeusStreamings } from '../streamings.js';
+import {
+  carregarDescobertasPessoais,
+  criarCardDescobertaCatalogo,
+  montarSecoesDescoberta
+} from '../discovery.js?v=20260907.5';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
+let catalogoCompleto = [];
+let modoAtual = 'geral';
+let limparCarrosselCatalogo = () => {};
 
 init();
 
@@ -41,7 +50,8 @@ async function init() {
   renderSessaoPendente().catch(error => console.error('[sessão pendente]', error));
 
   try {
-    window._titulos = await getAllTitulosComAvaliacoes();
+    catalogoCompleto = await getAllTitulosComAvaliacoes({ incluirDesejos: true });
+    window._titulos = catalogoCompleto.filter(titulo => !titulo.quero_assistir);
     renderTudo(modoAtivo);
     await initRecommend({
       embedded: true,
@@ -52,6 +62,7 @@ async function init() {
       usuarioId: usuarioIdAtual,
       historicoInicial: window._titulos
     });
+    await renderDescobertasPessoais(window._titulos);
   } catch (err) {
     console.error(err);
     showToast('Erro ao carregar dados. Verifique sua conexão e configuração do Supabase.', 'error');
@@ -102,9 +113,10 @@ async function renderSessaoPendente() {
 
 function renderTudo(modo) {
   const titulos = window._titulos || [];
+  modoAtual = modo;
   renderStats(titulos, modo);
   renderHighlights(titulos);
-  renderCatalogoRecente(titulos, modo);
+  renderCatalogoRecente(catalogoCompleto, modo);
 }
 
 function renderCatalogoRecente(titulos, modo) {
@@ -112,9 +124,10 @@ function renderCatalogoRecente(titulos, modo) {
   if (!grid) return;
   const recentes = [...titulos]
     .sort((a, b) => new Date(b.criado_em || 0) - new Date(a.criado_em || 0))
-    .slice(0, 6);
+    .slice(0, 12);
 
   if (!recentes.length) {
+    limparCarrosselCatalogo();
     grid.innerHTML = '<div class="home-catalog-empty">O catálogo ainda está vazio.</div>';
     return;
   }
@@ -134,6 +147,147 @@ function renderCatalogoRecente(titulos, modo) {
     });
     grid.appendChild(card);
   });
+  configurarCarrosselCatalogo();
+}
+
+async function renderDescobertasPessoais(historico) {
+  const grid = document.getElementById('home-discovery-grid');
+  if (!grid) return;
+
+  try {
+    const streamings = await getMeusStreamings(usuarioIdAtual);
+    const resultado = await carregarDescobertasPessoais({
+      historico,
+      catalogo: catalogoCompleto,
+      usuarioId: usuarioIdAtual,
+      streamings,
+      limite: 4
+    });
+
+    grid.innerHTML = '';
+    if (!resultado.itens.length) {
+      renderVazioDescobertas(grid, resultado.motivoVazio);
+      return;
+    }
+
+    montarSecoesDescoberta(resultado.itens, {
+      maxGruposSeguros: 2,
+      maxItensPorGrupo: 4,
+      incluirAposta: true,
+      maxApostas: 4
+    }).forEach(grupo => {
+      const secao = document.createElement('section');
+      secao.className = `discovery-reason-group${grupo.tipo === 'aposta' ? ' discovery-reason-group-risk' : ''}`;
+      secao.innerHTML = `
+        <header class="discovery-reason-heading">
+          <div>
+            <span class="eyebrow">${escapeHtml(grupo.etiqueta)}</span>
+            <h3>${escapeHtml(grupo.titulo)}</h3>
+            ${grupo.descricao ? `<p>${escapeHtml(grupo.descricao)}</p>` : ''}
+          </div>
+          <span>${grupo.itens.length} título${grupo.itens.length === 1 ? '' : 's'}</span>
+        </header>
+        <div class="cards-grid discovery-catalog-grid home-discovery-section-grid"></div>`;
+
+      const lista = secao.querySelector('.home-discovery-section-grid');
+      grupo.itens.forEach(titulo => {
+        lista.appendChild(criarCardDescobertaCatalogo(titulo, { onAdicionar: adicionarDescobertaALista }));
+      });
+      grid.appendChild(secao);
+    });
+  } catch (error) {
+    console.error('[descobrir]', error);
+    grid.innerHTML = '<div class="personal-discovery-empty"><strong>Não foi possível preparar suas sugestões agora.</strong>Tente novamente em alguns instantes.</div>';
+  }
+}
+
+async function adicionarDescobertaALista(titulo, botao) {
+  botao.disabled = true;
+  botao.textContent = 'Adicionando…';
+  try {
+    const salvo = await criarTitulo({ ...titulo, quero_assistir: true }, usuarioIdAtual);
+    botao.textContent = salvo.jaExistia ? 'Já está no catálogo' : '✓ Na sua lista';
+    if (!salvo.jaExistia) {
+      catalogoCompleto.unshift({ ...titulo, ...salvo, quero_assistir: true });
+      renderCatalogoRecente(catalogoCompleto, modoAtual);
+      showToast(`“${titulo.nome}” foi adicionado a “Para assistir”.`);
+    }
+  } catch (error) {
+    console.error(error);
+    botao.disabled = false;
+    botao.textContent = '+ Para assistir';
+    showToast('Não foi possível adicionar esse título.', 'error');
+  }
+}
+
+function renderVazioDescobertas(container, motivo) {
+  const conteudo = motivo === 'sem-historico'
+    ? ['Suas sugestões começam pelas suas notas.', 'Avalie alguns títulos para o Cine Diário aprender do que você gosta.']
+    : motivo === 'sem-streaming'
+      ? ['Nada novo apareceu nos seus streamings agora.', 'Você pode ajustar os serviços no perfil ou conferir novamente mais tarde.']
+      : ['Nenhuma sugestão nova encontrada agora.', 'Seu catálogo já pode conter as melhores correspondências.'];
+  container.innerHTML = `<div class="personal-discovery-empty"><strong>${conteudo[0]}</strong>${conteudo[1]}</div>`;
+}
+
+function configurarCarrosselCatalogo() {
+  limparCarrosselCatalogo();
+  const carrossel = document.querySelector('[data-home-catalog-carousel]');
+  const viewport = carrossel?.querySelector('[data-carousel-viewport]');
+  const anterior = carrossel?.querySelector('[data-carousel-prev]');
+  const proximo = carrossel?.querySelector('[data-carousel-next]');
+  const cards = [...(viewport?.querySelectorAll('.title-card') || [])];
+  if (!viewport || !anterior || !proximo || !cards.length) return;
+
+  const movimentoReduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let timer = null;
+  const passo = () => cards[0]?.getBoundingClientRect().width + 16 || viewport.clientWidth;
+  const mover = direcao => {
+    const final = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    const reiniciar = direcao > 0 && viewport.scrollLeft >= final - 4;
+    viewport.scrollTo({ left: reiniciar ? 0 : Math.max(0, viewport.scrollLeft + direcao * passo()), behavior: 'smooth' });
+  };
+  const pausar = () => {
+    window.clearInterval(timer);
+    timer = null;
+  };
+  const iniciar = () => {
+    pausar();
+    if (!movimentoReduzido && viewport.scrollWidth > viewport.clientWidth + 4 && !document.hidden) {
+      timer = window.setInterval(() => mover(1), 5000);
+    }
+  };
+  const onAnterior = () => mover(-1);
+  const onProximo = () => mover(1);
+  const onVisibilidade = () => document.hidden ? pausar() : iniciar();
+  const onFimFoco = event => {
+    if (!carrossel.contains(event.relatedTarget)) iniciar();
+  };
+
+  anterior.disabled = viewport.scrollWidth <= viewport.clientWidth + 4;
+  proximo.disabled = anterior.disabled;
+  anterior.addEventListener('click', onAnterior);
+  proximo.addEventListener('click', onProximo);
+  carrossel.addEventListener('pointerenter', pausar);
+  carrossel.addEventListener('pointerleave', iniciar);
+  carrossel.addEventListener('focusin', pausar);
+  carrossel.addEventListener('focusout', onFimFoco);
+  viewport.addEventListener('touchstart', pausar, { passive: true });
+  viewport.addEventListener('touchend', iniciar, { passive: true });
+  document.addEventListener('visibilitychange', onVisibilidade);
+  iniciar();
+
+  limparCarrosselCatalogo = () => {
+    pausar();
+    anterior.removeEventListener('click', onAnterior);
+    proximo.removeEventListener('click', onProximo);
+    carrossel.removeEventListener('pointerenter', pausar);
+    carrossel.removeEventListener('pointerleave', iniciar);
+    carrossel.removeEventListener('focusin', pausar);
+    carrossel.removeEventListener('focusout', onFimFoco);
+    viewport.removeEventListener('touchstart', pausar);
+    viewport.removeEventListener('touchend', iniciar);
+    document.removeEventListener('visibilitychange', onVisibilidade);
+  };
 }
 
 function renderStats(titulos, modo) {

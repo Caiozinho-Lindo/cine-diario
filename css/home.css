@@ -29,16 +29,62 @@
   padding-top: 4px;
 }
 
+.home-discovery-grid {
+  grid-template-columns: 1fr;
+}
+.home-discovery-section-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.home-discovery-section-grid .discovery-title-card:nth-child(n+5) {
+  display: none;
+}
+
+.home-catalog-carousel {
+  position: relative;
+  padding: 0 34px 60px;
+}
+
+.home-catalog-viewport {
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.home-catalog-viewport::-webkit-scrollbar { display: none; }
+
 .home-catalog-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 80px) / 6);
   gap: 16px;
-  padding-bottom: 60px;
 }
 
 .home-catalog-grid .title-card {
   min-width: 0;
+  scroll-snap-align: start;
 }
+
+.home-carousel-control {
+  position: absolute;
+  z-index: 2;
+  top: 34%;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0 0 3px;
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-card);
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.home-carousel-control:hover { border-color: var(--accent); }
+.home-carousel-control:disabled { display: none; }
+.home-carousel-prev { left: -2px; }
+.home-carousel-next { right: -2px; }
 
 .home-catalog-empty {
   grid-column: 1 / -1;
@@ -51,12 +97,16 @@
 }
 
 @media (max-width: 1080px) {
-  .home-catalog-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-discovery-section-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-catalog-grid { grid-auto-columns: calc((100% - 32px) / 3); }
 }
 
 @media (max-width: 640px) {
   .home-section { margin-top: 42px; }
   .home-section-heading { align-items: stretch; flex-direction: column; }
   .home-section-heading .btn { width: 100%; }
-  .home-catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .home-discovery-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-catalog-carousel { padding-inline: 0; }
+  .home-catalog-grid { grid-auto-columns: calc((100% - 14px) / 2); gap: 14px; }
+  .home-carousel-control { display: none; }
 }
