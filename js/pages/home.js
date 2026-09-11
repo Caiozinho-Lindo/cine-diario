@@ -6,7 +6,7 @@ import {
   getTitulosCacheSnapshot
 } from '../titulos.js';
 import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
-import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260906.1';
+import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260910.1';
 import {
   renderNavbar,
   renderTituloCard,
@@ -14,17 +14,19 @@ import {
   escapeHtml,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260909.4';
+} from '../ui.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
-import { initRecommend } from './recommend.js?v=20260909.3';
+import { initRecommend } from './recommend.js?v=20260910.1';
 import { getMeusStreamings } from '../streamings.js';
 import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
   criarCacheRodadasDescoberta,
-} from '../discovery.js?v=20260909.3';
+} from '../discovery.js?v=20260910.1';
 import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
+import { abrirMontarCineDiario } from '../cineTasteModal.js';
+import { deveAbrirMontagemInicial } from '../cineTaste.js';
 
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -33,6 +35,8 @@ let modoAtual = 'geral';
 let limparCarrosselCatalogo = () => {};
 let rodadaDescobertas = 0;
 let cacheDescobertas = null;
+let perfilAtual = null;
+let montagemInicialAberta = false;
 
 init();
 
@@ -43,7 +47,7 @@ async function init() {
     return;
   }
 
-  const perfilAtual = await getCurrentProfile(session);
+  perfilAtual = await getCurrentProfile(session);
   const espacoAtivo = await getEspacoAtivo();
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   usuarioIdAtual = getUserId(session);
@@ -88,6 +92,7 @@ async function init() {
         historicoInicial: window._titulos
       });
       concluirCarregamentoInicial();
+      void talvezAbrirMontagemInicial();
       void renderDescobertasPessoais(window._titulos);
       void atualizarCatalogoEmSegundoPlano(contextoTitulos, modoAtivo);
       return;
@@ -108,6 +113,7 @@ async function init() {
       historicoInicial: window._titulos
     });
     concluirCarregamentoInicial();
+    void talvezAbrirMontagemInicial();
     void renderDescobertasPessoais(window._titulos);
   } catch (err) {
     console.error(err);
@@ -134,6 +140,30 @@ async function atualizarCatalogoEmSegundoPlano(contextoTitulos, modo) {
   } catch (error) {
     console.warn('[atualização em segundo plano]', error);
   }
+}
+
+async function talvezAbrirMontagemInicial() {
+  if (montagemInicialAberta) return;
+  if (!deveAbrirMontagemInicial(perfilAtual, window._titulos || [], usuarioIdAtual)) return;
+  await abrirMontagemCineDiario();
+}
+
+async function abrirMontagemCineDiario() {
+  if (montagemInicialAberta) return;
+  montagemInicialAberta = true;
+  const streamings = await getMeusStreamings(usuarioIdAtual).catch(() => []);
+  const perfil = await abrirMontarCineDiario({
+    perfilAtual,
+    usuarioId: usuarioIdAtual,
+    streamingsAtuais: streamings,
+    onSalvar: async perfilSalvo => {
+      perfilAtual = perfilSalvo;
+      prepararCacheDescobertas();
+      await renderDescobertasPessoais(window._titulos || [], { manterAtual: true });
+    }
+  });
+  if (perfil) perfilAtual = perfil;
+  montagemInicialAberta = false;
 }
 
 async function renderSessaoPendente() {
@@ -277,7 +307,8 @@ function prepararCacheDescobertas() {
       usuarioId: usuarioIdAtual,
       streamings,
       limite: 4,
-      rodada
+      rodada,
+      preferenciasDescoberta: perfilAtual?.preferencias_descoberta
     });
   });
 }
@@ -334,11 +365,22 @@ async function adicionarDescobertaALista(titulo, botao) {
 
 function renderVazioDescobertas(container, motivo) {
   const conteudo = motivo === 'sem-historico'
-    ? ['Suas sugestões começam pelas suas notas.', 'Avalie alguns títulos para o Cine Diário aprender do que você gosta.']
+    ? ['Monte seu Cine Diário.', 'Responda algumas escolhas rápidas para começarmos suas sugestões.']
     : motivo === 'sem-streaming'
       ? ['Nada novo apareceu nos seus streamings agora.', 'Você pode ajustar os serviços no perfil ou conferir novamente mais tarde.']
       : ['Nenhuma sugestão nova encontrada agora.', 'Seu catálogo já pode conter as melhores correspondências.'];
-  container.innerHTML = `<div class="personal-discovery-empty"><strong>${conteudo[0]}</strong>${conteudo[1]}</div>`;
+  container.innerHTML = `
+    <div class="personal-discovery-empty">
+      <strong>${conteudo[0]}</strong>
+      ${conteudo[1]}
+      ${motivo === 'sem-historico'
+        ? '<button class="btn btn-primary btn-sm" id="home-open-cine-taste" type="button">Montar meu Cine Diário</button>'
+        : ''}
+    </div>`;
+  document.getElementById('home-open-cine-taste')?.addEventListener('click', () => {
+    montagemInicialAberta = false;
+    void abrirMontagemCineDiario();
+  });
 }
 
 function configurarCarrosselCatalogo() {

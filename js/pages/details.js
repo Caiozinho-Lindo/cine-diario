@@ -8,12 +8,12 @@ import {
   avaliacaoNoModo,
   nomeDoModo,
   usuarioDoModo
-} from '../themes.js?v=20260906.1';
+} from '../themes.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar, safeImageSrc, escapeHtml,
   showToast, confirmarAcao, concluirCarregamentoInicial
-} from '../ui.js?v=20260909.4';
+} from '../ui.js?v=20260910.1';
 
 let titulo = null;
 let modoAtivo = 'geral';

@@ -657,6 +657,10 @@
   margin-bottom: 6px;
   color: var(--text-primary);
 }
+.personal-discovery-empty .btn {
+  display: inline-flex;
+  margin-top: 16px;
+}
 .discovery-reason-group {
   grid-column: 1 / -1;
   display: grid;
@@ -690,6 +694,62 @@
 .discovery-reason-group-risk .discovery-reason-heading h3 {
   color: var(--accent-2);
 }
+
+/* ---------- Montar meu Cine Diário ---------- */
+.cine-taste-box {
+  width: min(620px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 28px));
+  overflow: auto;
+}
+.cine-taste-box h3 {
+  margin: 6px 36px 8px 0;
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+.cine-taste-box p {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+}
+.cine-taste-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.cine-taste-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+}
+.cine-taste-progress span.active { background: var(--accent); }
+.cine-taste-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cine-taste-option {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: var(--surface);
+  font-weight: 700;
+  cursor: pointer;
+}
+.cine-taste-option.selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 22px var(--accent-glow);
+}
+.cine-taste-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+.cine-taste-actions .btn { min-width: 120px; }
 .discovery-catalog-grid {
   max-height: none;
   overflow: visible;

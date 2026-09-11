@@ -195,7 +195,14 @@ export async function getCurrentProfile(session) {
 }
 
 export async function atualizarPerfil(usuarioId, campos) {
-  const permitidos = ['nome_exibicao', 'avatar_url', 'tema', 'cor_destaque'];
+  const permitidos = [
+    'nome_exibicao',
+    'avatar_url',
+    'tema',
+    'cor_destaque',
+    'preferencias_descoberta',
+    'onboarding_cine_diario_concluido_em'
+  ];
   const payload = Object.fromEntries(
     Object.entries(campos).filter(([chave]) => permitidos.includes(chave))
   );

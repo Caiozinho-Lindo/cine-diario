@@ -211,7 +211,15 @@ function chaveRelacionados(referencias, limite, page) {
 /**
  * Descobre sugestões externas quando a lista do espaço não possui resultados.
  */
-export async function discoverTitles({ tipo, duracaoMax, clima, provedores = [], referencia = null, page = 1 }) {
+export async function discoverTitles({
+  tipo,
+  duracaoMax,
+  clima,
+  provedores = [],
+  referencia = null,
+  page = 1,
+  generosPreferidos = []
+}) {
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
   const params = new URLSearchParams({
     language: 'pt-BR',
@@ -225,7 +233,9 @@ export async function discoverTitles({ tipo, duracaoMax, clima, provedores = [],
   const idsProvedores = provedores.map(slug => PROVEDOR_IDS[slug]).filter(Boolean);
   const idsGeneros = referencia?.genero_ids?.length
     ? referencia.genero_ids.slice(0, 4)
-    : generosTmdbPorClima(clima, tipo);
+    : generosPreferidos.length
+      ? generosPreferidos.slice(0, 6)
+      : generosTmdbPorClima(clima, tipo);
   if (idsProvedores.length) params.set('with_watch_providers', idsProvedores.join('|'));
   if (idsGeneros.length) params.set('with_genres', idsGeneros.join('|'));
   if (referencia?.palavras_chave_ids?.length) {

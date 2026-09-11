@@ -1,5 +1,10 @@
 // Regras puras do recomendador. Mantidas separadas da interface para permitir testes.
 
+import {
+  contarAvaliacoesDoUsuario,
+  pontuarPreferenciasDescoberta
+} from './cineTaste.js';
+
 const CLIMAS = {
   rir: {
     minimo: 6,
@@ -78,7 +83,8 @@ export function recomendarDaLista({
   streamings = [],
   referencia = null,
   limite = 3,
-  random = Math.random
+  random = Math.random,
+  preferenciasDescoberta = null
 }) {
   const permitidos = new Set(streamings);
   const limiteDuracao = Number(duracaoMax);
@@ -100,7 +106,8 @@ export function recomendarDaLista({
         participantes,
         clima,
         permitidos,
-        referencia
+        referencia,
+        preferenciasDescoberta
       })
     }))
     .sort((a, b) => b.pontuacaoRecomendacao - a.pontuacaoRecomendacao);
@@ -140,7 +147,8 @@ export function pontuarTitulo(titulo, {
   participantes = [],
   clima = 'qualquer',
   permitidos = new Set(),
-  referencia = null
+  referencia = null,
+  preferenciasDescoberta = null
 } = {}) {
   const compatibilidade = avaliarCompatibilidadeClima(titulo, clima);
   let pontos = clima === 'qualquer' ? 1 : compatibilidade.pontos * 4;
@@ -151,6 +159,18 @@ export function pontuarTitulo(titulo, {
   participantes.forEach(usuarioId => {
     pontos += afinidadeDoParticipante(titulo, historico, usuarioId);
   });
+
+  if (preferenciasDescoberta && participantes.length) {
+    const avaliacoes = contarAvaliacoesDoUsuario(historico, participantes[0]);
+    const pesoInicial = avaliacoes === 0
+      ? 1
+      : avaliacoes <= 5
+        ? 0.6
+        : avaliacoes <= 20
+          ? 0.35
+          : 0.15;
+    pontos += pontuarPreferenciasDescoberta(titulo, preferenciasDescoberta) * pesoInicial;
+  }
 
   if (referencia) pontos += calcularSemelhancaReferencia(titulo, referencia) * 2.5;
 

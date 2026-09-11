@@ -1,12 +1,18 @@
-import { getDetails, getRelatedTitles } from './tmdb.js?v=20260909.3';
+import { discoverTitles, getDetails, getRelatedTitles } from './tmdb.js?v=20260910.1';
+import {
+  generosPreferidosTmdb,
+  normalizarPreferenciasDescoberta,
+  preferenciasTemRespostas,
+  pontuarPreferenciasDescoberta,
+} from './cineTaste.js';
 import {
   calcularSemelhancaReferencia,
   motivoDaDescobertaPessoal,
   pontuarTitulo,
   selecionarReferenciasPessoais
-} from './recommendations.js?v=20260909.3';
+} from './recommendations.js?v=20260910.1';
 import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.3';
-import { escapeHtml, safeImageSrc } from './ui.js';
+import { escapeHtml, safeImageSrc } from './ui.js?v=20260910.1';
 
 export function criarCacheRodadasDescoberta(carregarRodada) {
   const rodadas = new Map();
@@ -49,14 +55,18 @@ export async function carregarDescobertasPessoais({
   usuarioId,
   streamings = [],
   limite = 12,
-  rodada = 0
+  rodada = 0,
+  preferenciasDescoberta = null
 } = {}) {
+  const preferencias = normalizarPreferenciasDescoberta(preferenciasDescoberta || {});
   const referenciasBase = alternarLista(
     selecionarReferenciasPessoais(historico, usuarioId, 10),
     Number(rodada) || 0,
     2
   ).slice(0, 6);
-  if (!referenciasBase.length) return { itens: [], motivoVazio: 'sem-historico' };
+  if (!referenciasBase.length && !preferenciasTemRespostas(preferencias)) {
+    return { itens: [], motivoVazio: 'sem-historico' };
+  }
 
   const referencias = await Promise.all(referenciasBase.map(async referencia => {
     try {
@@ -71,10 +81,16 @@ export async function carregarDescobertasPessoais({
     }
   }));
 
-  const candidatos = await getRelatedTitles(referencias, {
-    limite: Math.max(12, Math.min(32, limite * 2)),
-    page: paginaRelacionada(rodada)
-  });
+  const candidatos = referencias.length
+    ? await getRelatedTitles(referencias, {
+      limite: Math.max(12, Math.min(32, limite * 2)),
+      page: paginaRelacionada(rodada)
+    })
+    : await descobrirPorPreferencias(preferencias, {
+      streamings,
+      limite: Math.max(12, Math.min(32, limite * 2)),
+      rodada
+    });
   const existentes = new Set((catalogo || []).map(chaveTitulo));
   const servicos = new Set(streamings || []);
   const historicoEnriquecido = mesclarReferenciasNoHistorico(historico, referencias);
@@ -86,14 +102,17 @@ export async function carregarDescobertasPessoais({
       .some(provedor => servicos.has(provedor.slug || provedor)))
     .map(titulo => ({
       ...titulo,
-      motivo_descoberta: motivoDaDescobertaPessoal(titulo, referencias),
+      motivo_descoberta: referencias.length
+        ? motivoDaDescobertaPessoal(titulo, referencias)
+        : motivoPorPreferencias(titulo, preferencias),
       pista_descoberta: pistaDaDescoberta(titulo),
       pontuacao_descoberta: pontuarTitulo(titulo, {
         historico: historicoEnriquecido,
         participantes: [usuarioId],
         clima: 'qualquer',
-        permitidos: servicos
-      }) + melhorSemelhanca(titulo, referencias)
+        permitidos: servicos,
+        preferenciasDescoberta: preferencias
+      }) + melhorSemelhanca(titulo, referencias) + pontuarPreferenciasDescoberta(titulo, preferencias)
     }))
     .sort((a, b) =>
       b.pontuacao_descoberta - a.pontuacao_descoberta
@@ -107,6 +126,20 @@ export async function carregarDescobertasPessoais({
     itens,
     motivoVazio: itens.length ? null : servicos.size ? 'sem-streaming' : 'sem-sugestoes'
   };
+}
+
+async function descobrirPorPreferencias(preferencias, { streamings = [], limite = 16, rodada = 0 } = {}) {
+  const climas = preferencias.climas?.length ? preferencias.climas : ['qualquer'];
+  const clima = climas[Math.abs(Number(rodada) || 0) % climas.length] || 'qualquer';
+  const tipos = Number(rodada) % 2 === 0 ? ['filme', 'serie'] : ['serie', 'filme'];
+  const lotes = await Promise.all(tipos.map(tipo => discoverTitles({
+    tipo,
+    clima,
+    provedores: streamings,
+    page: paginaRelacionada(rodada),
+    generosPreferidos: generosPreferidosTmdb(preferencias, tipo)
+  }).catch(() => [])));
+  return lotes.flat().slice(0, limite);
 }
 
 export function criarCardDescoberta(titulo, { onAdicionar, onBloquear } = {}) {
@@ -226,8 +259,10 @@ export function montarSecoesDescoberta(itens, {
     ...(apostas.length ? [{
       tipo: 'aposta',
       etiqueta: '',
-      titulo: 'Para variar um pouco',
-      descricao: 'Ainda conversa com seu histórico, mas foge do caminho mais óbvio.',
+      titulo: seguras.length ? 'Para variar um pouco' : 'Escolhidos pelo seu gosto',
+      descricao: seguras.length
+        ? 'Ainda conversa com seu histórico, mas foge do caminho mais óbvio.'
+        : 'Baseados no que você respondeu em “Montar meu Cine Diário”.',
       itens: apostas
     }] : [])
   ];
@@ -347,8 +382,26 @@ function pistaDaDescoberta(titulo) {
   return `Relacionado a ${referencias.slice(0, 2).join(' e ')}`;
 }
 
+function motivoPorPreferencias(titulo, preferencias) {
+  const generos = normalizarLista(titulo.generos).map(normalizarTextoComparacao);
+  const interesse = normalizarLista(preferencias.interesses).map(normalizarTextoComparacao)
+    .find(item => generos.some(genero => genero.includes(item) || item.includes(genero)));
+  if (interesse) return `Porque você marcou ${interesse}`;
+  if (preferencias.climas?.length) return 'Porque combina com os climas que você escolheu';
+  return 'Baseado no seu Cine Diário';
+}
+
 function normalizarLista(lista) {
   return (lista || []).map(item => String(item || '').trim()).filter(Boolean);
+}
+
+function normalizarTextoComparacao(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .trim();
 }
 
 function chaveTitulo(titulo) {

@@ -20,10 +20,12 @@ import {
   removerMembroEspaco,
   normalizarCodigo
 } from '../espacos.js';
-import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260906.1';
-import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
+import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260910.1';
+import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 import { supabase } from '../supabaseClient.js';
+import { abrirMontarCineDiario } from '../cineTasteModal.js';
+import { resumoCineDiarioMontado } from '../cineTaste.js';
 
 const CHAVE_CONVITE_PENDENTE = 'cine_diario_convite_pendente';
 const TIPOS_AVATAR = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -40,6 +42,7 @@ let avatarAtual = '';
 let arquivoAvatarPendente = null;
 let avatarTemporario = '';
 let removerAvatarPendente = false;
+let meusStreamings = [];
 
 init();
 
@@ -109,7 +112,8 @@ function renderTemas(temaAtivo) {
 }
 
 async function carregarStreamings() {
-  const selecionados = new Set(await getMeusStreamings(getUserId(session)));
+  meusStreamings = await getMeusStreamings(getUserId(session));
+  const selecionados = new Set(meusStreamings);
   document.getElementById('streamings-options').innerHTML = SERVICOS_STREAMING.map(servico => `
     <label class="streaming-option" title="${escapeHtml(servico.nome)}">
       <input type="checkbox" name="streaming" value="${escapeHtml(servico.slug)}" ${selecionados.has(servico.slug) ? 'checked' : ''} />
@@ -119,6 +123,12 @@ async function carregarStreamings() {
       <span class="sr-only">${escapeHtml(servico.nome)}</span>
       <span class="streaming-check" aria-hidden="true">✓</span>
     </label>`).join('');
+  renderResumoCineDiario();
+}
+
+function renderResumoCineDiario() {
+  const resumo = document.getElementById('cine-taste-summary');
+  if (resumo) resumo.textContent = resumoCineDiarioMontado(perfilAtual?.preferencias_descoberta || {});
 }
 
 function iconeStreaming(slug) {
@@ -294,9 +304,27 @@ function ligarEventos() {
   document.getElementById('profile-avatar-file').addEventListener('change', selecionarAvatar);
   document.getElementById('remove-profile-avatar').addEventListener('click', removerAvatarSelecionado);
   document.getElementById('profile-theme-options').addEventListener('change', aplicarPreviaVisual);
+  document.getElementById('open-cine-taste').addEventListener('click', abrirPreferenciasCineDiario);
   document.getElementById('join-code').addEventListener('input', event => {
     event.target.value = normalizarCodigo(event.target.value);
   });
+}
+
+async function abrirPreferenciasCineDiario() {
+  const perfil = await abrirMontarCineDiario({
+    perfilAtual,
+    usuarioId: getUserId(session),
+    streamingsAtuais: meusStreamings,
+    onSalvar: async perfilSalvo => {
+      perfilAtual = perfilSalvo;
+      await carregarStreamings();
+      renderCabecalho();
+    }
+  });
+  if (perfil) {
+    perfilAtual = perfil;
+    renderResumoCineDiario();
+  }
 }
 
 function alternarFormulario(id, campoFoco) {
@@ -340,6 +368,7 @@ async function salvarPerfil(event) {
     });
     perfilFoiAtualizado = true;
     await salvarMeusStreamings(getUserId(session), streamingsSelecionados);
+    meusStreamings = streamingsSelecionados;
 
     if (avatarAnterior && avatarAnterior !== novaUrlAvatar) {
       await excluirAvatarArmazenado(avatarAnterior);
@@ -351,6 +380,7 @@ async function salvarPerfil(event) {
     preencherPerfil(perfilAtual);
     renderCabecalho();
     renderDetalhesEspaco();
+    renderResumoCineDiario();
     showToast('Perfil e streamings atualizados.');
   } catch (error) {
     console.error(error);

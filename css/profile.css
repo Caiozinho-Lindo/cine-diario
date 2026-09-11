@@ -34,6 +34,9 @@
 .profile-streamings { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--card-border); }
 .profile-streamings h3 { margin: 0 0 12px; }
 .profile-streamings .settings-help { margin: -5px 0 14px; }
+.cine-taste-profile { display: grid; gap: 12px; margin-top: 18px; padding: 16px; border: 1px solid var(--card-border); border-radius: 14px; background: var(--surface-elevated); }
+.cine-taste-profile h3 { margin: 0 0 4px; }
+.cine-taste-profile .settings-help { margin: 0; }
 .streamings-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 15px 0; }
 .streaming-option { position: relative; display: grid; min-height: 72px; place-items: center; padding: 10px 8px; border: 1px solid var(--card-border); border-radius: var(--radius-sm); background: var(--surface-elevated); cursor: pointer; }
 .streaming-option:hover { border-color: var(--accent-2); transform: translateY(-1px); }

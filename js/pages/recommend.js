@@ -1,7 +1,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260909.3';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260910.1';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
@@ -9,11 +9,12 @@ import {
   misturarOrigens,
   motivosDaRecomendacao,
   formatarDuracao
-} from '../recommendations.js?v=20260909.3';
+} from '../recommendations.js?v=20260910.1';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
-import { abrirModalDescoberta } from '../discovery.js?v=20260909.3';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
+import { abrirModalDescoberta } from '../discovery.js?v=20260910.1';
+import { generosPreferidosTmdb } from '../cineTaste.js';
 import {
   bloquearRecomendacao,
   filtrarRecomendacoesBloqueadas,
@@ -273,7 +274,8 @@ async function carregarNovas(referenciaCompleta) {
       clima,
       provedores: streamingsSelecionados(),
       referencia: referenciaCompleta,
-      page: paginaDescoberta
+      page: paginaDescoberta,
+      generosPreferidos: generosPreferidosTmdb(perfilAtual?.preferencias_descoberta, tipo)
     })
   ]);
 
@@ -346,7 +348,8 @@ function recomendar(candidatos, referenciaCompleta, limite) {
     clima,
     streamings: streamingsSelecionados(),
     referencia: referenciaCompleta,
-    limite
+    limite,
+    preferenciasDescoberta: perfilAtual?.preferencias_descoberta
   });
 }
 

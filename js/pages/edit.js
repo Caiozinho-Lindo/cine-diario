@@ -1,8 +1,8 @@
 // js/pages/edit.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260909.4';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { confirmarSessao } from '../sessoes.js';
 

@@ -12,7 +12,7 @@ import {
   getTitulosCacheSnapshot
 } from '../titulos.js';
 import { aplicarFiltros, extrairGenerosUnicos, extrairAnosUnicos } from '../filters.js';
-import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260906.1';
+import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getMeusStreamings } from '../streamings.js';
 import {
@@ -20,8 +20,10 @@ import {
   criarCardDescobertaCatalogo,
   criarCacheRodadasDescoberta,
   montarSecoesDescoberta
-} from '../discovery.js?v=20260909.3';
+} from '../discovery.js?v=20260910.1';
 import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
+import { abrirMontarCineDiario } from '../cineTasteModal.js';
+import { temCineDiarioMontado } from '../cineTaste.js';
 import {
   renderNavbar,
   renderTituloCard,
@@ -32,7 +34,7 @@ import {
   showCardSkeletons,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260909.4';
+} from '../ui.js?v=20260910.1';
 
 let titulos = [];
 let modoAtivo = 'geral';
@@ -52,6 +54,7 @@ let rodadaDescobertasCatalogo = 0;
 let cacheDescobertasCatalogo = null;
 let interfacePreparada = false;
 let parametrosIniciaisAplicados = false;
+let montagemDescobrirOferecida = false;
 
 const RESULTADOS_POR_PAGINA = 24;
 
@@ -216,6 +219,7 @@ function ligarNavegacaoCatalogo() {
       atualizarUrlCatalogo();
       atualizarEstadoFiltrosExtras();
       renderResultados();
+      if (secaoCatalogo === 'descobrir') void oferecerMontagemNoDescobrir();
     });
   });
 }
@@ -223,6 +227,7 @@ function ligarNavegacaoCatalogo() {
 function renderResultados() {
   atualizarVisibilidadeSecao();
   if (secaoCatalogo === 'descobrir') {
+    void oferecerMontagemNoDescobrir();
     void renderDescobertasCatalogo();
     return;
   }
@@ -467,9 +472,28 @@ function prepararCacheDescobertasCatalogo() {
       usuarioId: usuarioIdAtual,
       streamings,
       limite: 16,
-      rodada
+      rodada,
+      preferenciasDescoberta: perfilAtual?.preferencias_descoberta
     });
   });
+}
+
+async function oferecerMontagemNoDescobrir({ forcar = false } = {}) {
+  if (!forcar && (montagemDescobrirOferecida || temCineDiarioMontado(perfilAtual))) return;
+  montagemDescobrirOferecida = true;
+  const streamings = await getMeusStreamings(usuarioIdAtual).catch(() => []);
+  const perfil = await abrirMontarCineDiario({
+    perfilAtual,
+    usuarioId: usuarioIdAtual,
+    streamingsAtuais: streamings,
+    onSalvar: async perfilSalvo => {
+      perfilAtual = perfilSalvo;
+      cacheDescobertasCatalogo?.limpar();
+      descobertasCatalogo = null;
+      await renderDescobertasCatalogo({ manterAtual: true });
+    }
+  });
+  if (perfil) perfilAtual = perfil;
 }
 
 async function renovarDescobertasCatalogo() {
@@ -494,11 +518,22 @@ function preencherDescobertasCatalogo(grid, resultado) {
   grid.innerHTML = '';
   if (!resultado.itens.length) {
     const conteudo = resultado.motivoVazio === 'sem-historico'
-      ? ['Suas sugestões começam pelas suas notas.', 'Avalie alguns títulos para o Cine Diário aprender do que você gosta.']
+      ? ['Monte seu Cine Diário.', 'Responda algumas escolhas rápidas para começarmos suas sugestões.']
       : resultado.motivoVazio === 'sem-streaming'
         ? ['Nada novo apareceu nos seus streamings agora.', 'Ajuste os serviços no perfil ou confira novamente mais tarde.']
         : ['Nenhuma sugestão nova encontrada agora.', 'Seu catálogo já pode conter as melhores correspondências.'];
-    grid.innerHTML = `<div class="personal-discovery-empty"><strong>${conteudo[0]}</strong>${conteudo[1]}</div>`;
+    grid.innerHTML = `
+      <div class="personal-discovery-empty">
+        <strong>${conteudo[0]}</strong>
+        ${conteudo[1]}
+        ${resultado.motivoVazio === 'sem-historico'
+          ? '<button class="btn btn-primary btn-sm" id="catalog-open-cine-taste" type="button">Montar meu Cine Diário</button>'
+          : ''}
+      </div>`;
+    document.getElementById('catalog-open-cine-taste')?.addEventListener('click', () => {
+      montagemDescobrirOferecida = false;
+      void oferecerMontagemNoDescobrir({ forcar: true });
+    });
     return;
   }
 
