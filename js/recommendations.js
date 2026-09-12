@@ -13,8 +13,13 @@ const CLIMAS = {
   },
   chorar: {
     minimo: 7,
-    generos: { romance: 5, drama: 3, soap: 4, musica: 3, familia: 1, animacao: 1 },
-    temas: ['luto', 'perda', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'amor', 'grief', 'loss', 'terminal illness', 'heartbreak', 'tearjerker', 'sacrifice']
+    generos: { drama: 5, musica: 3, romance: 2, soap: 2, familia: 1, animacao: 1 },
+    temas: ['luto', 'perda', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'despedida', 'morte', 'heartbreak', 'grief', 'loss', 'terminal illness', 'tearjerker', 'sacrifice']
+  },
+  romance: {
+    minimo: 6,
+    generos: { romance: 10, soap: 8, comedia: 2, drama: 2 },
+    temas: ['amor', 'casal', 'namoro', 'paixao', 'relacionamento', 'casamento', 'romance', 'love', 'couple', 'relationship', 'wedding']
   },
   pensar: {
     minimo: 6,
@@ -43,11 +48,24 @@ const CLIMAS = {
     evitarGeneros: ['terror', 'guerra'],
     evitarTemas: ['tortura', 'genocidio', 'assassino em serie', 'doenca terminal', 'torture', 'genocide', 'serial killer', 'terminal illness']
   },
+  real: {
+    minimo: 6,
+    generos: { documentario: 10, historia: 6, noticias: 6, 'guerra e politica': 4, crime: 2, drama: 2 },
+    temas: ['baseado em fatos', 'historia real', 'biografia', 'documentario', 'true story', 'based on true events', 'biography', 'real life']
+  },
+  cult: {
+    minimo: 6,
+    generos: { drama: 5, historia: 4, crime: 4, misterio: 3, faroeste: 3, 'ficcao cientifica': 2, romance: 1 },
+    temas: ['classico', 'cult', 'premiado', 'oscar', 'festival', 'obra-prima', 'masterpiece', 'classic', 'award-winning', 'film festival']
+  },
   qualquer: { minimo: 0, generos: {}, temas: [] }
 };
 
 const TEMAS_SUPER_HEROI = ['super-heroi', 'superhero', 'marvel', 'dc comics', 'comic book', 'super power', 'vingadores', 'avengers'];
 const TEMAS_CHORAR_FORTES = ['luto', 'perda', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'grief', 'loss', 'terminal illness', 'heartbreak', 'tearjerker', 'sacrifice'];
+const TEMAS_ROMANCE = ['amor', 'casal', 'namoro', 'paixao', 'relacionamento', 'casamento', 'romance', 'love', 'couple', 'relationship', 'wedding'];
+const TEMAS_REAL = ['baseado em fatos', 'historia real', 'biografia', 'documentario', 'true story', 'based on true events', 'biography', 'real life'];
+const TEMAS_CULT = ['classico', 'cult', 'premiado', 'oscar', 'festival', 'obra-prima', 'masterpiece', 'classic', 'award-winning', 'film festival'];
 
 const ALIASES_GENERO = {
   action: 'acao',
@@ -281,15 +299,24 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
   }
   if (clima === 'chorar') {
     const temaEmocionalForte = TEMAS_CHORAR_FORTES.some(tema => texto.includes(tema));
-    const romanceOuNovela = generos.some(genero => ['romance', 'soap'].includes(genero));
+    const romanceOuNovelaEmocional = generos.some(genero => ['romance', 'soap'].includes(genero)) && temaEmocionalForte;
     const dramaEmocional = generos.includes('drama') && temaEmocionalForte;
     const musicalEmocional = generos.includes('musica') && temaEmocionalForte;
     const familiaOuAnimacaoEmocional = generos.some(genero => ['familia', 'animacao'].includes(genero))
       && generos.includes('drama')
       && temaEmocionalForte;
     const aventuraLeve = generos.some(genero => ['aventura', 'acao', 'acao e aventura', 'fantasia', 'comedia', 'infantil'].includes(genero));
-    if (!romanceOuNovela && !dramaEmocional && !musicalEmocional && !familiaOuAnimacaoEmocional) elegivel = false;
+    if (!romanceOuNovelaEmocional && !dramaEmocional && !musicalEmocional && !familiaOuAnimacaoEmocional) elegivel = false;
     if (aventuraLeve && !temaEmocionalForte) elegivel = false;
+  }
+  if (clima === 'romance') {
+    const romanceDireto = generos.some(genero => ['romance', 'soap'].includes(genero));
+    const temaRomantico = TEMAS_ROMANCE.some(tema => texto.includes(tema));
+    const comediaRomantica = generos.includes('comedia') && temaRomantico;
+    const dramaRomantico = generos.includes('drama') && temaRomantico;
+    const dominadoPorAcaoOuMedo = generos.some(genero => ['acao', 'acao e aventura', 'terror', 'guerra'].includes(genero));
+    if (!romanceDireto && !comediaRomantica && !dramaRomantico) elegivel = false;
+    if (dominadoPorAcaoOuMedo && !romanceDireto) elegivel = false;
   }
   if (clima === 'pensar') {
     const generoReflexivo = generos.some(genero => [
@@ -321,6 +348,24 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
   if (clima === 'medo') {
     const terrorDireto = generos.includes('terror');
     if (!terrorDireto && !temasEncontrados.length) elegivel = false;
+  }
+  if (clima === 'real') {
+    const generoReal = generos.some(genero => ['documentario', 'historia', 'noticias', 'guerra e politica'].includes(genero));
+    const temaReal = TEMAS_REAL.some(tema => texto.includes(tema));
+    if (!generoReal && !temaReal) elegivel = false;
+  }
+  if (clima === 'cult') {
+    const generoCult = generos.some(genero => ['drama', 'historia', 'crime', 'misterio', 'faroeste', 'ficcao cientifica'].includes(genero));
+    const temaCult = TEMAS_CULT.some(tema => texto.includes(tema));
+    const mediaTmdb = Number(titulo.media_tmdb);
+    const publicoForte = Number.isFinite(mediaTmdb) && mediaTmdb >= 7.6;
+    const ano = Number(titulo.ano);
+    const classicoPorIdade = Number.isFinite(ano) && ano > 0 && ano <= new Date().getFullYear() - 15;
+    const muitoComercialLeve = generos.some(genero => ['infantil', 'familia', 'animacao', 'acao e aventura'].includes(genero))
+      && !temaCult
+      && !classicoPorIdade;
+    if (!temaCult && !(generoCult && (publicoForte || classicoPorIdade))) elegivel = false;
+    if (muitoComercialLeve) elegivel = false;
   }
 
   return {
@@ -433,6 +478,7 @@ function dataDaAvaliacao(titulo, usuarioId) {
 function motivoDoClima(clima, generos, temas) {
   if (clima === 'rir') return 'Tem humor e combina com um momento divertido';
   if (clima === 'chorar') return 'Traz uma história emocional e comovente';
+  if (clima === 'romance') return 'Tem romance ou relações no centro da história';
   if (clima === 'pensar') {
     if (generos.includes('misterio')) return 'Traz um mistério para investigar e desvendar';
     if (generos.some(genero => ['documentario', 'historia', 'noticias', 'guerra e politica'].includes(genero))) {
@@ -445,6 +491,8 @@ function motivoDoClima(clima, generos, temas) {
   if (clima === 'acao') return 'Prioriza ação, aventura e ritmo acelerado';
   if (clima === 'medo') return 'Tem elementos de terror e medo';
   if (clima === 'leve') return 'É uma opção leve para relaxar';
+  if (clima === 'real') return 'Parte de fatos, pessoas ou temas reais';
+  if (clima === 'cult') return 'Tem cara de clássico ou filme marcante';
   return 'Combina com o clima escolhido para hoje';
 }
 

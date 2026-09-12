@@ -235,6 +235,21 @@ test('Quero chorar não aceita aventura familiar ou animação leve', () => {
   assert.equal(avaliarCompatibilidadeClima(animacaoComovente, 'chorar').elegivel, true);
 });
 
+test('Romance é um clima próprio e não depende de tristeza', () => {
+  const comediaRomantica = titulo('comedia-romantica', {
+    generos: ['Comédia', 'Romance'],
+    sinopse: 'Um casal improvável vive um relacionamento divertido depois de um encontro desastroso.'
+  });
+  const acaoComCasalSecundario = titulo('acao-com-casal', {
+    generos: ['Ação', 'Aventura'],
+    sinopse: 'Dois espiões em fuga precisam vencer uma batalha decisiva.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(comediaRomantica, 'romance').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(comediaRomantica, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(acaoComCasalSecundario, 'romance').elegivel, false);
+});
+
 test('Quero rir exige comédia ou sinal claro de humor', () => {
   const animacaoAventura = titulo('animacao-aventura', {
     generos: ['Animação', 'Família', 'Aventura'],
@@ -277,6 +292,36 @@ test('Quero tensão exige suspense, perigo ou investigação', () => {
 
   assert.equal(avaliarCompatibilidadeClima(romanceDramatico, 'tensao').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(suspense, 'tensao').elegivel, true);
+});
+
+test('Algo real exige documentário, história ou sinal de fatos reais', () => {
+  const documentario = titulo('documentario', {
+    generos: ['Documentário'],
+    sinopse: 'Um retrato de acontecimentos reais.'
+  });
+  const ficcaoDrama = titulo('ficcao-drama', {
+    generos: ['Drama'],
+    sinopse: 'Uma família atravessa conflitos inventados ao longo de uma década.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(documentario, 'real').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(ficcaoDrama, 'real').elegivel, false);
+});
+
+test('Clássico/cult privilegia obra marcante sem virar qualquer blockbuster leve', () => {
+  const classico = titulo('classico', {
+    generos: ['Drama', 'Crime'],
+    ano: 1972,
+    media_tmdb: 8.7
+  });
+  const aventuraLeve = titulo('aventura-leve-recente', {
+    generos: ['Animação', 'Família', 'Aventura'],
+    ano: new Date().getFullYear(),
+    media_tmdb: 7.8
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(classico, 'cult').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(aventuraLeve, 'cult').elegivel, false);
 });
 
 test('Quero medo não confunde suspense policial comum com terror', () => {

@@ -1,7 +1,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260910.1';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260912.1';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
@@ -9,11 +9,11 @@ import {
   misturarOrigens,
   motivosDaRecomendacao,
   formatarDuracao
-} from '../recommendations.js?v=20260910.1';
+} from '../recommendations.js?v=20260912.1';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
-import { abrirModalDescoberta } from '../discovery.js?v=20260910.1';
+import { abrirModalDescoberta } from '../discovery.js?v=20260912.1';
 import { generosPreferidosTmdb } from '../cineTaste.js';
 import {
   bloquearRecomendacao,
@@ -577,11 +577,14 @@ function resumoBusca(referenciaCompleta) {
   const climaTexto = ({
     rir: 'para rir',
     chorar: 'para chorar',
+    romance: 'com romance',
     pensar: 'para pensar',
     tensao: 'com tensão',
     acao: 'com ação',
     medo: 'para sentir medo',
     leve: 'para relaxar',
+    real: 'baseados em algo real',
+    cult: 'clássicos ou cult',
     qualquer: 'para qualquer clima'
   })[clima];
   const fonte = tipo === 'serie' && modoSerie === 'continuar'

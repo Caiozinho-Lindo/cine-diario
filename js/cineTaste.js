@@ -27,13 +27,16 @@ export const CINE_TASTE_QUESTIONS = [
     ajuda: 'Isso ajuda o Descobrir a entender o momento certo.',
     multipla: true,
     opcoes: [
-      ['rir', '😄 Quero rir'],
-      ['chorar', '😭 Quero chorar'],
-      ['pensar', '💭 Quero pensar'],
-      ['tensao', '🤯 Quero tensão'],
-      ['acao', '💥 Quero ação'],
-      ['medo', '👻 Quero medo'],
-      ['leve', '🪶 Quero algo leve'],
+      ['rir', '😄 Rir'],
+      ['chorar', '😭 Chorar'],
+      ['romance', '💘 Romance'],
+      ['pensar', '💭 Pensar'],
+      ['tensao', '🤯 Tensão'],
+      ['acao', '💥 Ação'],
+      ['medo', '👻 Medo'],
+      ['leve', '🍿 Relaxar'],
+      ['real', '🌍 Algo real'],
+      ['cult', '🎬 Clássico/cult'],
       ['qualquer', '🎲 Qualquer coisa']
     ]
   },
@@ -240,11 +243,14 @@ function generoCombina(valor, genero) {
     documentario: ['documentario', 'noticias', 'historia'],
     animacao: ['animacao', 'infantil', 'familia'],
     rir: ['comedia', 'animacao', 'familia', 'infantil'],
-    chorar: ['drama', 'romance', 'musica'],
+    chorar: ['drama', 'musica'],
+    romance: ['romance', 'soap'],
     pensar: ['misterio', 'documentario', 'historia', 'guerra e politica', 'ficcao cientifica'],
     tensao: ['thriller', 'crime', 'misterio', 'terror'],
     medo: ['terror'],
-    leve: ['familia', 'infantil', 'comedia', 'animacao']
+    leve: ['familia', 'infantil', 'comedia', 'animacao'],
+    real: ['documentario', 'historia', 'noticias'],
+    cult: ['drama', 'historia', 'crime', 'misterio', 'faroeste']
   };
   return (grupos[valor] || [valor]).includes(genero);
 }

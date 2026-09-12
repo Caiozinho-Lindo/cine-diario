@@ -14,6 +14,60 @@ let tituloExistente = null;
 let editId = null;
 let sessaoId = null;
 
+const PERGUNTAS_AUXILIO_NOTA = [
+  {
+    id: 'reassistiria',
+    titulo: 'Você assistiria novamente?',
+    ajuda: 'Se esse filme/série estivesse passando na tela em um domingo, você iria parar para assistir?',
+    opcoes: [
+      ['com_certeza', 'Sim, com certeza', 10],
+      ['talvez', 'Talvez, se fosse o momento certo', 7],
+      ['nao_faria_questao', 'Não faria questão', 5]
+    ]
+  },
+  {
+    id: 'recomendaria',
+    titulo: 'Você recomendaria para alguém?',
+    ajuda: 'Um amigo fala: “Queria ver um filme hoje, mas não sei :/”. Você recomendaria esse filme ou teria vergonha?',
+    opcoes: [
+      ['facil', 'Recomendaria fácil', 10],
+      ['depende', 'Depende muito da pessoa', 7],
+      ['nao', 'Não recomendaria', 5]
+    ]
+  },
+  {
+    id: 'impacto',
+    titulo: 'Como você ficou depois que acabou?',
+    ajuda: 'Mexeu com você a ponto de usar esse filme como argumento em uma conversa?',
+    opcoes: [
+      ['mexeu', 'Mexeu comigo de verdade', 10],
+      ['gostei', 'Gostei, mas passou', 7],
+      ['nao_marcou', 'Não me marcou muito', 5],
+      ['arrependi', 'Me arrependi um pouco', 3]
+    ]
+  },
+  {
+    id: 'promessa',
+    titulo: 'O filme entregou o que prometia?',
+    ajuda: 'Era o que você esperava do filme/série?',
+    opcoes: [
+      ['tudo', 'Entregou tudo', 10],
+      ['partes', 'Entregou em partes', 7],
+      ['devendo', 'Ficou devendo', 5]
+    ]
+  },
+  {
+    id: 'memoravel',
+    titulo: 'Teve algo memorável?',
+    ajuda: 'Você acha que esse filme vai entrar para sua memória?',
+    opcoes: [
+      ['sim', 'Sim, vou lembrar disso', 10],
+      ['momentos', 'Teve bons momentos', 7],
+      ['nada', 'Nada muito marcante', 5]
+    ]
+  }
+];
+
 init();
 
 async function init() {
@@ -56,6 +110,7 @@ async function init() {
     configurarSecoesDeAvaliacao();
 
     document.getElementById('f-nota').addEventListener('input', atualizarDisplayNota);
+    document.getElementById('rating-helper-btn').addEventListener('click', abrirAuxilioNota);
     atualizarDisplayNota();
 
     await iniciarModoEdicao(editId, contextoTitulos);
@@ -84,7 +139,6 @@ async function iniciarModoEdicao(id, contextoTitulos = null) {
     if (minhaAvaliacao) {
       document.getElementById('f-nota').value = minhaAvaliacao.nota;
       document.getElementById('f-observacao').value = minhaAvaliacao.observacao || '';
-      document.getElementById('f-data-avaliacao').value = minhaAvaliacao.data_avaliacao;
       atualizarDisplayNota();
     }
 
@@ -144,26 +198,148 @@ function mostrarFormulario() {
     </div>
   `;
 
-  document.getElementById('f-nome').value = d.nome || '';
-  document.getElementById('f-nome-original').value = d.nome_original || '';
-  document.getElementById('f-ano').value = d.ano || '';
-  document.getElementById('f-tipo').value = d.tipo || 'filme';
-  document.getElementById('f-generos').value = (d.generos || []).join(', ');
-  document.getElementById('f-sinopse').value = d.sinopse || '';
-  document.getElementById('f-capa').value = d.capa_url || '';
+  renderDadosTituloSomenteLeitura(d);
   document.getElementById('f-data-assistido').value = d.data_assistido || '';
 
-  if (!document.getElementById('f-data-avaliacao').value) {
-    document.getElementById('f-data-avaliacao').value = new Date().toISOString().slice(0, 10);
-  }
   if (sessaoId && !document.getElementById('f-data-assistido').value) {
     document.getElementById('f-data-assistido').value = new Date().toISOString().slice(0, 10);
   }
 }
 
+function renderDadosTituloSomenteLeitura(d) {
+  const generos = (d.generos || []).join(', ') || '—';
+  const tipo = d.tipo === 'serie' ? 'Série' : 'Filme';
+  document.getElementById('title-readonly-data').innerHTML = `
+    <div class="readonly-field readonly-field-wide">
+      <span>Nome</span>
+      <strong>${escapeHtml(d.nome || '—')}</strong>
+    </div>
+    <div class="readonly-field">
+      <span>Nome original</span>
+      <strong>${escapeHtml(d.nome_original || '—')}</strong>
+    </div>
+    <div class="readonly-field">
+      <span>Ano</span>
+      <strong>${escapeHtml(String(d.ano || '—'))}</strong>
+    </div>
+    <div class="readonly-field">
+      <span>Tipo</span>
+      <strong>${tipo}</strong>
+    </div>
+    <div class="readonly-field">
+      <span>Gêneros</span>
+      <strong>${escapeHtml(generos)}</strong>
+    </div>
+    <div class="readonly-field readonly-field-wide">
+      <span>Sinopse</span>
+      <p>${escapeHtml(d.sinopse || 'Sem sinopse cadastrada.')}</p>
+    </div>
+  `;
+}
+
 function atualizarDisplayNota() {
   const val = parseFloat(document.getElementById('f-nota').value);
   document.getElementById('f-nota-display').textContent = val.toFixed(1).replace('.', ',');
+}
+
+function abrirAuxilioNota() {
+  const respostas = {};
+  let etapa = 0;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay rating-helper-overlay';
+  overlay.innerHTML = '<div class="modal-box rating-helper-box" role="dialog" aria-modal="true"></div>';
+  const box = overlay.querySelector('.rating-helper-box');
+
+  const fechar = () => overlay.remove();
+  const usarNota = nota => {
+    document.getElementById('f-nota').value = String(nota);
+    atualizarDisplayNota();
+    showToast(`Nota sugerida aplicada: ${formatarNota(nota)}`);
+    fechar();
+  };
+  const render = () => {
+    const pergunta = PERGUNTAS_AUXILIO_NOTA[etapa];
+    const total = PERGUNTAS_AUXILIO_NOTA.length;
+
+    if (!pergunta) {
+      const nota = calcularNotaAuxiliada(respostas);
+      box.innerHTML = `
+        <button class="modal-close" data-close-rating-helper type="button" aria-label="Fechar">×</button>
+        <span class="eyebrow">Me ajudar a dar nota</span>
+        <h3>Nota sugerida: ${formatarNota(nota)}</h3>
+        <p>Use essa nota se ela fizer sentido para você. Se quiser, ainda dá para ajustar manualmente depois.</p>
+        <div class="rating-helper-actions">
+          <button class="rating-helper-back" data-back-rating-helper type="button">← Voltar</button>
+          <button class="btn btn-primary" data-use-rating-helper type="button">Usar essa nota</button>
+        </div>
+      `;
+      box.querySelector('[data-close-rating-helper]').addEventListener('click', fechar);
+      box.querySelector('[data-back-rating-helper]').addEventListener('click', () => {
+        etapa = total - 1;
+        render();
+      });
+      box.querySelector('[data-use-rating-helper]').addEventListener('click', () => usarNota(nota));
+      return;
+    }
+
+    box.innerHTML = `
+      <button class="modal-close" data-close-rating-helper type="button" aria-label="Fechar">×</button>
+      <div class="cine-taste-progress" aria-hidden="true">
+        ${PERGUNTAS_AUXILIO_NOTA.map((_, indice) => `<span class="${indice <= etapa ? 'active' : ''}"></span>`).join('')}
+      </div>
+      <span class="eyebrow">Me ajudar a dar nota</span>
+      <h3>${escapeHtml(pergunta.titulo)}</h3>
+      <p>${escapeHtml(pergunta.ajuda)}</p>
+      <div class="rating-helper-options">
+        ${pergunta.opcoes.map(([valor, rotulo]) => `
+          <button class="rating-helper-option${respostas[pergunta.id]?.valor === valor ? ' selected' : ''}" data-answer="${valor}" type="button">
+            ${escapeHtml(rotulo)}
+          </button>
+        `).join('')}
+      </div>
+      <div class="rating-helper-actions">
+        <button class="rating-helper-back" data-back-rating-helper type="button"${etapa === 0 ? ' disabled' : ''}>← Voltar</button>
+        <span class="rating-helper-step">${etapa + 1} de ${total}</span>
+      </div>
+    `;
+    box.querySelector('[data-close-rating-helper]').addEventListener('click', fechar);
+    box.querySelectorAll('[data-answer]').forEach(botao => {
+      botao.addEventListener('click', () => {
+        const escolha = pergunta.opcoes.find(([valor]) => valor === botao.dataset.answer);
+        respostas[pergunta.id] = { valor: escolha[0], nota: escolha[2] };
+        etapa += 1;
+        render();
+      });
+    });
+    box.querySelector('[data-back-rating-helper]').addEventListener('click', () => {
+      etapa = Math.max(0, etapa - 1);
+      render();
+    });
+  };
+
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) fechar();
+  });
+  document.addEventListener('keydown', function onKeydown(event) {
+    if (!document.body.contains(overlay)) {
+      document.removeEventListener('keydown', onKeydown);
+      return;
+    }
+    if (event.key === 'Escape') fechar();
+  });
+  document.body.appendChild(overlay);
+  render();
+}
+
+function calcularNotaAuxiliada(respostas) {
+  const notas = Object.values(respostas).map(item => Number(item.nota)).filter(Number.isFinite);
+  if (!notas.length) return parseFloat(document.getElementById('f-nota').value) || 7;
+  const media = notas.reduce((soma, nota) => soma + nota, 0) / notas.length;
+  return Math.max(0, Math.min(10, Math.round(media * 2) / 2));
+}
+
+function formatarNota(nota) {
+  return Number(nota).toFixed(1).replace('.', ',');
 }
 
 async function onSubmit(e) {
@@ -180,13 +356,13 @@ async function onSubmit(e) {
 
   const camposTitulo = {
     tmdb_id: dadosSelecionados.tmdb_id || null,
-    tipo: document.getElementById('f-tipo').value,
-    nome: document.getElementById('f-nome').value.trim(),
-    nome_original: document.getElementById('f-nome-original').value.trim(),
-    ano: document.getElementById('f-ano').value ? parseInt(document.getElementById('f-ano').value, 10) : null,
-    generos: document.getElementById('f-generos').value.split(',').map(g => g.trim()).filter(Boolean),
-    sinopse: document.getElementById('f-sinopse').value.trim(),
-    capa_url: document.getElementById('f-capa').value.trim() || null,
+    tipo: dadosSelecionados.tipo || 'filme',
+    nome: dadosSelecionados.nome || '',
+    nome_original: dadosSelecionados.nome_original || null,
+    ano: dadosSelecionados.ano || null,
+    generos: dadosSelecionados.generos || [],
+    sinopse: dadosSelecionados.sinopse || '',
+    capa_url: dadosSelecionados.capa_url || null,
     backdrop_url: dadosSelecionados.backdrop_url || null,
     data_assistido: document.getElementById('f-data-assistido').value || null,
     quero_assistir: false // ao avaliar, o título sai da lista "para assistir"
@@ -203,7 +379,7 @@ async function onSubmit(e) {
       usuarioId,
       nota: parseFloat(document.getElementById('f-nota').value),
       observacao: document.getElementById('f-observacao').value.trim(),
-      dataAvaliacao: document.getElementById('f-data-avaliacao').value
+      dataAvaliacao: new Date().toISOString().slice(0, 10)
     });
 
     if (sessaoId) await confirmarSessao(sessaoId);
