@@ -363,7 +363,7 @@ function nomeDoProvedor(slug) {
 
 function generosTmdbPorClima(clima, tipo) {
   const filme = {
-    rir: [35, 10751, 16, 10749],
+    rir: [35],
     chorar: [18, 10402, 10749],
     romance: [10749, 35, 18],
     pensar: [9648, 99, 36, 18, 80, 878],
@@ -375,7 +375,7 @@ function generosTmdbPorClima(clima, tipo) {
     cult: [18, 36, 80, 9648, 37]
   };
   const serie = {
-    rir: [35, 10751, 16],
+    rir: [35],
     chorar: [18, 10766, 10749],
     romance: [10749, 10766, 35, 18],
     pensar: [9648, 99, 10763, 10768, 18, 80, 10765, 10767],

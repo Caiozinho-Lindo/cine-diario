@@ -48,10 +48,29 @@ test('ações de sortear ou pedir outras opções usam só o dado visível', () 
   assert.doesNotMatch(homeHtml, /Mostrar outras três opções/);
   assert.doesNotMatch(recommendHtml, /Ainda em dúvida\? Sortear/);
   assert.doesNotMatch(recommendHtml, /Mostrar outras três opções/);
-  assert.match(homeHtml, /id="recommend-raffle"[^>]+aria-label="Sortear uma opção"[^>]*>🎲<\/button>/);
+  assert.match(homeHtml, /id="recommend-raffle"[^>]+aria-label="Sortear uma opção"[^>]*>🍀<\/button>/);
   assert.match(homeHtml, /id="recommend-more"[^>]+aria-label="Mostrar outras opções"[^>]*>🎲<\/button>/);
-  assert.match(recommendHtml, /id="recommend-raffle"[^>]+aria-label="Sortear uma opção"[^>]*>🎲<\/button>/);
+  assert.match(recommendHtml, /id="recommend-raffle"[^>]+aria-label="Sortear uma opção"[^>]*>🍀<\/button>/);
   assert.match(recommendHtml, /id="recommend-more"[^>]+aria-label="Mostrar outras opções"[^>]*>🎲<\/button>/);
+});
+
+test('inspiração da vez mostra capas e pode ser automática por clima', () => {
+  assert.match(homeHtml, /Inspiração da vez/);
+  assert.match(recommendHtml, /Inspiração da vez/);
+  assert.doesNotMatch(homeHtml, /datalist id="recommend-reference-options"/);
+  assert.match(homeHtml, /class="reference-options"/);
+  assert.match(recommendJs, /selecionarReferenciaAutomatica/);
+  assert.match(recommendJs, /avaliarCompatibilidadeClima\(titulo,\s*clima\)/);
+  assert.match(recommendJs, /inspirado automaticamente em/);
+  assert.match(recommendJs, /safeImageSrc\(titulo\.capa_url\)/);
+  assert.match(recommendCss, /\.reference-option img/);
+});
+
+test('sugestão nova busca com mais abrangência sem deixar a inspiração automática mandar no gênero', () => {
+  assert.match(recommendJs, /carregarDescobertasAbrangentes/);
+  assert.match(recommendJs, /const referenciaDeBusca = referencia \? referenciaCompleta : null/);
+  assert.match(recommendJs, /paginasParaTentar = origem === 'novas' \? 4 : 3/);
+  assert.match(recommendJs, /paginaDescoberta \+= origem === 'novas' \? 4 : 3/);
 });
 
 test('Descobrir guarda buscas pesadas em memória para responder mais rápido', () => {

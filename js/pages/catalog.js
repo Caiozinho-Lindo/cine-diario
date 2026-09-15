@@ -20,7 +20,7 @@ import {
   criarCardDescobertaCatalogo,
   criarCacheRodadasDescoberta,
   montarSecoesDescoberta
-} from '../discovery.js?v=20260912.1';
+} from '../discovery.js?v=20260915.2';
 import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
 import { temCineDiarioMontado } from '../cineTaste.js';

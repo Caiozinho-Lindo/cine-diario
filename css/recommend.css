@@ -33,6 +33,78 @@
 .recommend-field label small { color: var(--text-secondary); font-size: 0.76rem; font-weight: 400; }
 .recommend-field input[type="search"] { max-width: 620px; }
 .recommend-field-hint { margin: 7px 0 0; color: var(--text-secondary); font-size: 0.76rem; }
+.reference-search {
+  position: relative;
+  max-width: 620px;
+}
+.reference-search input[type="search"] {
+  width: 100%;
+  max-width: none;
+}
+.reference-options {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-soft);
+}
+.reference-options[hidden] { display: none; }
+.reference-option {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.reference-option:hover,
+.reference-option:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.reference-option img {
+  width: 42px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 7px;
+  background: var(--surface);
+}
+.reference-option span {
+  min-width: 0;
+}
+.reference-option strong,
+.reference-option small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reference-option strong {
+  font-size: 0.86rem;
+}
+.reference-option small,
+.reference-option-empty {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+.reference-option-empty {
+  padding: 12px;
+}
 .choice-pills { display: flex; flex-wrap: wrap; gap: 9px; }
 .choice-pill {
   min-height: 42px;

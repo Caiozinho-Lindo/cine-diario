@@ -250,18 +250,28 @@ test('Romance é um clima próprio e não depende de tristeza', () => {
   assert.equal(avaliarCompatibilidadeClima(acaoComCasalSecundario, 'romance').elegivel, false);
 });
 
-test('Quero rir exige comédia ou sinal claro de humor', () => {
+test('Rir exige comédia de verdade', () => {
   const animacaoAventura = titulo('animacao-aventura', {
     generos: ['Animação', 'Família', 'Aventura'],
     sinopse: 'Uma jornada colorida por mundos mágicos.'
+  });
+  const acaoComHumor = titulo('acao-com-humor', {
+    generos: ['Ação', 'Aventura'],
+    sinopse: 'Um herói usa humor para enfrentar uma missão cheia de explosões.'
   });
   const comedia = titulo('comedia-romantica', {
     generos: ['Comédia', 'Romance'],
     sinopse: 'Um casal improvável vive situações engraçadas.'
   });
+  const standup = titulo('standup', {
+    generos: [],
+    sinopse: 'Um especial de stand-up comedy gravado ao vivo.'
+  });
 
   assert.equal(avaliarCompatibilidadeClima(animacaoAventura, 'rir').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(acaoComHumor, 'rir').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(comedia, 'rir').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(standup, 'rir').elegivel, true);
 });
 
 test('Quero ação exige ação, aventura ou sinais claros de combate', () => {
@@ -336,6 +346,48 @@ test('Quero medo não confunde suspense policial comum com terror', () => {
 
   assert.equal(avaliarCompatibilidadeClima(suspensePolicial, 'medo').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(assassinoAssustador, 'medo').elegivel, true);
+});
+
+test('climas não aceitam atalhos por palavra solta fora do contexto', () => {
+  const casos = [
+    ['rir', titulo('acao-com-humor-solto', {
+      generos: ['Ação', 'Aventura'],
+      sinopse: 'Um herói usa humor antes de uma batalha explosiva.'
+    })],
+    ['chorar', titulo('aventura-com-sacrificio', {
+      generos: ['Ação', 'Aventura'],
+      sinopse: 'Um sacrifício acontece no meio de uma grande perseguição.'
+    })],
+    ['romance', titulo('acao-com-casal-secundario', {
+      generos: ['Ação', 'Aventura'],
+      sinopse: 'Um casal de espiões precisa vencer uma batalha decisiva.'
+    })],
+    ['pensar', titulo('super-heroi-com-ideia-solta', {
+      generos: ['Ação', 'Aventura'],
+      sinopse: 'Um super-herói enfrenta uma inteligência artificial em uma sequência de lutas.'
+    })],
+    ['tensao', titulo('comedia-com-perigo-solto', {
+      generos: ['Comédia', 'Família'],
+      sinopse: 'Uma confusão sobre sequestro vira uma grande piada familiar.'
+    })],
+    ['medo', titulo('aventura-com-monstro', {
+      generos: ['Aventura', 'Família'],
+      sinopse: 'Um monstro atrapalhado aparece durante uma viagem divertida.'
+    })],
+    ['real', titulo('ficcao-com-realidade-solta', {
+      generos: ['Ficção científica', 'Ação'],
+      sinopse: 'Uma realidade alternativa ameaça o universo.'
+    })],
+    ['cult', titulo('animacao-recente-popular', {
+      generos: ['Animação', 'Família', 'Aventura'],
+      ano: new Date().getFullYear(),
+      media_tmdb: 8.1
+    })]
+  ];
+
+  casos.forEach(([clima, candidato]) => {
+    assert.equal(avaliarCompatibilidadeClima(candidato, clima).elegivel, false, `${candidato.id} não deveria entrar em ${clima}`);
+  });
 });
 
 test('a justificativa explica primeiro o clima escolhido', () => {

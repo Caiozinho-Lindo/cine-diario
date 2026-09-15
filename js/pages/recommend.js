@@ -1,19 +1,20 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260912.1';
+import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260915.2';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
   recomendarDaLista,
   misturarOrigens,
   motivosDaRecomendacao,
-  formatarDuracao
-} from '../recommendations.js?v=20260912.1';
+  formatarDuracao,
+  avaliarCompatibilidadeClima
+} from '../recommendations.js?v=20260915.2';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
-import { abrirModalDescoberta } from '../discovery.js?v=20260912.1';
+import { abrirModalDescoberta } from '../discovery.js?v=20260915.2';
 import { generosPreferidosTmdb } from '../cineTaste.js';
 import {
   bloquearRecomendacao,
@@ -35,6 +36,7 @@ let clima = 'rir';
 let origem = 'lista';
 let modoSerie = 'nova';
 let referencia = null;
+let referenciaAutomatica = null;
 let finalistas = [];
 let bloqueiosRecomendacao = [];
 let idsExibidos = new Set();
@@ -115,15 +117,19 @@ function ligarEventos() {
   document.querySelectorAll('[data-type]').forEach(button => button.addEventListener('click', () => {
     tipo = button.dataset.type;
     referencia = null;
+    referenciaAutomatica = null;
     document.getElementById('recommend-reference').value = '';
     ativarUnico('[data-type]', button);
     document.getElementById('series-mode-field').hidden = tipo !== 'serie';
     renderReferencias();
+    atualizarDicaReferencia();
     atualizarContextoDaBusca();
   }));
   document.querySelectorAll('[data-mood]').forEach(button => button.addEventListener('click', () => {
     clima = button.dataset.mood;
     ativarUnico('[data-mood]', button);
+    referenciaAutomatica = null;
+    atualizarDicaReferencia();
   }));
   document.querySelectorAll('[data-series-mode]').forEach(button => button.addEventListener('click', () => {
     modoSerie = button.dataset.seriesMode;
@@ -132,6 +138,15 @@ function ligarEventos() {
   }));
 
   document.getElementById('recommend-reference').addEventListener('input', atualizarReferencia);
+  document.getElementById('recommend-reference').addEventListener('focus', mostrarOpcoesReferencia);
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.reference-search')) ocultarOpcoesReferencia();
+  });
+  document.getElementById('recommend-reference-options').addEventListener('click', event => {
+    const opcao = event.target.closest('[data-reference-id]');
+    if (!opcao) return;
+    selecionarReferencia(opcao.dataset.referenceId);
+  });
   document.getElementById('recommend-streamings').addEventListener('click', event => {
     const button = event.target.closest('[data-streaming]');
     if (!button) return;
@@ -180,21 +195,80 @@ function renderReferencias() {
   const opcoes = historico
     .filter(titulo => titulo.tipo === tipo && titulo.tmdb_id)
     .sort((a, b) => melhorNota(b) - melhorNota(a) || a.nome.localeCompare(b.nome, 'pt-BR'));
-  document.getElementById('recommend-reference-options').innerHTML = opcoes
-    .map(titulo => `<option value="${escapeHtml(titulo.nome)}"></option>`)
-    .join('');
   document.getElementById('recommend-reference').placeholder = opcoes.length
     ? 'Busque um título do histórico'
     : `Nenhum${tipo === 'filme' ? ' filme' : 'a série'} no histórico`;
+  renderOpcoesReferencia(opcoes.slice(0, 6));
+  atualizarDicaReferencia();
 }
 
 function atualizarReferencia(event) {
   const valor = normalizarTexto(event.target.value);
   referencia = historico.find(titulo => titulo.tipo === tipo && normalizarTexto(titulo.nome) === valor) || null;
+  referenciaAutomatica = null;
+  const opcoes = historico
+    .filter(titulo => titulo.tipo === tipo && titulo.tmdb_id)
+    .filter(titulo => {
+      if (!valor) return true;
+      return normalizarTexto(titulo.nome).includes(valor)
+        || normalizarLista(titulo.generos).some(genero => genero.includes(valor));
+    })
+    .sort((a, b) => melhorNota(b) - melhorNota(a) || a.nome.localeCompare(b.nome, 'pt-BR'))
+    .slice(0, 8);
+  renderOpcoesReferencia(opcoes);
+  mostrarOpcoesReferencia();
+  atualizarDicaReferencia();
+}
+
+function renderOpcoesReferencia(opcoes) {
+  const container = document.getElementById('recommend-reference-options');
+  if (!container) return;
+  if (!opcoes.length) {
+    container.innerHTML = '<div class="reference-option-empty">Nenhum título encontrado no histórico.</div>';
+    return;
+  }
+  container.innerHTML = opcoes.map(titulo => `
+    <button class="reference-option" data-reference-id="${escapeHtml(titulo.id)}" type="button">
+      <img src="${safeImageSrc(titulo.capa_url)}" alt="" loading="lazy" />
+      <span>
+        <strong>${escapeHtml(titulo.nome)}</strong>
+        <small>${escapeHtml([titulo.ano, titulo.tipo === 'serie' ? 'Série' : 'Filme', formatarNotaCurta(melhorNota(titulo))].filter(Boolean).join(' · '))}</small>
+      </span>
+    </button>
+  `).join('');
+}
+
+function mostrarOpcoesReferencia() {
+  const container = document.getElementById('recommend-reference-options');
+  if (container?.innerHTML.trim()) container.hidden = false;
+}
+
+function ocultarOpcoesReferencia() {
+  const container = document.getElementById('recommend-reference-options');
+  if (container) container.hidden = true;
+}
+
+function selecionarReferencia(id) {
+  const selecionado = historico.find(titulo => String(titulo.id) === String(id));
+  if (!selecionado) return;
+  referencia = selecionado;
+  referenciaAutomatica = null;
+  document.getElementById('recommend-reference').value = selecionado.nome;
+  ocultarOpcoesReferencia();
+  atualizarDicaReferencia();
+}
+
+function atualizarDicaReferencia() {
   const dica = document.getElementById('recommend-reference-hint');
-  dica.textContent = referencia
-    ? `“${referencia.nome}” terá o maior peso nesta busca.`
-    : 'O histórico completo continuará sendo considerado.';
+  if (!dica) return;
+  if (referencia) {
+    dica.textContent = `“${referencia.nome}” terá o maior peso nesta busca.`;
+    return;
+  }
+  const automatica = selecionarReferenciaAutomatica();
+  dica.textContent = automatica
+    ? `Se não escolher nada, posso usar “${automatica.nome}” como inspiração para ${rotuloClima(clima)}.`
+    : 'Sem inspiração específica. Vou considerar seu histórico geral.';
 }
 
 function atualizarContextoDaBusca() {
@@ -262,6 +336,7 @@ async function carregarLista() {
 }
 
 async function carregarNovas(referenciaCompleta) {
+  const referenciaDeBusca = referencia ? referenciaCompleta : null;
   const [compativeis, descobertos] = await Promise.all([
     getSugestoesDeUsuariosCompativeis(espacoAtivo.id, tipo, 12)
       .then(getTitlesByTmdbIds)
@@ -269,14 +344,7 @@ async function carregarNovas(referenciaCompleta) {
         console.warn('[compatibilidade]', error);
         return [];
       }),
-    discoverTitles({
-      tipo,
-      clima,
-      provedores: streamingsSelecionados(),
-      referencia: referenciaCompleta,
-      page: paginaDescoberta,
-      generosPreferidos: generosPreferidosTmdb(perfilAtual?.preferencias_descoberta, tipo)
-    })
+    carregarDescobertasAbrangentes(referenciaDeBusca)
   ]);
 
   const combinados = new Map();
@@ -291,6 +359,41 @@ async function carregarNovas(referenciaCompleta) {
     .filter(titulo => !desejos.some(item => mesmaObra(item, titulo)))
     .filter(titulo => !idsExibidos.has(chaveTitulo(titulo)))
     .map(titulo => ({ ...titulo, origem_recomendacao: 'nova' }));
+}
+
+async function carregarDescobertasAbrangentes(referenciaDeBusca) {
+  const descobertos = [];
+  const vistos = new Set();
+  const paginasParaTentar = origem === 'novas' ? 4 : 3;
+
+  for (let deslocamento = 0; deslocamento < paginasParaTentar; deslocamento += 1) {
+    const lote = await discoverTitles({
+      tipo,
+      clima,
+      provedores: streamingsSelecionados(),
+      referencia: referenciaDeBusca,
+      page: paginaDescoberta + deslocamento,
+      generosPreferidos: generosPreferidosTmdb(perfilAtual?.preferencias_descoberta, tipo)
+    });
+
+    lote.forEach(titulo => {
+      const chave = chaveTitulo(titulo);
+      if (!vistos.has(chave)) {
+        vistos.add(chave);
+        descobertos.push(titulo);
+      }
+    });
+
+    const elegiveis = descobertos
+      .map(mesclarComHistoricoDoEspaco)
+      .filter(Boolean)
+      .filter(titulo => !desejos.some(item => mesmaObra(item, titulo)))
+      .filter(titulo => !idsExibidos.has(chaveTitulo(titulo)))
+      .filter(titulo => avaliarCompatibilidadeClima(titulo, clima).elegivel);
+    if (elegiveis.length >= 9) break;
+  }
+
+  return descobertos;
 }
 
 async function enriquecerTitulos(lista, origemTitulo) {
@@ -309,11 +412,13 @@ async function enriquecerTitulos(lista, origemTitulo) {
 }
 
 async function enriquecerReferencia() {
-  if (!referencia?.tmdb_id) return referencia;
+  const alvo = referencia?.tmdb_id ? referencia : selecionarReferenciaAutomatica();
+  referenciaAutomatica = referencia ? null : alvo;
+  if (!alvo?.tmdb_id) return alvo;
   try {
-    return { ...referencia, ...await obterDetalhes(referencia.tmdb_id, referencia.tipo), id: referencia.id };
+    return { ...alvo, ...await obterDetalhes(alvo.tmdb_id, alvo.tipo), id: alvo.id, referencia_automatica: !referencia };
   } catch {
-    return referencia;
+    return alvo;
   }
 }
 
@@ -446,7 +551,7 @@ function renderVazio(titulo, texto) {
 
 async function mostrarOutras() {
   finalistas.forEach(titulo => idsExibidos.add(chaveTitulo(titulo)));
-  paginaDescoberta += 1;
+  paginaDescoberta += origem === 'novas' ? 4 : 3;
   const quantidadeAnterior = idsExibidos.size;
   await buscarRecomendacoes({ reiniciar: false });
   if (!finalistas.length && quantidadeAnterior) {
@@ -590,10 +695,61 @@ function resumoBusca(referenciaCompleta) {
   const fonte = tipo === 'serie' && modoSerie === 'continuar'
     ? 'Do histórico'
     : ({ lista: 'Da lista', novas: 'Sugestões novas', 'tanto-faz': 'Lista e sugestões novas' })[origem];
-  const base = referenciaCompleta ? ` · parecido com “${referenciaCompleta.nome}”` : '';
+  const base = referenciaCompleta
+    ? referenciaCompleta.referencia_automatica
+      ? ` · inspirado automaticamente em “${referenciaCompleta.nome}”`
+      : ` · parecido com “${referenciaCompleta.nome}”`
+    : '';
   const servicos = streamingsSelecionados();
   const streaming = servicos.length ? ` · ${servicos.length} streaming${servicos.length === 1 ? '' : 's'}` : ' · todos os streamings';
   return `${fonte} · ${tipo === 'filme' ? 'filmes' : 'séries'} ${climaTexto}${base}${streaming}.`;
+}
+
+function selecionarReferenciaAutomatica() {
+  if (referenciaAutomatica && referenciaAutomatica.tipo === tipo) return referenciaAutomatica;
+  const candidatos = historico
+    .filter(titulo => titulo.tipo === tipo && titulo.tmdb_id)
+    .map(titulo => ({
+      titulo,
+      nota: melhorNota(titulo),
+      compatibilidade: avaliarCompatibilidadeClima(titulo, clima)
+    }))
+    .filter(item => item.nota >= 7)
+    .filter(item => clima === 'qualquer' || item.compatibilidade.elegivel)
+    .sort((a, b) =>
+      b.nota - a.nota
+      || b.compatibilidade.pontos - a.compatibilidade.pontos
+      || dataMaisRecente(b.titulo) - dataMaisRecente(a.titulo)
+    );
+  referenciaAutomatica = candidatos[0]?.titulo || null;
+  return referenciaAutomatica;
+}
+
+function dataMaisRecente(titulo) {
+  const datas = (titulo.avaliacoesMembros || [])
+    .map(item => new Date(item.avaliacao?.data_avaliacao || titulo.criado_em || 0).getTime())
+    .filter(Number.isFinite);
+  return datas.length ? Math.max(...datas) : 0;
+}
+
+function formatarNotaCurta(nota) {
+  return nota >= 0 ? `Nota ${String(nota).replace('.', ',')}` : '';
+}
+
+function rotuloClima(valor) {
+  return ({
+    rir: 'rir',
+    chorar: 'chorar',
+    romance: 'romance',
+    pensar: 'pensar',
+    tensao: 'tensão',
+    acao: 'ação',
+    medo: 'medo',
+    leve: 'relaxar',
+    real: 'algo real',
+    cult: 'clássico/cult',
+    qualquer: 'qualquer clima'
+  })[valor] || 'o clima escolhido';
 }
 
 function mesclarComHistoricoDoEspaco(titulo) {
@@ -646,4 +802,8 @@ function nomeMembro(membro) {
 
 function normalizarTexto(valor) {
   return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function normalizarLista(valores = []) {
+  return (valores || []).map(normalizarTexto).filter(Boolean);
 }

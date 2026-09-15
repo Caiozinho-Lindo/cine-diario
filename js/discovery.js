@@ -1,4 +1,4 @@
-import { discoverTitles, getDetails, getRelatedTitles } from './tmdb.js?v=20260912.1';
+import { discoverTitles, getDetails, getRelatedTitles } from './tmdb.js?v=20260915.2';
 import {
   generosPreferidosTmdb,
   normalizarPreferenciasDescoberta,
@@ -10,7 +10,7 @@ import {
   motivoDaDescobertaPessoal,
   pontuarTitulo,
   selecionarReferenciasPessoais
-} from './recommendations.js?v=20260912.1';
+} from './recommendations.js?v=20260915.2';
 import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.3';
 import { escapeHtml, safeImageSrc } from './ui.js?v=20260910.1';
 

@@ -8,8 +8,8 @@ import {
 const CLIMAS = {
   rir: {
     minimo: 6,
-    generos: { comedia: 8, animacao: 3, familia: 2, infantil: 3, romance: 1, musica: 1, reality: 1 },
-    temas: ['humor', 'engracado', 'satira', 'parodia', 'comedy', 'funny', 'stand-up']
+    generos: { comedia: 10, reality: 4, animacao: 1, familia: 1, infantil: 1, romance: 1 },
+    temas: ['engracado', 'satira', 'parodia', 'comedy', 'funny', 'stand-up', 'sitcom']
   },
   chorar: {
     minimo: 7,
@@ -66,6 +66,7 @@ const TEMAS_CHORAR_FORTES = ['luto', 'perda', 'doenca', 'superacao', 'tragedia',
 const TEMAS_ROMANCE = ['amor', 'casal', 'namoro', 'paixao', 'relacionamento', 'casamento', 'romance', 'love', 'couple', 'relationship', 'wedding'];
 const TEMAS_REAL = ['baseado em fatos', 'historia real', 'biografia', 'documentario', 'true story', 'based on true events', 'biography', 'real life'];
 const TEMAS_CULT = ['classico', 'cult', 'premiado', 'oscar', 'festival', 'obra-prima', 'masterpiece', 'classic', 'award-winning', 'film festival'];
+const GENEROS_LEVES = ['comedia', 'familia', 'infantil', 'animacao', 'romance'];
 
 const ALIASES_GENERO = {
   action: 'acao',
@@ -292,10 +293,8 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
   let elegivel = pontos >= configuracao.minimo;
   if (clima === 'rir') {
     const comediaDireta = generos.some(genero => ['comedia', 'reality'].includes(genero));
-    const humorNoTema = temasEncontrados.length > 0;
-    const animacaoOuFamiliaDivertida = generos.some(genero => ['animacao', 'familia', 'infantil'].includes(genero))
-      && humorNoTema;
-    if (!comediaDireta && !humorNoTema && !animacaoOuFamiliaDivertida) elegivel = false;
+    const formatoComicoClaro = ['stand-up', 'sitcom', 'comedy'].some(tema => texto.includes(tema));
+    if (!comediaDireta && !formatoComicoClaro) elegivel = false;
   }
   if (clima === 'chorar') {
     const temaEmocionalForte = TEMAS_CHORAR_FORTES.some(tema => texto.includes(tema));
@@ -335,9 +334,9 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
       'thriller', 'crime', 'misterio', 'acao', 'acao e aventura', 'guerra', 'guerra e politica', 'faroeste'
     ].includes(genero));
     const temaDeTensao = temasEncontrados.length > 0;
-    const leveDemais = generos.some(genero => ['comedia', 'familia', 'infantil', 'animacao', 'romance'].includes(genero));
+    const leveDemais = generos.some(genero => GENEROS_LEVES.includes(genero));
     if (!generoDeTensao && !temaDeTensao) elegivel = false;
-    if (leveDemais && !generos.includes('thriller') && !temaDeTensao) elegivel = false;
+    if (leveDemais && !generoDeTensao) elegivel = false;
   }
   if (clima === 'acao') {
     const generoDeAcao = generos.some(genero => ['acao', 'acao e aventura', 'aventura'].includes(genero));
@@ -476,7 +475,7 @@ function dataDaAvaliacao(titulo, usuarioId) {
 }
 
 function motivoDoClima(clima, generos, temas) {
-  if (clima === 'rir') return 'Tem humor e combina com um momento divertido';
+  if (clima === 'rir') return 'É uma comédia para um momento divertido';
   if (clima === 'chorar') return 'Traz uma história emocional e comovente';
   if (clima === 'romance') return 'Tem romance ou relações no centro da história';
   if (clima === 'pensar') {
