@@ -1,7 +1,7 @@
 // js/pages/details.js
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getTituloComAvaliacoes, excluirTitulo } from '../titulos.js';
-import { formatarNota } from '../statistics.js';
+import { formatarNota } from '../statistics.js?v=20260919.2';
 import {
   normalizarModoAtivo,
   aplicarTema,

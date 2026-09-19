@@ -558,91 +558,6 @@
     animation: none;
   }
 }
-.personal-discovery-card {
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface-elevated);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-}
-.personal-discovery-poster {
-  position: relative;
-  aspect-ratio: 16 / 10;
-  overflow: hidden;
-  background: var(--surface);
-}
-.personal-discovery-poster::after {
-  content: '';
-  position: absolute;
-  inset: 45% 0 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
-}
-.personal-discovery-poster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.personal-discovery-poster > span {
-  position: absolute;
-  z-index: 1;
-  left: 10px;
-  bottom: 9px;
-  padding: 3px 8px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.58);
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.personal-discovery-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  padding: 15px;
-}
-.personal-discovery-body h3 {
-  margin: 0 0 4px;
-  font-size: 1.02rem;
-  line-height: 1.25;
-}
-.personal-discovery-meta,
-.personal-discovery-streaming,
-.personal-discovery-details p,
-.personal-discovery-details small {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-}
-.personal-discovery-meta,
-.personal-discovery-streaming,
-.personal-discovery-details p { margin: 0; }
-.personal-discovery-reason {
-  margin: 0;
-  color: var(--accent-2);
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
-.personal-discovery-details {
-  padding-top: 10px;
-  border-top: 1px solid var(--card-border);
-}
-.personal-discovery-details p {
-  line-height: 1.55;
-  margin-bottom: 8px;
-}
-.personal-discovery-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-}
-.personal-discovery-actions .btn {
-  flex: 1;
-  white-space: nowrap;
-}
 .personal-discovery-empty {
   grid-column: 1 / -1;
   padding: 36px 24px;
@@ -784,6 +699,26 @@
 .catalog-empty-action h3 { margin-bottom: 6px; }
 .catalog-empty-action p { color: var(--text-secondary); }
 .catalog-empty-icon { font-size: 2rem; margin-bottom: 10px; }
+.catalog-empty-action-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  padding: 16px 18px;
+}
+.catalog-empty-action-compact h3 { margin: 0 0 4px; }
+.catalog-empty-action-compact p { margin: 0; }
+.catalog-empty-action-compact .btn { flex: 0 0 auto; }
+
+@media (max-width: 720px) {
+  .catalog-empty-action-compact {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .catalog-empty-action-compact .btn { width: 100%; }
+}
 
 .catalog-add-view { max-width: 760px; margin: 0 auto 60px; }
 .catalog-add-header {

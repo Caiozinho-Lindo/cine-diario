@@ -61,16 +61,72 @@ test('inspiração da vez mostra capas e pode ser automática por clima', () => 
   assert.match(homeHtml, /class="reference-options"/);
   assert.match(recommendJs, /selecionarReferenciaAutomatica/);
   assert.match(recommendJs, /avaliarCompatibilidadeClima\(titulo,\s*clima\)/);
-  assert.match(recommendJs, /inspirado automaticamente em/);
+  assert.doesNotMatch(recommendJs, /inspirado automaticamente em/);
+  assert.doesNotMatch(recommendJs, /parecido com/);
   assert.match(recommendJs, /safeImageSrc\(titulo\.capa_url\)/);
+  assert.doesNotMatch(recommendJs, /finalist-reasons/);
   assert.match(recommendCss, /\.reference-option img/);
 });
 
 test('sugestão nova busca com mais abrangência sem deixar a inspiração automática mandar no gênero', () => {
   assert.match(recommendJs, /carregarDescobertasAbrangentes/);
   assert.match(recommendJs, /const referenciaDeBusca = referencia \? referenciaCompleta : null/);
-  assert.match(recommendJs, /paginasParaTentar = origem === 'novas' \? 4 : 3/);
-  assert.match(recommendJs, /paginaDescoberta \+= origem === 'novas' \? 4 : 3/);
+  assert.match(recommendJs, /const maximoDePaginas = origem === 'novas' \? \(climaEscasso \? 8 : 6\) : 4/);
+  assert.match(recommendJs, /const paginasPorLote = 2/);
+  assert.match(recommendJs, /Promise\.all\(paginas\.map/);
+  assert.match(recommendJs, /limiteDetalhes: 10/);
+  assert.match(recommendJs, /proximaPaginaDescoberta/);
+  assert.match(recommendJs, /candidatosNovosReserva/);
+  assert.match(recommendJs, /new Map\(combinados\)/);
+  assert.match(recommendJs, /selecionarTrioVariado/);
+  assert.match(recommendJs, /triosExibidos/);
+  assert.match(recommendJs, /idsVistosNaSessao/);
+  assert.match(recommendJs, /3 - finalistas\.length/);
+  assert.match(recommendJs, /if \(finalistas\.length < 3\) finalistas = \[\]/);
+  assert.doesNotMatch(recommendJs, /Voltamos ao início da seleção/);
+});
+
+test('prepara referência e histórico em paralelo antes de recomendar', () => {
+  assert.match(recommendJs, /Promise\.all\(\[\s*enriquecerReferencia\(\),\s*prepararHistorico\(\)\s*\]\)/);
+});
+
+test('a descoberta permite limitar os detalhes completos buscados por página', () => {
+  assert.match(tmdbJs, /limiteDetalhes = 18/);
+  assert.match(tmdbJs, /Math\.min\(Number\(limiteDetalhes\) \|\| 18, 18\)/);
+});
+
+test('mede o desempenho real de cada rodada de recomendações', () => {
+  assert.match(tmdbJs, /iniciarMedicaoTmdb/);
+  assert.match(tmdbJs, /finalizarMedicaoTmdb/);
+  assert.match(tmdbJs, /requisicoes_tmdb/);
+  assert.match(tmdbJs, /paginas_consultadas/);
+  assert.match(recommendJs, /duracao_total_ms/);
+  assert.match(recommendJs, /candidatos: medicaoRecomendacao\.candidatos\.size/);
+  assert.match(recommendJs, /elegiveis: medicaoRecomendacao\.elegiveis\.size/);
+  assert.match(recommendJs, /\[métricas recomendação\]/);
+});
+
+test('sugestões novas descartam títulos sem qualidade mínima no TMDB', () => {
+  assert.match(recommendJs, /temQualidadeMinimaTmdb/);
+  assert.match(recommendJs, /\.filter\(temQualidadeMinimaTmdb\)/);
+  assert.match(discoveryJs, /temQualidadeMinimaTmdb/);
+  assert.match(discoveryJs, /\.filter\(temQualidadeMinimaTmdb\)/);
+  assert.match(tmdbJs, /votos_tmdb: Number\(r\.vote_count\) \|\| 0/);
+});
+
+test('climas mais escassos usam buscas do TMDB mais focadas', () => {
+  assert.match(tmdbJs, /clima === 'chorar'/);
+  assert.match(tmdbJs, /18,10749/);
+  assert.match(tmdbJs, /clima === 'cult'/);
+  assert.match(tmdbJs, /primary_release_date\.lte/);
+  assert.match(tmdbJs, /vote_count\.gte/);
+  assert.match(tmdbJs, /pensar: \[9648, 99, 36\]/);
+  assert.match(tmdbJs, /clima === 'romance'/);
+  assert.match(tmdbJs, /params\.set\('with_genres', '10749'\)/);
+  assert.match(tmdbJs, /clima === 'medo'/);
+  assert.match(tmdbJs, /params\.set\('with_genres', '27'\)/);
+  assert.match(recommendJs, /\['chorar', 'romance', 'medo', 'pensar'\]\.includes\(clima\)/);
+  assert.match(recommendJs, /climaEscasso \? 8 : 6/);
 });
 
 test('Descobrir guarda buscas pesadas em memória para responder mais rápido', () => {

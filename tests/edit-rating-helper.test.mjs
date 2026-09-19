@@ -30,6 +30,11 @@ test('o auxiliar usa perguntas humanas sem mostrar pesos na interface', () => {
   assert.doesNotMatch(editJs, />\s*5\s*</);
 });
 
+test('o auxiliar usa o formatador compartilhado de notas', () => {
+  assert.match(editJs, /import \{ formatarNota \} from '\.\.\/statistics\.js/);
+  assert.doesNotMatch(editJs, /function formatarNota\(/);
+});
+
 test('o auxiliar avança ao escolher uma resposta e mantém voltar discreto', () => {
   assert.doesNotMatch(editJs, /data-next-rating-helper/);
   assert.doesNotMatch(editJs, />\s*Continuar\s*</);

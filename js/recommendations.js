@@ -14,7 +14,7 @@ const CLIMAS = {
   chorar: {
     minimo: 7,
     generos: { drama: 5, musica: 3, romance: 2, soap: 2, familia: 1, animacao: 1 },
-    temas: ['luto', 'perda', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'despedida', 'morte', 'heartbreak', 'grief', 'loss', 'terminal illness', 'tearjerker', 'sacrifice']
+    temas: ['luto', 'perda', 'perdas', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'despedida', 'morte', 'emocionante', 'tristeza', 'heartbreak', 'grief', 'loss', 'loss of loved one', 'loss of family', 'loss of child', 'terminal illness', 'tearjerker', 'tears', 'sacrifice', 'sadness', 'mourning', 'bereavement', 'grieving', 'tragic love']
   },
   romance: {
     minimo: 6,
@@ -28,8 +28,13 @@ const CLIMAS = {
   },
   tensao: {
     minimo: 6,
-    generos: { thriller: 8, crime: 5, misterio: 5, terror: 3, drama: 2, acao: 2, guerra: 2, faroeste: 1, 'guerra e politica': 2 },
-    temas: ['perseguicao', 'sequestro', 'conspiracao', 'sobrevivencia', 'assassino em serie', 'chase', 'hostage', 'conspiracy', 'survival', 'serial killer']
+    generos: { thriller: 9, misterio: 6, crime: 3, terror: 3, acao: 2, guerra: 1, faroeste: 1, 'guerra e politica': 1, drama: 1 },
+    temas: [
+      'perseguicao', 'sequestro', 'conspiracao', 'sobrevivencia', 'assassino em serie',
+      'investigacao', 'perigo', 'ameaca', 'refem', 'fuga', 'invasao', 'encurralado',
+      'chase', 'hostage', 'conspiracy', 'survival', 'serial killer', 'investigation',
+      'danger', 'threat', 'escape', 'invasion', 'trapped', 'stalking', 'manhunt'
+    ]
   },
   acao: {
     minimo: 6,
@@ -50,8 +55,13 @@ const CLIMAS = {
   },
   real: {
     minimo: 6,
-    generos: { documentario: 10, historia: 6, noticias: 6, 'guerra e politica': 4, crime: 2, drama: 2 },
-    temas: ['baseado em fatos', 'historia real', 'biografia', 'documentario', 'true story', 'based on true events', 'biography', 'real life']
+    generos: { documentario: 10, noticias: 9, historia: 3, 'guerra e politica': 2, crime: 1, drama: 1 },
+    temas: [
+      'baseado em fatos', 'baseado em uma historia real', 'historia real', 'biografia',
+      'documentario', 'figura historica', 'evento historico', 'true story',
+      'based on true events', 'based on a true story', 'biography', 'biographical',
+      'real life', 'historical figure', 'historical event'
+    ]
   },
   cult: {
     minimo: 6,
@@ -62,9 +72,48 @@ const CLIMAS = {
 };
 
 const TEMAS_SUPER_HEROI = ['super-heroi', 'superhero', 'marvel', 'dc comics', 'comic book', 'super power', 'vingadores', 'avengers'];
-const TEMAS_CHORAR_FORTES = ['luto', 'perda', 'doenca', 'superacao', 'tragedia', 'sacrificio', 'grief', 'loss', 'terminal illness', 'heartbreak', 'tearjerker', 'sacrifice'];
+const TEMAS_CHORAR_EMOCIONAIS = [
+  'luto', 'perda', 'doenca', 'superacao', 'despedida', 'emocionante', 'tristeza',
+  'grief', 'loss', 'loss of loved one', 'loss of family', 'loss of child',
+  'terminal illness', 'heartbreak', 'tearjerker', 'tears', 'sadness', 'mourning',
+  'bereavement', 'grieving', 'tragic love'
+];
+const TEMAS_EROTICOS = [
+  'erotico', 'erotismo', 'erotic', 'eroticism', 'sexo', 'sexual', 'bdsm',
+  'bondage', 'fetiche', 'fetish', 'seducao', 'seduction', 'sex trafficking',
+  'prostitute', 'gigolo', 'milf'
+];
+const TEMAS_LEVE_PESADOS = [
+  'exorcismo', 'assombracao', 'possessao', 'assassinato', 'guerra', 'tortura',
+  'estresse pos-traumatico', 'exorcism', 'haunting', 'possession', 'murder',
+  'war', 'torture', 'post-traumatic stress disorder', 'ptsd', 'death penalty'
+];
+const TEMAS_ROMANCE_TOXICO = [
+  'abuso', 'ciume', 'odio', 'relacionamento toxico', 'violencia domestica',
+  'abuso emocional', 'parceiro abusivo', 'marido abusivo', 'manipulacao', 'conflito conjugal',
+  'abuse', 'jealousy', 'hate', 'toxic relationship', 'toxic love', 'domestic violence',
+  'domestic abuse', 'emotional abuse', 'abusive relationship', 'abusive husband',
+  'abusive boyfriend', 'manipulation', 'controlling relationship', 'marital conflict',
+  'marriage crisis', 'dysfunctional marriage', 'marital problems', 'infidelity',
+  'adultery', 'domestic dispute', 'black comedy', 'bad boy', 'stepbrother',
+  'stepsister', 'step brother', 'step sister', 'forbidden step-sibling relationship'
+];
 const TEMAS_ROMANCE = ['amor', 'casal', 'namoro', 'paixao', 'relacionamento', 'casamento', 'romance', 'love', 'couple', 'relationship', 'wedding'];
-const TEMAS_REAL = ['baseado em fatos', 'historia real', 'biografia', 'documentario', 'true story', 'based on true events', 'biography', 'real life'];
+const TEMAS_REAL = [
+  'baseado em fatos', 'baseado em uma historia real', 'historia real', 'biografia',
+  'documentario', 'figura historica', 'evento historico', 'true story',
+  'based on true events', 'based on a true story', 'biography', 'biographical',
+  'real life', 'historical figure', 'historical event'
+];
+const EVENTOS_REAIS = [
+  'segunda guerra mundial', 'primeira guerra mundial', 'holocausto', 'guerra do vietna',
+  'ditadura militar', '11 de setembro', 'corrida espacial', 'nuremberg',
+  'world war ii', 'world war i', 'holocaust', 'vietnam war', 'september 11',
+  'space race', 'nuremberg trials', 'watergate'
+];
+const TEMAS_FICCAO_HISTORICA = [
+  'ficcao historica', 'personagem ficticio', 'historical fiction', 'fictional character'
+];
 const TEMAS_CULT = ['classico', 'cult', 'premiado', 'oscar', 'festival', 'obra-prima', 'masterpiece', 'classic', 'award-winning', 'film festival'];
 const GENEROS_LEVES = ['comedia', 'familia', 'infantil', 'animacao', 'romance'];
 
@@ -133,11 +182,23 @@ export function recomendarDaLista({
 
   if (elegiveis.length <= limite) return elegiveis;
 
-  // Duas escolhas seguras e uma surpresa entre as próximas opções bem colocadas.
-  const seguros = elegiveis.slice(0, Math.max(1, limite - 1));
-  const faixaSurpresa = elegiveis.slice(seguros.length, Math.min(elegiveis.length, seguros.length + 5));
-  const surpresa = faixaSurpresa[Math.floor(random() * faixaSurpresa.length)];
-  return [...seguros, surpresa].filter(Boolean).slice(0, limite);
+  // Varia as escolhas dentro das opções mais bem colocadas sem perder relevância.
+  const faixa = elegiveis.slice(0, Math.min(elegiveis.length, Math.max(limite * 3, 8)));
+  const escolhidos = [];
+  while (escolhidos.length < limite && faixa.length) {
+    const pesoTotal = faixa.reduce((total, _, indice) => total + (faixa.length - indice), 0);
+    let sorteio = random() * pesoTotal;
+    let indiceEscolhido = 0;
+    for (let indice = 0; indice < faixa.length; indice += 1) {
+      sorteio -= faixa.length - indice;
+      if (sorteio < 0) {
+        indiceEscolhido = indice;
+        break;
+      }
+    }
+    escolhidos.push(faixa.splice(indiceEscolhido, 1)[0]);
+  }
+  return escolhidos;
 }
 
 export function misturarOrigens(lista, novas, { limite = 3, random = Math.random } = {}) {
@@ -262,7 +323,7 @@ export function motivoDaDescobertaPessoal(titulo, referencias = []) {
       .sort((a, b) => b.pontos - a.pontos)[0]?.item;
 
   return referencia?.nome
-    ? `Porque você gostou de “${referencia.nome}”`
+    ? 'Uma descoberta que combina com o seu gosto'
     : 'Uma descoberta baseada nas suas avaliações';
 }
 
@@ -279,13 +340,13 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
     ...(titulo.palavras_chave || [])
   ].filter(Boolean).join(' '));
   const generosEncontrados = [...new Set(generos.filter(genero => configuracao.generos[genero]))];
-  const temasEncontrados = configuracao.temas.filter(tema => texto.includes(tema));
+  const temasEncontrados = configuracao.temas.filter(tema => contemTema(texto, tema));
   let pontos = generosEncontrados.reduce((total, genero) => total + configuracao.generos[genero], 0);
   pontos += Math.min(3, temasEncontrados.length) * 4;
 
   if (clima === 'leve') {
     const pesado = (configuracao.evitarGeneros || []).some(genero => generos.includes(genero))
-      || (configuracao.evitarTemas || []).some(tema => texto.includes(tema));
+      || (configuracao.evitarTemas || []).some(tema => contemTema(texto, tema));
     if (pesado) pontos -= 10;
     else if (generos.includes('comedia')) pontos += 2;
   }
@@ -293,50 +354,93 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
   let elegivel = pontos >= configuracao.minimo;
   if (clima === 'rir') {
     const comediaDireta = generos.some(genero => ['comedia', 'reality'].includes(genero));
-    const formatoComicoClaro = ['stand-up', 'sitcom', 'comedy'].some(tema => texto.includes(tema));
+    const formatoComicoClaro = ['stand-up', 'sitcom', 'comedy'].some(tema => contemTema(texto, tema));
     if (!comediaDireta && !formatoComicoClaro) elegivel = false;
+    if (generos.includes('terror')) elegivel = false;
+    if (generos.some(genero => ['crime', 'thriller'].includes(genero))) elegivel = false;
   }
   if (clima === 'chorar') {
-    const temaEmocionalForte = TEMAS_CHORAR_FORTES.some(tema => texto.includes(tema));
+    const temasEmocionais = TEMAS_CHORAR_EMOCIONAIS.filter(tema => contemTema(texto, tema));
+    const sinaisEmocionais = temasEmocionais.filter(tema => !temasEmocionais.some(outro =>
+      outro !== tema && normalizarTexto(outro).includes(normalizarTexto(tema))
+    ));
+    const temaEmocionalForte = sinaisEmocionais.length > 0;
+    const drama = generos.includes('drama');
+    const combinacaoEmocional = drama && generos.some(genero => ['familia', 'animacao'].includes(genero));
+    const conteudoErotico = TEMAS_EROTICOS.some(tema => contemTema(texto, tema));
+    const romanceToxico = TEMAS_ROMANCE_TOXICO.some(tema => contemTema(texto, tema));
+    const dramaRomantico = drama && generos.includes('romance') && !romanceToxico;
     const romanceOuNovelaEmocional = generos.some(genero => ['romance', 'soap'].includes(genero)) && temaEmocionalForte;
-    const dramaEmocional = generos.includes('drama') && temaEmocionalForte;
+    const dramaEmocional = drama && temaEmocionalForte;
     const musicalEmocional = generos.includes('musica') && temaEmocionalForte;
     const familiaOuAnimacaoEmocional = generos.some(genero => ['familia', 'animacao'].includes(genero))
       && generos.includes('drama')
       && temaEmocionalForte;
     const aventuraLeve = generos.some(genero => ['aventura', 'acao', 'acao e aventura', 'fantasia', 'comedia', 'infantil'].includes(genero));
-    if (!romanceOuNovelaEmocional && !dramaEmocional && !musicalEmocional && !familiaOuAnimacaoEmocional) elegivel = false;
+    const crimeOuAcao = generos.some(genero => ['crime', 'acao', 'acao e aventura', 'terror'].includes(genero));
+    const terror = generos.includes('terror');
+    const guerraDeFiccao = generos.includes('guerra') && generos.some(genero => ['ficcao cientifica', 'ficcao cientifica e fantasia'].includes(genero));
+    const faroeste = generos.includes('faroeste');
+    const fantasiaMisteriosa = generos.includes('fantasia') && generos.includes('misterio');
+    const sinalDeLutoClaro = ['luto', 'grief', 'mourning', 'bereavement', 'grieving', 'tearjerker', 'tears']
+      .some(tema => contemTema(texto, tema));
+    const sinalDePerdaFamiliar = ['loss of loved one', 'loss of family', 'loss of child', 'heartbreak', 'tragic love']
+      .some(tema => contemTema(texto, tema));
+    if (combinacaoEmocional || dramaRomantico) elegivel = true;
+    if (!combinacaoEmocional && !dramaRomantico && !romanceOuNovelaEmocional && !dramaEmocional && !musicalEmocional && !familiaOuAnimacaoEmocional) elegivel = false;
     if (aventuraLeve && !temaEmocionalForte) elegivel = false;
+    if (crimeOuAcao && sinaisEmocionais.length < 2) elegivel = false;
+    if (generos.includes('acao') && !sinalDeLutoClaro && !sinalDePerdaFamiliar) elegivel = false;
+    if (terror) elegivel = false;
+    if (guerraDeFiccao && !sinalDeLutoClaro) elegivel = false;
+    if (faroeste && sinaisEmocionais.length < 2) elegivel = false;
+    if (fantasiaMisteriosa && sinaisEmocionais.length < 2) elegivel = false;
+    if (generos.includes('musica') && !temaEmocionalForte && !combinacaoEmocional) elegivel = false;
+    if (romanceToxico) elegivel = false;
+    if (conteudoErotico) elegivel = false;
   }
   if (clima === 'romance') {
     const romanceDireto = generos.some(genero => ['romance', 'soap'].includes(genero));
-    const temaRomantico = TEMAS_ROMANCE.some(tema => texto.includes(tema));
-    const comediaRomantica = generos.includes('comedia') && temaRomantico;
-    const dramaRomantico = generos.includes('drama') && temaRomantico;
-    const dominadoPorAcaoOuMedo = generos.some(genero => ['acao', 'acao e aventura', 'terror', 'guerra'].includes(genero));
-    if (!romanceDireto && !comediaRomantica && !dramaRomantico) elegivel = false;
-    if (dominadoPorAcaoOuMedo && !romanceDireto) elegivel = false;
+    const temasRomanticos = TEMAS_ROMANCE.filter(tema => contemTema(texto, tema));
+    const romanceToxico = TEMAS_ROMANCE_TOXICO.some(tema => contemTema(texto, tema));
+    const dominadoPorAcaoOuMedo = generos.some(genero => ['acao', 'acao e aventura', 'terror', 'guerra', 'thriller'].includes(genero));
+    if (!romanceDireto && temasRomanticos.length < 2) elegivel = false;
+    if (dominadoPorAcaoOuMedo) elegivel = false;
+    if (romanceToxico) elegivel = false;
   }
   if (clima === 'pensar') {
-    const generoReflexivo = generos.some(genero => [
-      'misterio', 'documentario', 'historia', 'noticias', 'guerra e politica'
-    ].includes(genero));
+    const generoReflexivo = generos.some(genero => ['documentario', 'historia', 'noticias', 'guerra e politica'].includes(genero));
+    const misterioReflexivo = generos.includes('misterio')
+      && (temasEncontrados.length >= 2 || (generos.includes('drama') && temasEncontrados.length >= 1));
     const ficcaoReflexiva = generos.some(genero => ['ficcao cientifica', 'ficcao cientifica e fantasia'].includes(genero))
       && temasEncontrados.length >= 2;
     const dramaReflexivo = generos.includes('drama') && temasEncontrados.length >= 2;
+    const ficcaoDramatica = generos.includes('drama')
+      && generos.some(genero => ['ficcao cientifica', 'ficcao cientifica e fantasia'].includes(genero))
+      && !generos.some(genero => ['acao', 'acao e aventura', 'terror'].includes(genero));
+    const crimeReflexivo = generos.includes('drama')
+      && generos.includes('crime')
+      && temasEncontrados.length >= 1;
     const dominadoPorAcao = generos.some(genero => ['acao', 'acao e aventura'].includes(genero));
+    const documentarioDeEntretenimento = generos.includes('documentario')
+      && generos.some(genero => ['comedia', 'acao', 'aventura', 'musica'].includes(genero))
+      && temasEncontrados.length === 0;
     const superHeroi = TEMAS_SUPER_HEROI.some(tema => texto.includes(tema));
-    if (!generoReflexivo && !ficcaoReflexiva && !dramaReflexivo) elegivel = false;
-    if ((dominadoPorAcao || superHeroi) && !generoReflexivo && temasEncontrados.length < 2) elegivel = false;
+    if (ficcaoDramatica || crimeReflexivo) elegivel = true;
+    if (!generoReflexivo && !misterioReflexivo && !ficcaoReflexiva && !dramaReflexivo && !ficcaoDramatica && !crimeReflexivo) elegivel = false;
+    if ((dominadoPorAcao || superHeroi) && !generoReflexivo && !dramaReflexivo) elegivel = false;
+    if (generos.includes('terror')) elegivel = false;
+    if (documentarioDeEntretenimento) elegivel = false;
+    if (generos.some(genero => ['familia', 'infantil', 'animacao'].includes(genero)) && !generoReflexivo) elegivel = false;
   }
   if (clima === 'tensao') {
-    const generoDeTensao = generos.some(genero => [
-      'thriller', 'crime', 'misterio', 'acao', 'acao e aventura', 'guerra', 'guerra e politica', 'faroeste'
-    ].includes(genero));
+    const thriller = generos.includes('thriller');
+    const misterioInvestigativo = generos.includes('misterio')
+      && (generos.includes('crime') || temasEncontrados.length > 0);
     const temaDeTensao = temasEncontrados.length > 0;
     const leveDemais = generos.some(genero => GENEROS_LEVES.includes(genero));
-    if (!generoDeTensao && !temaDeTensao) elegivel = false;
-    if (leveDemais && !generoDeTensao) elegivel = false;
+    if (!thriller && !misterioInvestigativo && !temaDeTensao) elegivel = false;
+    if (leveDemais && !thriller && !temaDeTensao) elegivel = false;
   }
   if (clima === 'acao') {
     const generoDeAcao = generos.some(genero => ['acao', 'acao e aventura', 'aventura'].includes(genero));
@@ -344,27 +448,40 @@ export function avaliarCompatibilidadeClima(titulo, clima = 'qualquer') {
     const guerraOuFaroeste = generos.some(genero => ['guerra', 'faroeste'].includes(genero));
     if (!generoDeAcao && !(guerraOuFaroeste && temRitmoDeAcao)) elegivel = false;
   }
+  if (clima === 'leve') {
+    const leveDireto = generos.some(genero => ['familia', 'infantil', 'comedia', 'animacao', 'musica'].includes(genero));
+    const pesado = generos.some(genero => ['terror', 'crime', 'thriller', 'guerra', 'acao'].includes(genero));
+    const dramaSemLeve = generos.includes('drama') && !generos.some(genero => ['familia', 'animacao', 'comedia'].includes(genero));
+    const sinaisPesados = TEMAS_LEVE_PESADOS.filter(tema => contemTema(texto, tema));
+    const conteudoPesado = sinaisPesados.length >= 2
+      || sinaisPesados.some(tema => ['tortura', 'torture', 'death penalty'].includes(tema));
+    if (!leveDireto || pesado || dramaSemLeve || conteudoPesado) elegivel = false;
+  }
   if (clima === 'medo') {
     const terrorDireto = generos.includes('terror');
+    const superHeroi = TEMAS_SUPER_HEROI.some(tema => contemTema(texto, tema));
     if (!terrorDireto && !temasEncontrados.length) elegivel = false;
+    if (superHeroi && !terrorDireto && temasEncontrados.length < 2) elegivel = false;
   }
   if (clima === 'real') {
-    const generoReal = generos.some(genero => ['documentario', 'historia', 'noticias', 'guerra e politica'].includes(genero));
-    const temaReal = TEMAS_REAL.some(tema => texto.includes(tema));
-    if (!generoReal && !temaReal) elegivel = false;
+    const generoRealDireto = generos.some(genero => ['documentario', 'noticias'].includes(genero));
+    const temaReal = TEMAS_REAL.some(tema => contemTema(texto, tema));
+    const eventoReal = EVENTOS_REAIS.some(tema => contemTema(texto, tema));
+    const ficcaoHistorica = TEMAS_FICCAO_HISTORICA.some(tema => contemTema(texto, tema));
+    elegivel = generoRealDireto || temaReal || eventoReal;
+    if (ficcaoHistorica && !temaReal) elegivel = false;
   }
   if (clima === 'cult') {
     const generoCult = generos.some(genero => ['drama', 'historia', 'crime', 'misterio', 'faroeste', 'ficcao cientifica'].includes(genero));
-    const temaCult = TEMAS_CULT.some(tema => texto.includes(tema));
-    const mediaTmdb = Number(titulo.media_tmdb);
-    const publicoForte = Number.isFinite(mediaTmdb) && mediaTmdb >= 7.6;
+    const temaCult = TEMAS_CULT.some(tema => contemTema(texto, tema));
     const ano = Number(titulo.ano);
     const classicoPorIdade = Number.isFinite(ano) && ano > 0 && ano <= new Date().getFullYear() - 15;
     const muitoComercialLeve = generos.some(genero => ['infantil', 'familia', 'animacao', 'acao e aventura'].includes(genero))
       && !temaCult
       && !classicoPorIdade;
-    if (!temaCult && !(generoCult && (publicoForte || classicoPorIdade))) elegivel = false;
+    if (!temaCult && !(generoCult && classicoPorIdade)) elegivel = false;
     if (muitoComercialLeve) elegivel = false;
+    if (TEMAS_SUPER_HEROI.some(tema => contemTema(texto, tema))) elegivel = false;
   }
 
   return {
@@ -384,10 +501,6 @@ export function motivosDaRecomendacao(titulo, {
   const compatibilidade = avaliarCompatibilidadeClima(titulo, clima);
   if (clima !== 'qualquer' && compatibilidade.elegivel) motivos.push(compatibilidade.motivo);
 
-  if (referencia && calcularSemelhancaReferencia(titulo, referencia) > 0) {
-    motivos.push(`Porque é parecido com “${referencia.nome}”`);
-  }
-
   const usuarios = Number(titulo.usuarios_compativeis) || 0;
   if (usuarios > 0) {
     motivos.push(`${usuarios} ${usuarios === 1 ? 'pessoa com gosto parecido deu' : 'pessoas com gosto parecido deram'} nota 8 ou mais`);
@@ -403,10 +516,6 @@ export function motivosDaRecomendacao(titulo, {
 
   if (!motivos.length) motivos.push('Combina com o clima escolhido para hoje');
   return motivos.slice(0, 2);
-}
-
-export function generosDoClima(clima) {
-  return Object.keys((CLIMAS[clima] || CLIMAS.qualquer).generos);
 }
 
 export function formatarDuracao(minutos) {
@@ -463,6 +572,15 @@ function generoBemAvaliadoEmComum(titulo, historico, participantes) {
   return melhor ? nomesGeneros.get(melhor) || melhor : null;
 }
 
+export function temQualidadeMinimaTmdb(titulo) {
+  const nota = Number(titulo?.media_tmdb);
+  const votos = Number(titulo?.votos_tmdb);
+  if (!Number.isFinite(nota) || !Number.isFinite(votos) || votos < 20) return false;
+  if (votos >= 500) return nota >= 6;
+  if (votos >= 100) return nota >= 6.2;
+  return nota >= 6.5;
+}
+
 function avaliacaoDoUsuario(titulo, usuarioId) {
   if (titulo?.avaliacaoAtual?.usuario_id === usuarioId) return titulo.avaliacaoAtual;
   return (titulo?.avaliacoesMembros || [])
@@ -510,6 +628,11 @@ function normalizarTexto(valor) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function contemTema(texto, tema) {
+  const termo = normalizarTexto(tema).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${termo}([^a-z0-9]|$)`).test(texto);
 }
 
 function normalizarGenero(genero) {

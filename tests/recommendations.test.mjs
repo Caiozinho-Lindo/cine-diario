@@ -9,8 +9,22 @@ import {
   motivosDaRecomendacao,
   motivoDaDescobertaPessoal,
   selecionarReferenciasPessoais,
-  formatarDuracao
+  formatarDuracao,
+  temQualidadeMinimaTmdb
 } from '../js/recommendations.js';
+
+test('sugestões externas exigem qualidade proporcional ao volume de votos', () => {
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 4.2, votos_tmdb: 8 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 7.8, votos_tmdb: 19 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 6.4, votos_tmdb: 40 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 6.5, votos_tmdb: 40 }), true);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 6.1, votos_tmdb: 150 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 6.2, votos_tmdb: 150 }), true);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 5.9, votos_tmdb: 1000 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 6, votos_tmdb: 1000 }), true);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: null, votos_tmdb: 0 }), false);
+  assert.equal(temQualidadeMinimaTmdb({ media_tmdb: 8 }), false);
+});
 
 const caio = 'usuario-caio';
 const noemy = 'usuario-noemy';
@@ -96,11 +110,19 @@ test('penaliza gênero associado a uma nota muito baixa', () => {
   );
 });
 
-test('reserva a terceira vaga para uma surpresa entre boas opções', () => {
+test('varia as três escolhas entre as opções mais bem colocadas', () => {
   const candidatos = Array.from({ length: 7 }, (_, indice) => titulo(`t${indice}`, {
     generos: indice < 2 ? ['Comédia'] : ['Comédia', 'Família']
   }));
-  const resultado = recomendarDaLista({
+  const primeira = recomendarDaLista({
+    candidatos,
+    tipo: 'filme',
+    duracaoMax: 120,
+    streamings: ['netflix'],
+    clima: 'rir',
+    random: () => 0
+  });
+  const segunda = recomendarDaLista({
     candidatos,
     tipo: 'filme',
     duracaoMax: 120,
@@ -109,8 +131,9 @@ test('reserva a terceira vaga para uma surpresa entre boas opções', () => {
     random: () => 0.99
   });
 
-  assert.equal(resultado.length, 3);
-  assert.ok(candidatos.some(item => item.id === resultado[2].id));
+  assert.equal(primeira.length, 3);
+  assert.equal(segunda.length, 3);
+  assert.notDeepEqual(primeira.map(item => item.id), segunda.map(item => item.id));
 });
 
 test('formata durações para os cartões', () => {
@@ -169,11 +192,59 @@ test('explica quando pessoas com gosto parecido avaliaram bem', () => {
 });
 
 test('mistério tem peso alto em Quero pensar', () => {
-  const misterio = titulo('misterio', { generos: ['Mistério'] });
+  const misterio = titulo('misterio', {
+    generos: ['Mistério', 'Drama'],
+    palavras_chave: ['investigation']
+  });
   const compatibilidade = avaliarCompatibilidadeClima(misterio, 'pensar');
 
   assert.equal(compatibilidade.elegivel, true);
   assert.match(compatibilidade.motivo, /mistério/i);
+});
+
+test('Pensar rejeita mistério ou ação sem reflexão suficiente', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('misterio-generico', {
+    generos: ['Mistério', 'Crime', 'Thriller']
+  }), 'pensar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('acao-com-memoria', {
+    generos: ['Ação', 'Mistério', 'Ficção científica'],
+    palavras_chave: ['memory', 'identity']
+  }), 'pensar').elegivel, false);
+});
+
+test('Romance rejeita relações abusivas ou tóxicas', () => {
+  for (const tema of ['domestic violence', 'abusive relationship', 'toxic love', 'marital conflict', 'infidelity', 'black comedy', 'bad boy', 'stepbrother']) {
+    assert.equal(avaliarCompatibilidadeClima(titulo(`romance-${tema}`, {
+      generos: ['Drama', 'Romance'],
+      palavras_chave: [tema]
+    }), 'romance').elegivel, false);
+  }
+});
+
+test('Romance rejeita thriller mesmo quando também é romântico', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('romance-thriller', {
+    generos: ['Drama', 'Romance', 'Thriller']
+  }), 'romance').elegivel, false);
+});
+
+test('Chorar rejeita musical romântico sem sinal emocional forte', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('danca-romantica', {
+    generos: ['Drama', 'Música', 'Romance'],
+    palavras_chave: ['dance', 'summer romance']
+  }), 'chorar').elegivel, false);
+});
+
+test('Chorar rejeita romance tóxico mesmo quando também é drama', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('drama-toxico', {
+    generos: ['Drama', 'Romance'],
+    palavras_chave: ['dysfunctional relationship', 'marital conflict']
+  }), 'chorar').elegivel, false);
+});
+
+test('Pensar rejeita documentário de entretenimento sem tema reflexivo', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('comedia-documental', {
+    generos: ['Documentário', 'Comédia', 'Ação']
+  }), 'pensar').elegivel, false);
 });
 
 test('ficção científica de super-herói não entra automaticamente em Quero pensar', () => {
@@ -202,6 +273,17 @@ test('Quero medo exige terror ou sinais realmente assustadores', () => {
   assert.equal(avaliarCompatibilidadeClima(policial, 'medo').elegivel, false);
 });
 
+test('Rir não aceita comédia de terror como O Macaco', () => {
+  const oMacaco = titulo('o-macaco', {
+    nome: 'O Macaco',
+    generos: ['Comédia', 'Terror'],
+    sinopse: 'Um brinquedo sinistro provoca mortes terríveis ao redor de dois irmãos.',
+    palavras_chave: ['dark comedy', 'cursed toy']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(oMacaco, 'rir').elegivel, false);
+});
+
 test('Quero chorar não aceita drama pesado sem sinal emocional', () => {
   const poderosoChefao = titulo('poderoso-chefao', {
     generos: ['Drama', 'Crime'],
@@ -219,6 +301,103 @@ test('Quero chorar não aceita drama pesado sem sinal emocional', () => {
   assert.equal(avaliarCompatibilidadeClima(poderosoChefao, 'chorar').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(oppenheimer, 'chorar').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(emocionante, 'chorar').elegivel, true);
+});
+
+test('Quero chorar rejeita crime e ação com apenas morte ou sacrifício', () => {
+  const poderosoChefao = titulo('poderoso-chefao', {
+    generos: ['Drama', 'Crime'],
+    sinopse: 'Uma família mafiosa enfrenta morte, tragédia e sacrifício pelo poder.'
+  });
+  const batmanBegins = titulo('batman-begins', {
+    generos: ['Drama', 'Ação', 'Crime'],
+    sinopse: 'Após uma tragédia, um herói combate criminosos e se sacrifica pela cidade.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(poderosoChefao, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(batmanBegins, 'chorar').elegivel, false);
+});
+
+test('Quero chorar reconhece descrições emocionais sem depender de morte', () => {
+  const despedida = titulo('despedida', {
+    generos: ['Drama'],
+    sinopse: 'Uma despedida emocionante acompanha uma família durante o luto.'
+  });
+  const superacao = titulo('superacao', {
+    generos: ['Drama'],
+    palavras_chave: ['emotional', 'mourning']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(despedida, 'chorar').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(superacao, 'chorar').elegivel, true);
+});
+
+test('Quero chorar aceita combinações naturalmente emocionais mesmo sem palavra-chave', () => {
+  const dramaFamiliar = titulo('drama-familiar', { generos: ['Drama', 'Família'] });
+  const animacaoDramatica = titulo('animacao-dramatica', { generos: ['Drama', 'Animação'] });
+
+  assert.equal(avaliarCompatibilidadeClima(dramaFamiliar, 'chorar').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(animacaoDramatica, 'chorar').elegivel, true);
+});
+
+test('Quero chorar rejeita romance erótico e musical sem emoção', () => {
+  const cinquentaTons = titulo('cinquenta-tons', {
+    nome: 'Cinquenta Tons de Cinza',
+    generos: ['Drama', 'Romance'],
+    palavras_chave: ['bdsm', 'eroticism', 'sexual relationship']
+  });
+  const dias365 = titulo('365-dias-hoje', {
+    nome: '365 Dias: Hoje',
+    generos: ['Drama', 'Romance'],
+    sinopse: 'Um relacionamento marcado por sedução e erotismo.'
+  });
+  const michael = titulo('michael', {
+    nome: 'Michael',
+    generos: ['Drama', 'Música'],
+    palavras_chave: ['biography', 'singer', 'music']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(cinquentaTons, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(dias365, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(michael, 'chorar').elegivel, false);
+});
+
+test('Quero chorar não confunde perdão, abuso emocional ou luto de terror com emoção', () => {
+  const after = titulo('after', {
+    generos: ['Drama', 'Romance'],
+    sinopse: 'O casal enfrenta ciúme, ódio e perdão.'
+  });
+  const whiplash = titulo('whiplash', {
+    generos: ['Drama', 'Música', 'Thriller'],
+    palavras_chave: ['emotional abuse', 'public humiliation']
+  });
+  const midsommar = titulo('midsommar', {
+    generos: ['Terror', 'Drama', 'Mistério'],
+    sinopse: 'Uma jovem em luto visita um festival sinistro.',
+    palavras_chave: ['loss of loved one', 'grieving']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(after, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(whiplash, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(midsommar, 'chorar').elegivel, false);
+});
+
+test('Quero chorar rejeita faroeste, fantasia sombria e guerra de ficção com perda isolada', () => {
+  const faroeste = titulo('era-uma-vez-oeste', {
+    generos: ['Drama', 'Faroeste'],
+    palavras_chave: ['loss of loved one']
+  });
+  const donnie = titulo('donnie-darko', {
+    generos: ['Fantasia', 'Drama', 'Mistério'],
+    palavras_chave: ['loss']
+  });
+  const planeta = titulo('planeta-macacos-guerra', {
+    generos: ['Drama', 'Ficção científica', 'Guerra'],
+    palavras_chave: ['loss of family', 'death']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(faroeste, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(donnie, 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(planeta, 'chorar').elegivel, false);
 });
 
 test('Quero chorar não aceita aventura familiar ou animação leve', () => {
@@ -304,6 +483,33 @@ test('Quero tensão exige suspense, perigo ou investigação', () => {
   assert.equal(avaliarCompatibilidadeClima(suspense, 'tensao').elegivel, true);
 });
 
+test('Tensão não aceita crime ou ação isolados', () => {
+  const umSonhoDeLiberdade = titulo('um-sonho-de-liberdade', {
+    generos: ['Drama', 'Crime'],
+    sinopse: 'Um homem condenado enfrenta décadas dentro de uma prisão.'
+  });
+  const madMax = titulo('mad-max', {
+    generos: ['Ação', 'Aventura', 'Ficção científica']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(umSonhoDeLiberdade, 'tensao').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(madMax, 'tensao').elegivel, false);
+});
+
+test('Tensão aceita ação ou crime quando há perigo concreto', () => {
+  const perseguicao = titulo('perseguicao', {
+    generos: ['Ação', 'Crime'],
+    sinopse: 'Uma perseguição coloca os reféns em perigo durante uma fuga.'
+  });
+  const investigacao = titulo('investigacao', {
+    generos: ['Crime', 'Mistério'],
+    sinopse: 'Uma investigação procura um assassino em série.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(perseguicao, 'tensao').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(investigacao, 'tensao').elegivel, true);
+});
+
 test('Algo real exige documentário, história ou sinal de fatos reais', () => {
   const documentario = titulo('documentario', {
     generos: ['Documentário'],
@@ -316,6 +522,40 @@ test('Algo real exige documentário, história ou sinal de fatos reais', () => {
 
   assert.equal(avaliarCompatibilidadeClima(documentario, 'real').elegivel, true);
   assert.equal(avaliarCompatibilidadeClima(ficcaoDrama, 'real').elegivel, false);
+});
+
+test('Algo real não aceita o gênero História sozinho', () => {
+  const oPatriota = titulo('o-patriota', {
+    generos: ['História', 'Guerra', 'Ação', 'Drama'],
+    sinopse: 'Um personagem fictício busca vingança durante uma guerra.',
+    palavras_chave: ['historical fiction']
+  });
+  const dramaDeEpoca = titulo('drama-de-epoca', {
+    generos: ['História', 'Drama'],
+    sinopse: 'Uma família inventada atravessa um período do passado.'
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(oPatriota, 'real').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(dramaDeEpoca, 'real').elegivel, false);
+});
+
+test('Algo real aceita biografia, fatos reais e evento histórico identificado', () => {
+  const biografia = titulo('biografia', {
+    generos: ['Drama', 'História'],
+    palavras_chave: ['biography', 'historical figure']
+  });
+  const fatosReais = titulo('fatos-reais', {
+    generos: ['Drama'],
+    sinopse: 'Baseado em uma história real.'
+  });
+  const evento = titulo('nuremberg', {
+    generos: ['Drama', 'História'],
+    palavras_chave: ['nuremberg trials']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(biografia, 'real').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(fatosReais, 'real').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(evento, 'real').elegivel, true);
 });
 
 test('Clássico/cult privilegia obra marcante sem virar qualquer blockbuster leve', () => {
@@ -346,6 +586,87 @@ test('Quero medo não confunde suspense policial comum com terror', () => {
 
   assert.equal(avaliarCompatibilidadeClima(suspensePolicial, 'medo').elegivel, false);
   assert.equal(avaliarCompatibilidadeClima(assassinoAssustador, 'medo').elegivel, true);
+});
+
+test('Quero medo rejeita super-heroi policial apenas por serial killer', () => {
+  const theBatman = titulo('the-batman', {
+    nome: 'The Batman',
+    generos: ['Crime', 'Misterio', 'Thriller'],
+    palavras_chave: ['serial killer', 'superhero', 'dc comics']
+  });
+
+  assert.equal(avaliarCompatibilidadeClima(theBatman, 'medo').elegivel, false);
+});
+
+test('Romance exige gênero romântico ou múltiplos sinais românticos', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('interestelar', { generos: ['Drama', 'Ficção científica'], palavras_chave: ['love'] }), 'romance').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('romance', { generos: ['Drama'], palavras_chave: ['love', 'relationship'] }), 'romance').elegivel, true);
+});
+
+test('Leve rejeita dramas e thrillers pesados', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('titanic', { generos: ['Drama', 'Romance'] }), 'leve').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('comedia-leve', { generos: ['Comédia', 'Família'] }), 'leve').elegivel, true);
+});
+
+test('Cult rejeita super-heróis e blockbusters comerciais', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('batman', { generos: ['Ação', 'Crime', 'Drama'], palavras_chave: ['superhero', 'dc comics'], ano: 2022, media_tmdb: 8 }), 'cult').elegivel, false);
+});
+
+test('Chorar aceita drama romântico, mas continua rejeitando ação e erotismo', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('titanic', {
+    generos: ['Drama', 'Romance'],
+    sinopse: 'Um casal vive um amor impossível durante uma viagem.'
+  }), 'chorar').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(titulo('romance-acao', {
+    generos: ['Drama', 'Romance', 'Ação']
+  }), 'chorar').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('romance-erotico', {
+    generos: ['Drama', 'Romance'], palavras_chave: ['eroticism', 'bdsm']
+  }), 'chorar').elegivel, false);
+});
+
+test('Pensar aceita ficção dramática e crime reflexivo sem liberar blockbuster de ação', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('ficcao-dramatica', {
+    generos: ['Drama', 'Ficção científica']
+  }), 'pensar').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(titulo('crime-reflexivo', {
+    generos: ['Drama', 'Crime'], palavras_chave: ['social commentary']
+  }), 'pensar').elegivel, true);
+  assert.equal(avaliarCompatibilidadeClima(titulo('heroi', {
+    generos: ['Ação', 'Ficção científica'], palavras_chave: ['superhero']
+  }), 'pensar').elegivel, false);
+});
+
+test('Romance rejeita ação, terror e guerra mesmo quando o TMDB também marca romance', () => {
+  for (const genero of ['Ação', 'Terror', 'Guerra']) {
+    assert.equal(avaliarCompatibilidadeClima(titulo(`romance-${genero}`, {
+      generos: ['Romance', genero]
+    }), 'romance').elegivel, false);
+  }
+});
+
+test('Leve rejeita comédias com vários sinais de conteúdo pesado', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('magia-seducao', {
+    generos: ['Romance', 'Fantasia', 'Comédia'],
+    palavras_chave: ['exorcism', 'haunting']
+  }), 'leve').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('forrest', {
+    generos: ['Comédia', 'Drama', 'Romance'],
+    palavras_chave: ['vietnam war', 'post-traumatic stress disorder (ptsd)']
+  }), 'leve').elegivel, false);
+});
+
+test('Cult não aceita lançamento recente apenas por gênero e nota alta', () => {
+  assert.equal(avaliarCompatibilidadeClima(titulo('operacao-sombra', {
+    generos: ['Ação', 'Crime', 'Drama', 'Thriller'],
+    ano: new Date().getFullYear() - 1,
+    media_tmdb: 8.3
+  }), 'cult').elegivel, false);
+  assert.equal(avaliarCompatibilidadeClima(titulo('premiado-recente', {
+    generos: ['Drama'],
+    ano: new Date().getFullYear() - 1,
+    palavras_chave: ['film festival', 'award-winning']
+  }), 'cult').elegivel, true);
 });
 
 test('climas não aceitam atalhos por palavra solta fora do contexto', () => {
@@ -392,7 +713,8 @@ test('climas não aceitam atalhos por palavra solta fora do contexto', () => {
 
 test('a justificativa explica primeiro o clima escolhido', () => {
   const motivos = motivosDaRecomendacao(titulo('investigacao', {
-    generos: ['Mistério'],
+    generos: ['Mistério', 'Drama'],
+    palavras_chave: ['investigation'],
     usuarios_compativeis: 12
   }), { clima: 'pensar' });
 

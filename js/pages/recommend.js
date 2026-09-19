@@ -1,20 +1,26 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getListaDesejos, getAllTitulosComAvaliacoes, criarTitulo } from '../titulos.js';
-import { getDetails, getTitlesByTmdbIds, discoverTitles } from '../tmdb.js?v=20260915.2';
+import {
+  getDetails,
+  getTitlesByTmdbIds,
+  discoverTitles,
+  iniciarMedicaoTmdb,
+  finalizarMedicaoTmdb
+} from '../tmdb.js?v=20260919.5';
 import { getStreamingsDosUsuarios, SERVICOS_STREAMING } from '../streamings.js';
 import { criarSessaoPendente, getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import {
   recomendarDaLista,
   misturarOrigens,
-  motivosDaRecomendacao,
   formatarDuracao,
-  avaliarCompatibilidadeClima
-} from '../recommendations.js?v=20260915.2';
+  avaliarCompatibilidadeClima,
+  temQualidadeMinimaTmdb
+} from '../recommendations.js?v=20260919.6';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
-import { abrirModalDescoberta } from '../discovery.js?v=20260915.2';
+import { abrirModalDescoberta } from '../discovery.js?v=20260919.2';
 import { generosPreferidosTmdb } from '../cineTaste.js';
 import {
   bloquearRecomendacao,
@@ -40,12 +46,17 @@ let referenciaAutomatica = null;
 let finalistas = [];
 let bloqueiosRecomendacao = [];
 let idsExibidos = new Set();
+let idsVistosNaSessao = new Set();
+let candidatosNovosReserva = new Map();
+let triosExibidos = new Set();
 let paginaDescoberta = 1;
+let proximaPaginaDescoberta = 1;
 let inicializado = false;
 let modoIncorporado = false;
 const participantes = new Set();
 const streamingsAtivos = new Set();
 const detalhesCache = new Map();
+let medicaoRecomendacao = null;
 
 if (document.body.dataset.page === 'recommend') initRecommend();
 
@@ -291,15 +302,26 @@ function atualizarContextoDaBusca() {
 async function buscarRecomendacoes({ reiniciar }) {
   if (reiniciar) {
     idsExibidos = new Set();
+    candidatosNovosReserva = new Map();
     paginaDescoberta = 1;
+    proximaPaginaDescoberta = 1;
   }
   mostrarEtapa('results');
   alternarCarregamento(true);
+  iniciarMedicaoTmdb();
+  medicaoRecomendacao = {
+    iniciadaEm: globalThis.performance?.now?.() ?? Date.now(),
+    candidatos: new Set(),
+    elegiveis: new Set()
+  };
 
   try {
     const continuarSerie = tipo === 'serie' && modoSerie === 'continuar';
-    const referenciaCompleta = await enriquecerReferencia();
-    historicoEnriquecido = await prepararHistorico();
+    const [referenciaCompleta, historicoPreparado] = await Promise.all([
+      enriquecerReferencia(),
+      prepararHistorico()
+    ]);
+    historicoEnriquecido = historicoPreparado;
 
     if (continuarSerie) {
       const candidatos = await enriquecerTitulos(
@@ -322,11 +344,28 @@ async function buscarRecomendacoes({ reiniciar }) {
         { limite: 3 }
       );
     }
+
+    if (!continuarSerie && origem === 'novas' && finalistas.length < 3) {
+      for (let tentativa = 0; tentativa < 2 && finalistas.length < 3; tentativa += 1) {
+        finalistas.forEach(titulo => idsExibidos.add(chaveTitulo(titulo)));
+        paginaDescoberta = Math.max(paginaDescoberta, proximaPaginaDescoberta);
+        const adicionais = recomendar(
+          await carregarNovas(referenciaCompleta),
+          referenciaCompleta,
+          3 - finalistas.length
+        );
+        finalistas.push(...adicionais);
+      }
+      if (finalistas.length < 3) finalistas = [];
+    }
+
+    finalistas.forEach(titulo => idsVistosNaSessao.add(chaveTitulo(titulo)));
     renderResultados({ continuarSerie, referenciaCompleta });
   } catch (error) {
     console.error(error);
     renderVazio('Não foi possível buscar as opções', 'Confira sua conexão e tente novamente.');
   } finally {
+    registrarMetricasDaRecomendacao();
     alternarCarregamento(false);
   }
 }
@@ -348,35 +387,51 @@ async function carregarNovas(referenciaCompleta) {
   ]);
 
   const combinados = new Map();
-  [...descobertos, ...compativeis].forEach(titulo => {
+  [...candidatosNovosReserva.values(), ...descobertos, ...compativeis].forEach(titulo => {
     const chave = chaveTitulo(titulo);
     combinados.set(chave, { ...(combinados.get(chave) || {}), ...titulo });
   });
+
+  candidatosNovosReserva = new Map(combinados);
 
   return [...combinados.values()]
     .map(mesclarComHistoricoDoEspaco)
     .filter(Boolean)
     .filter(titulo => !desejos.some(item => mesmaObra(item, titulo)))
     .filter(titulo => !idsExibidos.has(chaveTitulo(titulo)))
+    .filter(titulo => !idsVistosNaSessao.has(chaveTitulo(titulo)))
+    .filter(temQualidadeMinimaTmdb)
     .map(titulo => ({ ...titulo, origem_recomendacao: 'nova' }));
 }
 
 async function carregarDescobertasAbrangentes(referenciaDeBusca) {
   const descobertos = [];
   const vistos = new Set();
-  const paginasParaTentar = origem === 'novas' ? 4 : 3;
+  const climaEscasso = ['chorar', 'romance', 'medo', 'pensar'].includes(clima);
+  const maximoDePaginas = origem === 'novas' ? (climaEscasso ? 8 : 6) : 4;
+  const paginasPorLote = 2;
+  const paginaInicial = Math.max(paginaDescoberta, proximaPaginaDescoberta);
 
-  for (let deslocamento = 0; deslocamento < paginasParaTentar; deslocamento += 1) {
-    const lote = await discoverTitles({
+  for (let deslocamento = 0; deslocamento < maximoDePaginas; deslocamento += paginasPorLote) {
+    const paginas = Array.from(
+      { length: Math.min(paginasPorLote, maximoDePaginas - deslocamento) },
+      (_, indice) => paginaInicial + deslocamento + indice
+    );
+    const lotes = await Promise.all(paginas.map(page => discoverTitles({
       tipo,
       clima,
       provedores: streamingsSelecionados(),
       referencia: referenciaDeBusca,
-      page: paginaDescoberta + deslocamento,
-      generosPreferidos: generosPreferidosTmdb(perfilAtual?.preferencias_descoberta, tipo)
-    });
+      page,
+      generosPreferidos: generosPreferidosTmdb(perfilAtual?.preferencias_descoberta, tipo),
+      limiteDetalhes: 10
+    }).catch(error => {
+      console.warn('[descoberta TMDB]', error);
+      return [];
+    })));
+    proximaPaginaDescoberta = paginas.at(-1) + 1;
 
-    lote.forEach(titulo => {
+    lotes.flat().forEach(titulo => {
       const chave = chaveTitulo(titulo);
       if (!vistos.has(chave)) {
         vistos.add(chave);
@@ -390,7 +445,7 @@ async function carregarDescobertasAbrangentes(referenciaDeBusca) {
       .filter(titulo => !desejos.some(item => mesmaObra(item, titulo)))
       .filter(titulo => !idsExibidos.has(chaveTitulo(titulo)))
       .filter(titulo => avaliarCompatibilidadeClima(titulo, clima).elegivel);
-    if (elegiveis.length >= 9) break;
+    if (elegiveis.length >= 6) break;
   }
 
   return descobertos;
@@ -445,7 +500,9 @@ function obterDetalhes(tmdbId, tipoTitulo) {
 }
 
 function recomendar(candidatos, referenciaCompleta, limite) {
-  return recomendarDaLista({
+  registrarCandidatosMedidos(candidatos);
+  const limiteDaSelecao = limite === 3 ? 9 : limite;
+  const selecionados = recomendarDaLista({
     candidatos: filtrarRecomendacoesBloqueadas(candidatos, bloqueiosRecomendacao),
     historico: historicoEnriquecido,
     participantes: [...participantes],
@@ -453,9 +510,57 @@ function recomendar(candidatos, referenciaCompleta, limite) {
     clima,
     streamings: streamingsSelecionados(),
     referencia: referenciaCompleta,
-    limite,
+    limite: limiteDaSelecao,
     preferenciasDescoberta: perfilAtual?.preferencias_descoberta
   });
+  return limite === 3 ? selecionarTrioVariado(selecionados) : selecionados;
+}
+
+function registrarCandidatosMedidos(candidatos) {
+  if (!medicaoRecomendacao) return;
+  candidatos.forEach(titulo => {
+    const chave = chaveTitulo(titulo);
+    medicaoRecomendacao.candidatos.add(chave);
+    if (avaliarCompatibilidadeClima(titulo, clima).elegivel) medicaoRecomendacao.elegiveis.add(chave);
+  });
+}
+
+function registrarMetricasDaRecomendacao() {
+  if (!medicaoRecomendacao) return;
+  const fim = globalThis.performance?.now?.() ?? Date.now();
+  const tmdb = finalizarMedicaoTmdb();
+  console.info('[métricas recomendação]', {
+    duracao_total_ms: Math.round(fim - medicaoRecomendacao.iniciadaEm),
+    paginas_consultadas: tmdb.paginas_consultadas,
+    requisicoes_tmdb: tmdb.requisicoes_tmdb,
+    candidatos: medicaoRecomendacao.candidatos.size,
+    elegiveis: medicaoRecomendacao.elegiveis.size,
+    resultados: finalistas.length,
+    origem,
+    tipo,
+    clima
+  });
+  medicaoRecomendacao = null;
+}
+
+function selecionarTrioVariado(candidatos) {
+  if (candidatos.length <= 3) return candidatos;
+
+  for (let tentativa = 0; tentativa < 20; tentativa += 1) {
+    const embaralhados = [...candidatos];
+    for (let indice = embaralhados.length - 1; indice > 0; indice -= 1) {
+      const outro = Math.floor(Math.random() * (indice + 1));
+      [embaralhados[indice], embaralhados[outro]] = [embaralhados[outro], embaralhados[indice]];
+    }
+    const trio = embaralhados.slice(0, 3);
+    const assinatura = trio.map(chaveTitulo).sort().join('|');
+    if (triosExibidos.has(assinatura)) continue;
+    triosExibidos.add(assinatura);
+    if (triosExibidos.size > 40) triosExibidos = new Set([...triosExibidos].slice(-20));
+    return trio;
+  }
+
+  return candidatos.slice(0, 3);
 }
 
 function renderResultados({ continuarSerie = false, referenciaCompleta = referencia } = {}) {
@@ -491,12 +596,6 @@ function renderFinalista(titulo, referenciaCompleta) {
   const provedor = (titulo.provedores || []).find(item => selecionados.includes(item.slug))
     || titulo.provedores?.[0];
   const criador = membros.find(membro => membro.usuario_id === titulo.criado_por);
-  const motivos = motivosDaRecomendacao(titulo, {
-    historico: historicoEnriquecido,
-    participantes: [...participantes],
-    referencia: referenciaCompleta,
-    clima
-  });
   return `<article class="finalist-card" data-finalist="${escapeHtml(chaveTitulo(titulo))}">
     <div class="finalist-poster">
       <img src="${safeImageSrc(titulo.backdrop_url || titulo.capa_url)}" alt="Capa de ${escapeHtml(titulo.nome)}" />
@@ -509,7 +608,6 @@ function renderFinalista(titulo, referenciaCompleta) {
       <div class="finalist-provider">${provedor ? `✓ Disponível no ${escapeHtml(provedor.nome)}` : 'Disponibilidade não informada'}</div>
       ${origemFinalista(titulo, criador)}
       ${titulo.assistido_por?.length ? `<div class="finalist-watched">Já assistido por ${escapeHtml(titulo.assistido_por.join(', '))}</div>` : ''}
-      <div class="finalist-reasons">${motivos.map(motivo => `<span class="finalist-reason">${escapeHtml(motivo)}</span>`).join('')}</div>
       <div class="finalist-actions">
         <button class="btn btn-secondary" data-details="${escapeHtml(chaveTitulo(titulo))}" type="button">Detalhes</button>
         <button class="btn btn-primary" data-choose="${escapeHtml(chaveTitulo(titulo))}" type="button">Escolher este</button>
@@ -551,14 +649,10 @@ function renderVazio(titulo, texto) {
 
 async function mostrarOutras() {
   finalistas.forEach(titulo => idsExibidos.add(chaveTitulo(titulo)));
-  paginaDescoberta += origem === 'novas' ? 4 : 3;
-  const quantidadeAnterior = idsExibidos.size;
+  paginaDescoberta = Math.max(paginaDescoberta, proximaPaginaDescoberta);
   await buscarRecomendacoes({ reiniciar: false });
-  if (!finalistas.length && quantidadeAnterior) {
-    idsExibidos = new Set();
-    paginaDescoberta = 1;
-    showToast('Essas eram todas as opções compatíveis. Voltamos ao início da seleção.');
-    await buscarRecomendacoes({ reiniciar: false });
+  if (!finalistas.length) {
+    showToast('Não encontramos outras três opções compatíveis agora. Tente ajustar um dos filtros.');
   }
 }
 
@@ -695,14 +789,9 @@ function resumoBusca(referenciaCompleta) {
   const fonte = tipo === 'serie' && modoSerie === 'continuar'
     ? 'Do histórico'
     : ({ lista: 'Da lista', novas: 'Sugestões novas', 'tanto-faz': 'Lista e sugestões novas' })[origem];
-  const base = referenciaCompleta
-    ? referenciaCompleta.referencia_automatica
-      ? ` · inspirado automaticamente em “${referenciaCompleta.nome}”`
-      : ` · parecido com “${referenciaCompleta.nome}”`
-    : '';
   const servicos = streamingsSelecionados();
   const streaming = servicos.length ? ` · ${servicos.length} streaming${servicos.length === 1 ? '' : 's'}` : ' · todos os streamings';
-  return `${fonte} · ${tipo === 'filme' ? 'filmes' : 'séries'} ${climaTexto}${base}${streaming}.`;
+  return `${fonte} · ${tipo === 'filme' ? 'filmes' : 'séries'} ${climaTexto}${streaming}.`;
 }
 
 function selecionarReferenciaAutomatica() {

@@ -5,6 +5,7 @@ import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
 import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { confirmarSessao } from '../sessoes.js';
+import { formatarNota } from '../statistics.js?v=20260919.2';
 
 let sessionAtual = null;
 let perfilAtual = null;
@@ -336,10 +337,6 @@ function calcularNotaAuxiliada(respostas) {
   if (!notas.length) return parseFloat(document.getElementById('f-nota').value) || 7;
   const media = notas.reduce((soma, nota) => soma + nota, 0) / notas.length;
   return Math.max(0, Math.min(10, Math.round(media * 2) / 2));
-}
-
-function formatarNota(nota) {
-  return Number(nota).toFixed(1).replace('.', ',');
 }
 
 async function onSubmit(e) {

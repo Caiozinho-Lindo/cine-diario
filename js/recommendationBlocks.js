@@ -59,12 +59,6 @@ export function filtrarRecomendacoesBloqueadas(titulos, bloqueios) {
   });
 }
 
-export function recomendacaoEstaBloqueada(titulo, bloqueios) {
-  const chave = chaveBloqueioRecomendacao(titulo);
-  if (!chave) return false;
-  return new Set((bloqueios || []).map(chaveDoRegistro).filter(Boolean)).has(chave);
-}
-
 function montarRegistro(titulo, usuarioId) {
   if (!usuarioId || !titulo?.tipo) return null;
   const tmdbId = titulo.tmdb_id ? Number(titulo.tmdb_id) : null;

@@ -1,6 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calcularDestaques } from '../js/statistics.js';
+import { calcularDestaques, formatarNota } from '../js/statistics.js';
+
+test('formata notas de forma única e segura', () => {
+  assert.equal(formatarNota(7), '7,0');
+  assert.equal(formatarNota(7.5), '7,5');
+  assert.equal(formatarNota(7.24), '7,0');
+  assert.equal(formatarNota(7.25), '7,5');
+  assert.equal(formatarNota(7.38), '7,5');
+  assert.equal(formatarNota(7.74), '7,5');
+  assert.equal(formatarNota(7.75), '8,0');
+  assert.equal(formatarNota(null), '—');
+  assert.equal(formatarNota(''), '—');
+  assert.equal(formatarNota('inválida'), '—');
+});
 
 const usuario1 = 'usuario-1';
 const usuario2 = 'usuario-2';

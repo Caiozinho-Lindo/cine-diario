@@ -115,7 +115,10 @@ Validações locais:
 ```bash
 npm run check
 npm test
+npm run audit:moods
 ```
+
+`audit:moods` consulta o TMDB e gera um resumo interno dos climas, com sessões incompletas, descartes por baixa qualidade, desempenho e títulos de menor aderência para revisão manual. Ele não aparece na interface do Cine Diário.
 
 ## Publicação
 

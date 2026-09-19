@@ -4,12 +4,11 @@
 import { notaNoModo } from './themes.js';
 
 export function formatarNota(nota) {
-  if (nota === null || nota === undefined) return '—';
-  const arredondada = Math.round(nota * 100) / 100;
-  return arredondada
-    .toFixed(2)
-    .replace(/\.?0+$/, '')
-    .replace('.', ',');
+  if (nota === null || nota === undefined || nota === '') return '—';
+  const valor = Number(nota);
+  if (!Number.isFinite(valor)) return '—';
+  const arredondada = Math.round((valor + Number.EPSILON) * 2) / 2;
+  return arredondada.toFixed(1).replace('.', ',');
 }
 
 export function calcularEstatisticas(titulos, modo = 'geral') {

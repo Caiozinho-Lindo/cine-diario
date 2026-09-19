@@ -7,6 +7,31 @@ const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p';
 const detalhesCache = new Map();
 const relacionadosCache = new Map();
+let medicaoTmdb = null;
+
+export function iniciarMedicaoTmdb() {
+  medicaoTmdb = { iniciadaEm: agora(), requisicoes: 0, paginas: new Set() };
+}
+
+export function finalizarMedicaoTmdb() {
+  if (!medicaoTmdb) return { duracao_ms: 0, requisicoes_tmdb: 0, paginas_consultadas: [] };
+  const resultado = {
+    duracao_ms: Math.round(agora() - medicaoTmdb.iniciadaEm),
+    requisicoes_tmdb: medicaoTmdb.requisicoes,
+    paginas_consultadas: [...medicaoTmdb.paginas].sort((a, b) => a - b)
+  };
+  medicaoTmdb = null;
+  return resultado;
+}
+
+function agora() {
+  return globalThis.performance?.now?.() ?? Date.now();
+}
+
+function fetchTmdb(url, opcoes) {
+  if (medicaoTmdb) medicaoTmdb.requisicoes += 1;
+  return fetch(url, opcoes);
+}
 
 function headers() {
   return {
@@ -22,7 +47,7 @@ export async function searchMulti(query) {
   if (!query || query.trim().length < 2) return [];
 
   const url = `${BASE_URL}/search/multi?query=${encodeURIComponent(query)}&language=pt-BR&include_adult=false`;
-  const res = await fetch(url, { headers: headers() });
+  const res = await fetchTmdb(url, { headers: headers() });
 
   if (!res.ok) {
     throw new Error(`Erro ao buscar no TMDB (status ${res.status})`);
@@ -46,6 +71,7 @@ function normalizeSearchResult(r) {
     capa_url: posterUrl(r.poster_path),
     sinopse: r.overview || '',
     media_tmdb: Number(r.vote_average) || null,
+    votos_tmdb: Number(r.vote_count) || 0,
     popularidade: Number(r.popularity) || 0
   };
 }
@@ -68,7 +94,7 @@ async function buscarDetails(tmdbId, tipo) {
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
   const anexos = 'watch/providers,keywords,credits,recommendations';
   const url = `${BASE_URL}/${endpoint}/${tmdbId}?language=pt-BR&append_to_response=${encodeURIComponent(anexos)}`;
-  const res = await fetch(url, { headers: headers() });
+  const res = await fetchTmdb(url, { headers: headers() });
 
   if (!res.ok) {
     throw new Error(`Erro ao buscar detalhes no TMDB (status ${res.status})`);
@@ -142,7 +168,7 @@ async function buscarRelatedTitles(referencias, { limite = 30, page = 1 } = {}) 
   const lotes = await Promise.all([...unicas.values()].slice(0, 6).map(async referencia => {
     const endpoint = referencia.tipo === 'filme' ? 'movie' : 'tv';
     try {
-      const res = await fetch(
+      const res = await fetchTmdb(
         `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=${Math.max(1, Math.min(Number(page) || 1, 5))}`,
         { headers: headers() }
       );
@@ -218,8 +244,10 @@ export async function discoverTitles({
   provedores = [],
   referencia = null,
   page = 1,
-  generosPreferidos = []
+  generosPreferidos = [],
+  limiteDetalhes = 18
 }) {
+  if (medicaoTmdb) medicaoTmdb.paginas.add(Math.max(1, Math.min(Number(page) || 1, 500)));
   const endpoint = tipo === 'filme' ? 'movie' : 'tv';
   const params = new URLSearchParams({
     language: 'pt-BR',
@@ -227,7 +255,7 @@ export async function discoverTitles({
     sort_by: 'popularity.desc',
     watch_region: 'BR',
     with_watch_monetization_types: 'flatrate|free|ads',
-    page: String(Math.max(1, Math.min(Number(page) || 1, 20)))
+    page: String(Math.max(1, Math.min(Number(page) || 1, 500)))
   });
 
   const idsProvedores = provedores.map(slug => PROVEDOR_IDS[slug]).filter(Boolean);
@@ -237,14 +265,29 @@ export async function discoverTitles({
       ? generosPreferidos.slice(0, 6)
       : generosTmdbPorClima(clima, tipo);
   if (idsProvedores.length) params.set('with_watch_providers', idsProvedores.join('|'));
-  if (idsGeneros.length) params.set('with_genres', idsGeneros.join('|'));
+  if (clima === 'chorar' && !referencia) {
+    params.set('with_genres', tipo === 'filme'
+      ? '18,10749'
+      : '18,10749');
+  } else if (clima === 'romance' && !referencia) {
+    params.set('with_genres', '10749');
+  } else if (clima === 'medo' && tipo === 'filme' && !referencia) {
+    params.set('with_genres', '27');
+  } else if (idsGeneros.length) {
+    params.set('with_genres', idsGeneros.join('|'));
+  }
+  if (clima === 'cult' && !referencia) {
+    const limiteClassico = new Date().getFullYear() - 15;
+    params.set(tipo === 'filme' ? 'primary_release_date.lte' : 'first_air_date.lte', `${limiteClassico}-12-31`);
+    params.set('vote_count.gte', '300');
+  }
   if (referencia?.palavras_chave_ids?.length) {
     params.set('with_keywords', referencia.palavras_chave_ids.slice(0, 5).join('|'));
   }
   if (duracaoMax) params.set('with_runtime.lte', String(duracaoMax));
 
   const [res, relacionados] = await Promise.all([
-    fetch(`${BASE_URL}/discover/${endpoint}?${params}`, { headers: headers() }),
+    fetchTmdb(`${BASE_URL}/discover/${endpoint}?${params}`, { headers: headers() }),
     buscarRelacionados(referencia, endpoint)
   ]);
   if (!res.ok) throw new Error(`Erro ao descobrir títulos no TMDB (status ${res.status})`);
@@ -254,7 +297,8 @@ export async function discoverTitles({
   const unicos = new Map();
   resumos.forEach(item => unicos.set(`${item.tipo}:${item.tmdb_id}`, item));
 
-  return Promise.all([...unicos.values()].slice(0, 18).map(item => getDetails(item.tmdb_id, item.tipo)));
+  const limite = Math.max(3, Math.min(Number(limiteDetalhes) || 18, 18));
+  return Promise.all([...unicos.values()].slice(0, limite).map(item => getDetails(item.tmdb_id, item.tipo)));
 }
 
 export const PROVEDOR_IDS = {
@@ -316,7 +360,7 @@ function paisesOrigem(detalhes, tipo) {
 
 async function buscarRelacionados(referencia, endpoint) {
   if (!referencia?.tmdb_id || referencia.tipo !== (endpoint === 'movie' ? 'filme' : 'serie')) return [];
-  const res = await fetch(
+  const res = await fetchTmdb(
     `${BASE_URL}/${endpoint}/${referencia.tmdb_id}/recommendations?language=pt-BR&page=1`,
     { headers: headers() }
   );
@@ -366,7 +410,7 @@ function generosTmdbPorClima(clima, tipo) {
     rir: [35],
     chorar: [18, 10402, 10749],
     romance: [10749, 35, 18],
-    pensar: [9648, 99, 36, 18, 80, 878],
+    pensar: [9648, 99, 36],
     tensao: [53, 80, 9648, 27, 18, 28],
     acao: [28, 12, 10752, 37, 80, 878, 14, 53, 16],
     medo: [27, 53, 9648],
@@ -378,7 +422,7 @@ function generosTmdbPorClima(clima, tipo) {
     rir: [35],
     chorar: [18, 10766, 10749],
     romance: [10749, 10766, 35, 18],
-    pensar: [9648, 99, 10763, 10768, 18, 80, 10765, 10767],
+    pensar: [9648, 99, 10763],
     tensao: [9648, 80, 10759, 18, 10768],
     acao: [10759, 10768, 37, 80, 10765, 16],
     medo: [9648, 10765, 80, 18],

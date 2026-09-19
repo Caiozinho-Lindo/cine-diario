@@ -20,7 +20,7 @@ import {
   criarCardDescobertaCatalogo,
   criarCacheRodadasDescoberta,
   montarSecoesDescoberta
-} from '../discovery.js?v=20260915.2';
+} from '../discovery.js?v=20260919.2';
 import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
 import { temCineDiarioMontado } from '../cineTaste.js';
@@ -43,6 +43,7 @@ let perfilAtual = null;
 let dadosSelecionados = null;
 let buscaExternaTimer = null;
 let buscaExternaVersao = 0;
+let buscaExternaResumo = { termo: '', quantidade: 0, carregando: false };
 let secaoCatalogo = 'todos';
 let membrosEspaco = [];
 let usuarioIdAtual = null;
@@ -277,17 +278,26 @@ function renderResultados() {
         && correspondenciasNaOutraSecao.length
       );
       const existeOcultoPorFiltros = correspondenciasNaSecao.length > 0;
+      const resumoExternoAtual = buscaExternaResumo.termo.toLowerCase() === busca.toLowerCase()
+        ? buscaExternaResumo
+        : null;
+      const temResultadosExternos = Number(resumoExternoAtual?.quantidade) > 0;
+      const estaBuscandoFora = Boolean(resumoExternoAtual?.carregando);
       const rotuloSecaoAlternativa = nomeSecao(secaoAlternativa);
       const nomeEncontrado = correspondenciasNaOutraSecao[0]?.nome || busca;
       grid.innerHTML = `
-        <div class="catalog-empty-action">
-          <div class="catalog-empty-icon">🎬</div>
+        <div class="catalog-empty-action ${temResultadosExternos || estaBuscandoFora ? 'catalog-empty-action-compact' : ''}">
+          ${temResultadosExternos || estaBuscandoFora ? '' : '<div class="catalog-empty-icon">🎬</div>'}
           <h3>${estaSomenteNaOutraSecao
             ? correspondenciasNaOutraSecao.length === 1
               ? `“${escapeHtml(nomeEncontrado)}” está em “${rotuloSecaoAlternativa}”`
               : `${correspondenciasNaOutraSecao.length} títulos com esse nome estão em “${rotuloSecaoAlternativa}”`
             : existeOcultoPorFiltros
               ? `“${escapeHtml(busca)}” está oculto pelos filtros atuais`
+            : temResultadosExternos
+              ? `“${escapeHtml(busca)}” não está no seu catálogo`
+            : estaBuscandoFora
+              ? `Buscando “${escapeHtml(busca)}” fora do seu catálogo`
             : `Nenhum “${escapeHtml(busca)}” no seu catálogo`}</h3>
           <p>${estaSomenteNaOutraSecao
             ? secaoAlternativa === 'para_assistir'
@@ -295,17 +305,24 @@ function renderResultados() {
               : 'Esse título já foi marcado como assistido.'
             : existeOcultoPorFiltros
               ? 'Remova os filtros para abrir o item que já foi adicionado.'
+            : temResultadosExternos
+              ? `${resumoExternoAtual.quantidade} ${resumoExternoAtual.quantidade === 1 ? 'opção apareceu' : 'opções apareceram'} logo abaixo para adicionar.`
+            : estaBuscandoFora
+              ? 'Estou procurando opções para adicionar.'
             : 'Veja abaixo outros títulos encontrados para adicionar.'}</p>
           ${estaSomenteNaOutraSecao
             ? `<button class="btn btn-secondary" id="open-other-section" type="button">Abrir em ${rotuloSecaoAlternativa}</button>`
             : existeOcultoPorFiltros
               ? '<button class="btn btn-secondary" id="clear-search-filters" type="button">Limpar filtros</button>'
+            : temResultadosExternos
+              ? '<button class="btn btn-primary" id="view-external-results" type="button">Ver títulos encontrados</button>'
             : ''}
         </div>`;
       document.getElementById('open-other-section')?.addEventListener('click', () => {
         abrirSecaoComBusca(secaoAlternativa);
       });
       document.getElementById('clear-search-filters')?.addEventListener('click', limparFiltrosDaBusca);
+      document.getElementById('view-external-results')?.addEventListener('click', rolarParaResultadosExternos);
     } else {
       showEmptyState(grid, 'Nenhum título encontrado com esses filtros.');
     }
@@ -622,10 +639,12 @@ function agendarBuscaExterna(query) {
   const termo = query.trim();
 
   if (termo.length < 2) {
+    buscaExternaResumo = { termo: '', quantidade: 0, carregando: false };
     limparDescoberta();
     return;
   }
 
+  buscaExternaResumo = { termo, quantidade: 0, carregando: true };
   const secao = document.getElementById('catalog-discovery');
   const container = document.getElementById('catalog-discovery-results');
   secao.hidden = false;
@@ -654,6 +673,8 @@ async function buscarTitulosExternos(termo, versao) {
 
     document.getElementById('catalog-discovery-count').textContent =
       `${novos.length} novo${novos.length === 1 ? '' : 's'}`;
+    buscaExternaResumo = { termo, quantidade: novos.length, carregando: false };
+    renderResultados();
 
     if (!novos.length) {
       showEmptyState(container, 'Todos os resultados encontrados já estão no seu catálogo.');
@@ -678,9 +699,15 @@ async function buscarTitulosExternos(termo, versao) {
   } catch (error) {
     if (versao !== buscaExternaVersao) return;
     console.error(error);
+    buscaExternaResumo = { termo, quantidade: 0, carregando: false };
+    renderResultados();
     showEmptyState(container, 'Não foi possível buscar agora. Tente novamente.');
     document.getElementById('catalog-discovery-count').textContent = '';
   }
+}
+
+function rolarParaResultadosExternos() {
+  document.getElementById('catalog-discovery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function encontrarTituloExistente(resultado) {

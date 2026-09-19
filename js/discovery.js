@@ -1,4 +1,4 @@
-import { discoverTitles, getDetails, getRelatedTitles } from './tmdb.js?v=20260915.2';
+import { discoverTitles, getDetails, getRelatedTitles } from './tmdb.js?v=20260919.5';
 import {
   generosPreferidosTmdb,
   normalizarPreferenciasDescoberta,
@@ -9,8 +9,9 @@ import {
   calcularSemelhancaReferencia,
   motivoDaDescobertaPessoal,
   pontuarTitulo,
-  selecionarReferenciasPessoais
-} from './recommendations.js?v=20260915.2';
+  selecionarReferenciasPessoais,
+  temQualidadeMinimaTmdb
+} from './recommendations.js?v=20260919.6';
 import { filtrarRecomendacoesBloqueadas, getRecomendacoesBloqueadas } from './recommendationBlocks.js?v=20260909.3';
 import { escapeHtml, safeImageSrc } from './ui.js?v=20260910.1';
 
@@ -97,6 +98,7 @@ export async function carregarDescobertasPessoais({
   const bloqueios = await getRecomendacoesBloqueadas(usuarioId);
 
   const ranqueados = filtrarRecomendacoesBloqueadas(candidatos, bloqueios)
+    .filter(temQualidadeMinimaTmdb)
     .filter(titulo => !existentes.has(chaveTitulo(titulo)))
     .filter(titulo => !servicos.size || (titulo.provedores || [])
       .some(provedor => servicos.has(provedor.slug || provedor)))
@@ -140,42 +142,6 @@ async function descobrirPorPreferencias(preferencias, { streamings = [], limite 
     generosPreferidos: generosPreferidosTmdb(preferencias, tipo)
   }).catch(() => [])));
   return lotes.flat().slice(0, limite);
-}
-
-export function criarCardDescoberta(titulo, { onAdicionar, onBloquear } = {}) {
-  const card = document.createElement('article');
-  card.className = 'personal-discovery-card';
-  const provedores = (titulo.provedores || []).map(item => item.nome || item.slug).filter(Boolean);
-  const notaPublico = Number(titulo.media_tmdb);
-
-  card.innerHTML = `
-    <div class="personal-discovery-poster">
-      <img src="${safeImageSrc(titulo.capa_url)}" alt="Capa de ${escapeHtml(titulo.nome)}" loading="lazy" />
-      <span>${titulo.tipo === 'filme' ? 'Filme' : 'Série'}</span>
-    </div>
-    <div class="personal-discovery-body">
-      <div>
-        <h3>${escapeHtml(titulo.nome)}</h3>
-        <p class="personal-discovery-meta">${titulo.ano || '—'}${Number.isFinite(notaPublico) && notaPublico > 0
-          ? ` · ${notaPublico.toFixed(1).replace('.', ',')}/10 no TMDB`
-          : ''}</p>
-      </div>
-      <p class="personal-discovery-reason">✦ ${escapeHtml(titulo.motivo_descoberta)}</p>
-      ${provedores.length
-        ? `<p class="personal-discovery-streaming">Disponível em ${escapeHtml(provedores.slice(0, 2).join(' e '))}</p>`
-        : ''}
-      <div class="personal-discovery-actions">
-        <button class="btn btn-secondary btn-sm" data-discovery-details type="button">Ver detalhes</button>
-        <button class="btn btn-primary btn-sm" data-discovery-add type="button">+ Para assistir</button>
-      </div>
-    </div>`;
-
-  const botaoDetalhes = card.querySelector('[data-discovery-details]');
-  botaoDetalhes.addEventListener('click', () => abrirModalDescoberta(titulo, { onBloquear }));
-
-  const botaoAdicionar = card.querySelector('[data-discovery-add]');
-  botaoAdicionar.addEventListener('click', () => onAdicionar?.(titulo, botaoAdicionar, card));
-  return card;
 }
 
 export function criarCardDescobertaCatalogo(titulo, { onAdicionar, onBloquear } = {}) {
@@ -233,14 +199,15 @@ export function montarSecoesDescoberta(itens, {
   const seguras = [...porReferencia.entries()]
     .sort((a, b) => b[1].length - a[1].length || pontuacaoGrupo(b[1]) - pontuacaoGrupo(a[1]))
     .slice(0, maxGruposSeguros)
-    .map(([referencia, lista]) => {
+    .map(([referencia, lista], indice) => {
       const selecionados = selecionarSemRepetir(lista, usados, maxItensPorGrupo);
       if (!selecionados.length) return null;
       return {
         tipo: 'segura',
         etiqueta: '',
-        titulo: `Sugestões relacionadas a: ${referencia}`,
-        descricao: 'Filmes próximos de algo que você já avaliou bem.',
+        referencia,
+        titulo: indice === 0 ? 'Sugestões para você' : 'Mais sugestões para você',
+        descricao: 'Escolhidas a partir do seu gosto no Cine Diário.',
         itens: selecionados
       };
     })
@@ -360,7 +327,7 @@ function pontuacaoGrupo(lista) {
 
 function estaMuitoLigadoAosGruposSeguros(item, grupos) {
   const referencia = referenciaPrincipal(item);
-  return grupos.some(grupo => grupo.titulo.endsWith(referencia || '\u0000'));
+  return grupos.some(grupo => grupo.referencia === referencia);
 }
 
 function mesclarReferenciasNoHistorico(historico, referencias) {
@@ -378,8 +345,7 @@ function melhorSemelhanca(titulo, referencias) {
 function pistaDaDescoberta(titulo) {
   const referencias = normalizarLista(titulo.referencias_relacionadas);
   if (!referencias.length) return '';
-  if (referencias.length === 1) return `Relacionado a ${referencias[0]}`;
-  return `Relacionado a ${referencias.slice(0, 2).join(' e ')}`;
+  return 'Selecionado para o seu perfil';
 }
 
 function motivoPorPreferencias(titulo, preferencias) {

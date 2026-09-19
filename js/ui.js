@@ -1,7 +1,7 @@
 // js/ui.js
 // Componentes reutilizados: navegação, espaços, cards, toast e modal.
 
-import { formatarNota } from './statistics.js';
+import { formatarNota } from './statistics.js?v=20260919.2';
 import { resolveRootPath, logout } from './auth.js';
 import { nomeDoModo, notaNoModo, setModoAtivo } from './themes.js?v=20260910.1';
 import { getEspacosDoUsuario, getEspacoAtivo, setEspacoAtivo } from './espacos.js';

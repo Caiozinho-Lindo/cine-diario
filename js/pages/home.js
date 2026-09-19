@@ -5,7 +5,7 @@ import {
   criarTitulo,
   getTitulosCacheSnapshot
 } from '../titulos.js';
-import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260831.1';
+import { calcularEstatisticas, calcularDestaques, formatarNota } from '../statistics.js?v=20260919.2';
 import { normalizarModoAtivo, aplicarTema, nomeDoModo } from '../themes.js?v=20260910.1';
 import {
   renderNavbar,
@@ -17,13 +17,13 @@ import {
 } from '../ui.js?v=20260910.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
-import { initRecommend } from './recommend.js?v=20260915.3';
+import { initRecommend } from './recommend.js?v=20260918.4';
 import { getMeusStreamings } from '../streamings.js';
 import {
   carregarDescobertasPessoais,
   criarCardDescobertaCatalogo,
   criarCacheRodadasDescoberta,
-} from '../discovery.js?v=20260915.2';
+} from '../discovery.js?v=20260919.2';
 import { bloquearRecomendacao } from '../recommendationBlocks.js?v=20260909.3';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
 import { deveAbrirMontagemInicial } from '../cineTaste.js';

@@ -34,6 +34,14 @@ test('a busca informa quando o título está na outra seção', () => {
   assert.match(catalogJs, /abrirSecaoComBusca/);
 });
 
+test('quando há resultado fora do catálogo, o aviso vira um atalho compacto', () => {
+  assert.match(catalogJs, /buscaExternaResumo/);
+  assert.match(catalogJs, /catalog-empty-action-compact/);
+  assert.match(catalogJs, /view-external-results/);
+  assert.match(catalogJs, /rolarParaResultadosExternos/);
+  assert.match(catalogJs, /renderResultados\(\)/);
+});
+
 test('os filtros visíveis não repetem as mesmas faixas de nota', () => {
   assert.doesNotMatch(catalogHtml, /value="assistiriamos"/);
   assert.doesNotMatch(catalogHtml, /value="nao_assistiriamos"/);
@@ -52,7 +60,8 @@ test('o catálogo tem uma aba Descobrir baseada no perfil pessoal', () => {
 
 test('o Descobrir do catálogo agrupa sugestões por filme de referência', () => {
   assert.match(catalogJs, /montarSecoesDescoberta/);
-  assert.match(discoveryJs, /Sugestões relacionadas a:/);
+  assert.match(discoveryJs, /Sugestões para você/);
+  assert.doesNotMatch(discoveryJs, /Sugestões relacionadas a:/);
   assert.match(catalogJs, /discovery-reason-group/);
   assert.match(catalogJs, /criarCardDescobertaCatalogo/);
 });
