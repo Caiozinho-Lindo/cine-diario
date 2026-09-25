@@ -8,6 +8,7 @@ import {
   getEspacosDoUsuario,
   getEspacoAtivo,
   getMembrosDoEspaco,
+  getResumosDosEspacos,
   setEspacoAtivo,
   criarEspaco,
   atualizarEspaco,
@@ -21,7 +22,7 @@ import {
   normalizarCodigo
 } from '../espacos.js';
 import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260910.1';
-import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
+import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260925.1';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 import { supabase } from '../supabaseClient.js';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
@@ -148,13 +149,44 @@ async function renderEspacos() {
   const [espacos, ativo] = await Promise.all([getEspacosDoUsuario(), getEspacoAtivo()]);
   espacosUsuario = espacos;
   espacoAtivo = ativo;
-  document.getElementById('spaces-list').innerHTML = espacos.map(espaco => `
-    <div class="space-row ${espaco.id === ativo.id ? 'active' : ''}">
-      <div><strong>${escapeHtml(espaco.nome)}</strong></div>
-      ${espaco.id === ativo.id
-        ? '<span class="chip chip-yes">Ativo</span>'
-        : `<button class="btn btn-secondary btn-sm" data-activate-space="${escapeHtml(espaco.id)}" type="button">Usar</button>`}
-    </div>`).join('');
+  const resumos = await getResumosDosEspacos(espacos);
+  const usuarioId = getUserId(session);
+  document.getElementById('spaces-list').innerHTML = espacos.map(espaco => {
+    const resumo = resumos.get(espaco.id) || { membros: [], totalTitulos: 0, ultimaAtividade: null };
+    const ativoAgora = espaco.id === ativo.id;
+    const souAdmin = resumo.membros.some(membro => membro.usuario_id === usuarioId && papelNormalizado(membro.papel) === 'administrador');
+    const tipo = tipoEspaco(espaco.tipo, resumo.membros.length);
+    const nomes = resumo.membros
+      .map(membro => membro.perfil?.nome_exibicao || membro.perfil?.nome || 'Participante')
+      .slice(0, 3);
+    const restantes = Math.max(0, resumo.membros.length - nomes.length);
+
+    return `
+      <article class="space-card ${ativoAgora ? 'active' : ''}">
+        <div class="space-card-topline">
+          <span class="space-card-icon" aria-hidden="true">${iconeTipoEspaco(tipo)}</span>
+          <span class="space-type">${escapeHtml(tipo)}</span>
+          ${souAdmin ? '<span class="space-admin-badge">Administrador</span>' : ''}
+        </div>
+        <div class="space-card-heading">
+          <div>
+            <h3>${escapeHtml(espaco.nome)}</h3>
+            <p>${escapeHtml(nomes.join(', '))}${restantes ? ` e mais ${restantes}` : ''}</p>
+          </div>
+          ${ativoAgora ? '<span class="space-current-badge"><i></i> Espaço atual</span>' : ''}
+        </div>
+        <div class="space-card-stats" aria-label="Resumo do espaço">
+          <span><strong>${resumo.totalTitulos}</strong><small>${resumo.totalTitulos === 1 ? 'título' : 'títulos'}</small></span>
+          <span><strong>${resumo.membros.length}</strong><small>${resumo.membros.length === 1 ? 'participante' : 'participantes'}</small></span>
+          <span><strong>${formatarAtividade(resumo.ultimaAtividade || espaco.criado_em)}</strong><small>atividade</small></span>
+        </div>
+        <div class="space-card-actions">
+          ${ativoAgora
+            ? '<a class="btn btn-secondary btn-sm" href="#active-space-panel">Gerenciar</a>'
+            : `<button class="btn btn-primary btn-sm" data-activate-space="${escapeHtml(espaco.id)}" type="button">Trocar para este espaço</button>`}
+        </div>
+      </article>`;
+  }).join('');
 
   document.querySelectorAll('[data-activate-space]').forEach(button => {
     button.addEventListener('click', async () => {
@@ -297,6 +329,12 @@ function ligarEventos() {
   document.getElementById('edit-space-form').addEventListener('submit', salvarEdicaoEspaco);
   document.getElementById('active-space-panel').addEventListener('click', tratarAcaoEspaco);
   document.getElementById('active-space-panel').addEventListener('change', alterarPapelPeloControle);
+  document.getElementById('invite-modal').addEventListener('click', event => {
+    if (event.target === event.currentTarget) fecharModalConvite();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !document.getElementById('invite-modal').hidden) fecharModalConvite();
+  });
   document.getElementById('profile-name').addEventListener('input', renderPreviaPerfil);
   document.getElementById('profile-preview').addEventListener('click', event => {
     if (event.target.closest('[data-avatar-picker]')) document.getElementById('profile-avatar-file').click();
@@ -308,6 +346,33 @@ function ligarEventos() {
   document.getElementById('join-code').addEventListener('input', event => {
     event.target.value = normalizarCodigo(event.target.value);
   });
+}
+
+function tipoEspaco(tipo, totalMembros) {
+  const normalizado = String(tipo || '').toLowerCase();
+  if (normalizado === 'individual' || normalizado === 'pessoal') return 'Individual';
+  if (normalizado === 'casal') return 'Casal';
+  if (normalizado === 'amigos' || normalizado === 'grupo') return 'Amigos';
+  if (totalMembros <= 1) return 'Individual';
+  if (totalMembros === 2) return 'Casal';
+  return 'Amigos';
+}
+
+function iconeTipoEspaco(tipo) {
+  if (tipo === 'Individual') return '▶';
+  if (tipo === 'Casal') return '♥';
+  return '✦';
+}
+
+function formatarAtividade(data) {
+  if (!data) return 'Agora';
+  const valor = new Date(data);
+  if (Number.isNaN(valor.getTime())) return 'Recente';
+  const dias = Math.max(0, Math.floor((Date.now() - valor.getTime()) / 86400000));
+  if (dias === 0) return 'Hoje';
+  if (dias === 1) return 'Ontem';
+  if (dias < 30) return `${dias} dias`;
+  return valor.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
 }
 
 async function abrirPreferenciasCineDiario() {
@@ -471,12 +536,12 @@ async function tratarAcaoEspaco(event) {
     document.getElementById('edit-space-name').focus();
     return;
   }
-  if (acao === 'code') {
-    await exibirConvite();
+  if (acao === 'invite') {
+    await abrirModalConvite();
     return;
   }
-  if (acao === 'invite') {
-    await compartilharConvite();
+  if (acao === 'close-invite') {
+    fecharModalConvite();
     return;
   }
   if (acao === 'copy-code' || acao === 'copy-link') {
@@ -549,9 +614,10 @@ async function exibirConvite() {
   try {
     conviteAtual = conviteAtual || await criarConviteEspaco(espacoAtivo.id);
     document.getElementById('invite-code-value').textContent = conviteAtual.codigo;
+    document.getElementById('invite-link-value').value = criarLinkConvite(conviteAtual.codigo);
+    document.getElementById('invite-space-name').textContent = espacoAtivo.nome;
     document.getElementById('invite-expiration').textContent =
       `Válido até ${new Date(conviteAtual.expira_em).toLocaleString('pt-BR')}`;
-    document.getElementById('invite-result').hidden = false;
     return conviteAtual;
   } catch (error) {
     console.error(error);
@@ -560,25 +626,17 @@ async function exibirConvite() {
   }
 }
 
-async function compartilharConvite() {
+async function abrirModalConvite() {
   const convite = await exibirConvite();
   if (!convite) return;
-  const url = criarLinkConvite(convite.codigo);
-  const dados = {
-    title: `Convite para ${espacoAtivo.nome}`,
-    text: `Entre no meu espaço “${espacoAtivo.nome}” no Cine Diário.`,
-    url
-  };
+  const modal = document.getElementById('invite-modal');
+  modal.hidden = false;
+  modal.querySelector('[data-space-action="close-invite"]')?.focus();
+}
 
-  if (navigator.share) {
-    try {
-      await navigator.share(dados);
-      return;
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
-    }
-  }
-  await copiarTexto(url, 'Link do convite copiado.');
+function fecharModalConvite() {
+  document.getElementById('invite-modal').hidden = true;
+  document.querySelector('[data-space-action="invite"]')?.focus();
 }
 
 function criarLinkConvite(codigo) {

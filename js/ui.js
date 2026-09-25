@@ -14,6 +14,7 @@ export function renderNavbar(container, {
   usuarioId,
   onModoChange
 }) {
+  container.classList.remove('navbar-snapshot');
   const root = resolveRootPath('');
   const nomeUsuario = perfilAtual?.nome_exibicao || perfilAtual?.nome || 'Cineasta';
   const avatar = perfilAtual?.avatar_url
@@ -30,10 +31,12 @@ export function renderNavbar(container, {
   container.innerHTML = `
     <div class="navbar-inner">
       <a class="navbar-brand" href="${root}pages/home.html">
-        <svg width="26" height="26" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <rect x="4" y="10" width="40" height="28" rx="3" stroke="currentColor" stroke-width="2"/>
-          <path d="M4 18h40M12 10v8M20 10v8M28 10v8M36 10v8" stroke="currentColor" stroke-width="2"/>
+        <span class="navbar-brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M5.5 4.75h13a1.75 1.75 0 0 1 1.75 1.75v11a1.75 1.75 0 0 1-1.75 1.75h-13a1.75 1.75 0 0 1-1.75-1.75v-11A1.75 1.75 0 0 1 5.5 4.75Z" stroke="currentColor" stroke-width="1.5"/>
+          <path d="m9.75 9 5 3-5 3V9Z" fill="currentColor"/>
         </svg>
+        </span>
         <span>Cine Diário</span>
       </a>
 
@@ -63,6 +66,10 @@ export function renderNavbar(container, {
         <span class="navbar-user-name">${escapeHtml(nomeUsuario)}</span>
         <button class="btn btn-secondary btn-sm" id="logout-btn" type="button">Sair</button>
       </div>
+
+      <button class="navbar-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span>
+      </button>
     </div>`;
 
   container.querySelectorAll(`[data-page="${activePage}"]`).forEach(a => a.classList.add('active'));
@@ -72,6 +79,12 @@ export function renderNavbar(container, {
     if (onModoChange) onModoChange(seletorModo.value);
   });
   container.querySelector('#logout-btn').addEventListener('click', logout);
+  const menuToggle = container.querySelector('.navbar-menu-toggle');
+  menuToggle?.addEventListener('click', () => {
+    const aberto = container.classList.toggle('menu-open');
+    menuToggle.setAttribute('aria-expanded', String(aberto));
+    menuToggle.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
+  });
   prepararNavegacaoLeve(container);
   hidratarEspacos(container).catch(error => console.error('[espaços]', error));
 }
@@ -91,6 +104,14 @@ function prepararNavegacaoLeve(container) {
   };
 
   container.querySelectorAll('.navbar-brand, .navbar-links a').forEach(link => {
+    link.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      sessionStorage.setItem('cine_diario_navegacao_interna', '1');
+      salvarSnapshotNavbar(container, link.href);
+      if (link.matches('.navbar-links a') && !link.classList.contains('active')) {
+        animarIndicadorNavegacao(event, link, container);
+      }
+    });
     ['pointerenter', 'focus', 'touchstart'].forEach(evento => {
       link.addEventListener(evento, () => preparar(link.href), { once: true, passive: true });
     });
@@ -102,6 +123,42 @@ function prepararNavegacaoLeve(container) {
   } else {
     window.setTimeout(prepararTodas, 1200);
   }
+}
+
+function salvarSnapshotNavbar(container, destinoHref) {
+  const copia = container.cloneNode(true);
+  copia.classList.remove('menu-open', 'navbar-snapshot');
+  copia.querySelector('.navbar-links')?.classList.remove('nav-is-moving');
+  copia.querySelector('.nav-moving-indicator')?.remove();
+  copia.querySelectorAll('.navbar-links a').forEach(link => {
+    link.classList.toggle('active', link.href === destinoHref);
+  });
+  sessionStorage.setItem('cine_diario_nav_snapshot', copia.innerHTML);
+}
+
+function animarIndicadorNavegacao(event, destino, container) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const links = container.querySelector('.navbar-links');
+  const atual = links?.querySelector('a.active');
+  if (!links || !atual || links.classList.contains('nav-is-moving')) return;
+
+  event.preventDefault();
+  const area = links.getBoundingClientRect();
+  const origem = atual.getBoundingClientRect();
+  const chegada = destino.getBoundingClientRect();
+  const indicador = document.createElement('span');
+  indicador.className = 'nav-moving-indicator';
+  indicador.style.width = `${origem.width - 28}px`;
+  indicador.style.transform = `translateX(${origem.left - area.left + 14}px)`;
+  links.appendChild(indicador);
+  links.classList.add('nav-is-moving');
+
+  requestAnimationFrame(() => {
+    indicador.style.width = `${chegada.width - 28}px`;
+    indicador.style.transform = `translateX(${chegada.left - area.left + 14}px)`;
+  });
+
+  window.setTimeout(() => window.location.assign(destino.href), 190);
 }
 
 async function hidratarEspacos(container) {
@@ -244,6 +301,7 @@ export function showCardSkeletons(container, quantidade = 8) {
 
 export function concluirCarregamentoInicial() {
   document.body.classList.remove('app-loading');
+  document.body.classList.remove('app-navigation');
   document.body.classList.add('app-ready');
   const carregamento = document.getElementById('app-startup');
   if (carregamento) carregamento.hidden = true;

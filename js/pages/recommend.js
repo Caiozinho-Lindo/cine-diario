@@ -19,7 +19,7 @@ import {
 } from '../recommendations.js?v=20260919.6';
 import { getSugestoesDeUsuariosCompativeis } from '../compatibility.js?v=20260903.1';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260910.1';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260925.1';
 import { abrirModalDescoberta } from '../discovery.js?v=20260919.2';
 import { generosPreferidosTmdb } from '../cineTaste.js';
 import {

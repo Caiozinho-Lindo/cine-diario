@@ -11,7 +11,7 @@ export async function getEspacosDoUsuario() {
 
   const { data, error } = await supabase
     .from('espacos')
-    .select('id, nome, imagem_url, criado_por, criado_em')
+    .select('id, nome, tipo, imagem_url, criado_por, criado_em')
     .order('criado_em', { ascending: true });
 
   if (error) throw error;
@@ -61,6 +61,36 @@ export async function getMembrosDoEspaco(espacoId) {
   }));
 }
 
+export async function getResumosDosEspacos(espacos = []) {
+  if (!espacos.length) return new Map();
+
+  const [membrosPorEspaco, titulosResultado] = await Promise.all([
+    Promise.all(espacos.map(async espaco => [espaco.id, await getMembrosDoEspaco(espaco.id)])),
+    supabase
+      .from('titulos')
+      .select('espaco_id, criado_em')
+      .in('espaco_id', espacos.map(espaco => espaco.id))
+  ]);
+
+  if (titulosResultado.error) throw titulosResultado.error;
+  const resumos = new Map(membrosPorEspaco.map(([espacoId, membros]) => [espacoId, {
+    membros,
+    totalTitulos: 0,
+    ultimaAtividade: null
+  }]));
+
+  (titulosResultado.data || []).forEach(titulo => {
+    const resumo = resumos.get(titulo.espaco_id);
+    if (!resumo) return;
+    resumo.totalTitulos += 1;
+    if (!resumo.ultimaAtividade || new Date(titulo.criado_em) > new Date(resumo.ultimaAtividade)) {
+      resumo.ultimaAtividade = titulo.criado_em;
+    }
+  });
+
+  return resumos;
+}
+
 export async function criarEspaco({ nome }, usuarioId) {
   if (!usuarioId) throw new Error('Autenticação obrigatória.');
   const { data: espaco, error } = await supabase
@@ -80,7 +110,7 @@ export async function atualizarEspaco(espacoId, { nome }) {
     .from('espacos')
     .update({ nome: nome.trim() })
     .eq('id', espacoId)
-    .select('id, nome, imagem_url, criado_por, criado_em')
+    .select('id, nome, tipo, imagem_url, criado_por, criado_em')
     .single();
 
   if (error) throw error;

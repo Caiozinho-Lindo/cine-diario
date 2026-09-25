@@ -10,7 +10,7 @@ const themeBootJs = await readFile(new URL('../js/themeBoot.js', import.meta.url
 
 test('a Home usa uma tela limpa enquanto prepara os dados iniciais', () => {
   assert.match(homeHtml, /<body class="theme-cinema app-loading" data-page="home">/);
-  assert.match(homeHtml, /themeBoot\.js\?v=20260910\.1/);
+  assert.match(homeHtml, /themeBoot\.js\?v=20260925\.1/);
   assert.match(homeHtml, /id="app-startup"/);
   assert.match(homeJs, /concluirCarregamentoInicial/);
   assert.match(homeJs, /void renderDescobertasPessoais/);

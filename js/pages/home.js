@@ -14,7 +14,7 @@ import {
   escapeHtml,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260910.1';
+} from '../ui.js?v=20260925.1';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import { initRecommend } from './recommend.js?v=20260918.4';
@@ -33,10 +33,12 @@ let usuarioIdAtual = null;
 let catalogoCompleto = [];
 let modoAtual = 'geral';
 let limparCarrosselCatalogo = () => {};
+let limparCarrosselWatchlist = () => {};
 let rodadaDescobertas = 0;
 let cacheDescobertas = null;
 let perfilAtual = null;
 let montagemInicialAberta = false;
+let espacoAtual = null;
 
 init();
 
@@ -49,13 +51,12 @@ async function init() {
 
   perfilAtual = await getCurrentProfile(session);
   const espacoAtivo = await getEspacoAtivo();
+  espacoAtual = espacoAtivo;
   membrosEspaco = await getMembrosDoEspaco(espacoAtivo.id);
   usuarioIdAtual = getUserId(session);
   const modoAtivo = normalizarModoAtivo(membrosEspaco, usuarioIdAtual);
   aplicarTema(perfilAtual?.tema);
-  document.getElementById('hero-title').textContent = membrosEspaco.length === 1
-    ? 'Seu histórico de filmes e séries'
-    : `O histórico de ${espacoAtivo.nome}`;
+  renderBoasVindas();
 
   renderNavbar(document.getElementById('navbar'), {
     activePage: 'home',
@@ -69,6 +70,7 @@ async function init() {
   });
 
   document.getElementById('home-discovery-more')?.addEventListener('click', renovarDescobertas);
+  configurarRecomendadorCompacto();
 
   renderSessaoPendente().catch(error => console.error('[sessão pendente]', error));
 
@@ -214,6 +216,68 @@ function renderTudo(modo) {
   renderStats(titulos, modo);
   renderHighlights(titulos);
   renderCatalogoRecente(catalogoCompleto, modo);
+  renderParaAssistir(catalogoCompleto, modo);
+}
+
+function renderBoasVindas() {
+  const hora = new Date().getHours();
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  const nomeCompleto = perfilAtual?.nome_exibicao || perfilAtual?.nome || 'cineasta';
+  const primeiroNome = nomeCompleto.trim().split(/\s+/)[0];
+  document.getElementById('hero-title').textContent = `${saudacao}, ${primeiroNome}`;
+  document.getElementById('hero-subtitle').textContent = 'O que combina com o seu momento agora?';
+  document.getElementById('home-space-summary').innerHTML = `
+    <span class="home-space-dot" aria-hidden="true"></span>
+    <strong>${escapeHtml(espacoAtual?.nome || 'Meu Cine Diário')}</strong>
+    <span>${membrosEspaco.length} ${membrosEspaco.length === 1 ? 'participante' : 'participantes'}</span>
+    <a href="profile.html#active-space-panel">Ver espaço</a>`;
+}
+
+function configurarRecomendadorCompacto() {
+  const secao = document.getElementById('escolher-hoje');
+  const toggle = document.getElementById('home-recommend-toggle');
+  const mobile = document.getElementById('home-mobile-watch-cta');
+  if (!secao || !toggle) return;
+  const abrir = () => {
+    secao.classList.remove('is-collapsed');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.textContent = 'Ocultar escolhas';
+    mobile?.classList.add('is-hidden');
+    window.setTimeout(() => secao.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+  const alternar = () => {
+    if (secao.classList.contains('is-collapsed')) return abrir();
+    secao.classList.add('is-collapsed');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.textContent = 'Escolher o que assistir';
+    mobile?.classList.remove('is-hidden');
+  };
+  toggle.addEventListener('click', alternar);
+  mobile?.addEventListener('click', abrir);
+}
+
+function renderParaAssistir(titulos, modo) {
+  const grid = document.getElementById('home-watchlist-grid');
+  if (!grid) return;
+  const lista = titulos.filter(titulo => titulo.quero_assistir).slice(0, 12);
+  if (!lista.length) {
+    limparCarrosselWatchlist();
+    grid.innerHTML = '<div class="home-catalog-empty">Sua lista está vazia. Adicione títulos no catálogo para encontrá-los aqui.</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  lista.forEach(titulo => {
+    const card = renderTituloCard(titulo, modo);
+    card.tabIndex = 0;
+    card.setAttribute('role', 'link');
+    const abrir = () => { window.location.href = `details.html?id=${encodeURIComponent(titulo.id)}`; };
+    card.addEventListener('click', abrir);
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); abrir(); }
+    });
+    grid.appendChild(card);
+  });
+  limparCarrosselWatchlist = configurarCarrossel('[data-home-watchlist-carousel]');
 }
 
 function renderCatalogoRecente(titulos, modo) {
@@ -385,12 +449,16 @@ function renderVazioDescobertas(container, motivo) {
 
 function configurarCarrosselCatalogo() {
   limparCarrosselCatalogo();
-  const carrossel = document.querySelector('[data-home-catalog-carousel]');
+  limparCarrosselCatalogo = configurarCarrossel('[data-home-catalog-carousel]');
+}
+
+function configurarCarrossel(seletor) {
+  const carrossel = document.querySelector(seletor);
   const viewport = carrossel?.querySelector('[data-carousel-viewport]');
   const anterior = carrossel?.querySelector('[data-carousel-prev]');
   const proximo = carrossel?.querySelector('[data-carousel-next]');
   const cards = [...(viewport?.querySelectorAll('.title-card') || [])];
-  if (!viewport || !anterior || !proximo || !cards.length) return;
+  if (!viewport || !anterior || !proximo || !cards.length) return () => {};
 
   const movimentoReduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let timer = null;
@@ -430,7 +498,7 @@ function configurarCarrosselCatalogo() {
   document.addEventListener('visibilitychange', onVisibilidade);
   iniciar();
 
-  limparCarrosselCatalogo = () => {
+  return () => {
     pausar();
     anterior.removeEventListener('click', onAnterior);
     proximo.removeEventListener('click', onProximo);
@@ -447,7 +515,7 @@ function configurarCarrosselCatalogo() {
 function renderStats(titulos, modo) {
   const stats = calcularEstatisticas(titulos, modo);
   const rotulos = rotulosEstatisticas(modo);
-  document.getElementById('hero-subtitle').textContent =
+  document.getElementById('journal-summary').textContent =
     stats.totalTitulos > 0
       ? `${stats.totalTitulos} títulos registrados até agora`
       : 'Ainda não há títulos registrados — que tal adicionar o primeiro?';

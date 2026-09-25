@@ -1,6 +1,6 @@
 # Plano de trabalho — Cine Diário
 
-Atualizado em 19/09/2026.
+Atualizado em 24/09/2026.
 
 Este arquivo registra a ordem de prioridade combinada para as próximas rodadas do projeto.
 
@@ -37,3 +37,29 @@ A revisão qualitativa levou a uma rodada adicional de filtros:
 - **Pensar:** mistério ou ação isolados não bastam; documentários puramente de entretenimento também são rejeitados, e a busca usa duas páginas por sessão.
 
 Após o refinamento, esses três climas fecharam **9/9 sessões**, sem repetir os falsos positivos que motivaram a mudança. Permanecem como observações futuras a amostra pequena de alguns lançamentos em **Leve** e escolhas biográficas discutíveis em **Algo real**.
+
+## Decisões futuras — Seus espaços
+
+As regras funcionais abaixo continuam planejadas para rodadas futuras. A primeira etapa visual de **Seus espaços** no Perfil foi implementada em 24/09/2026, reutilizando apenas os dados e as ações que já existiam.
+
+- Todo usuário novo terá um espaço individual chamado **Meu Cine Diário**. O limite será de um espaço Individual por vez; após sua exclusão definitiva, o usuário poderá criar outro.
+- O onboarding futuro perguntará se o usuário pretende usar o produto com outras pessoas, se possui um código de convite e se deseja criar outro espaço.
+- Os tipos iniciais serão **Individual**, **Casal** e **Amigos**, com identidade visual e regras coletivas adequadas a cada contexto. Cada usuário poderá ter apenas um espaço Individual. Casal terá no máximo dois participantes; Amigos não terá limite inicial.
+- Individual que receber um convite deverá ser convertido em Casal ou Amigos. Casal que perder um participante continuará Casal; Amigos continuará Amigos independentemente de ficar com apenas duas pessoas, sem conversão automática.
+- A criação usará um formulário curto com nome, tipo e escolha entre tema fixo do espaço ou tema pessoal do usuário.
+- No tema fixo, todos veem o tema escolhido para o espaço. No tema pessoal, cada participante vê o mesmo espaço com o próprio tema.
+- O administrador poderá alterar posteriormente o tema fixo ou alternar entre tema fixo e tema pessoal.
+- Perfil, preferências pessoais e gosto aprendido pertencem ao usuário; catálogo, lista para assistir, participantes, convites e atividade pertencem ao espaço.
+- Ao encontrar em outro espaço um título já avaliado, o usuário poderá copiar a avaliação ou criar uma avaliação específica. A cópia não permanecerá sincronizada com a original.
+- Todos os participantes poderão adicionar títulos. Apenas quem adicionou e o administrador poderão editar ou remover o título.
+- Ao remover outra pessoa, quem remove decide se as avaliações dela permanecem visíveis no espaço. Se não permanecerem, continuam privadas na conta da pessoa. Ao sair por conta própria, a pessoa confirma a remoção da visibilidade das avaliações no espaço, mantendo seu histórico privado.
+- Quando o autor de um título sair, o administrador assume o registro e decide se o manté ou exclui.
+- Quando vários autores saírem, o administrador usará uma tela de decisão em lote para escolher quais títulos e avaliações permanecem.
+- O administrador poderá transferir a administração de forma imediata, perdendo o cargo após confirmação. Se sair sem transferir, o cargo passa ao participante mais antigo ainda presente; em empate, vence quem esteve ativo mais recentemente.
+- Convites terão código e link, expirarão em sete dias, serão de uso único e poderão ser cancelados antes do vencimento.
+- A atividade recente considerará acesso ao espaço, inclusão ou edição de título, avaliação e participação em sessão ou recomendação.
+- Espaços arquivados permanecerão visíveis em modo somente leitura por 30 dias e poderão ser restaurados por qualquer participante. Após a restauração, haverá carência de sete dias para um novo arquivamento.
+- Exclusão definitiva exigirá digitar o nome do espaço. Em Amigos, exigirá aprovação de mais de 50% dos membros ativos nos 30 dias anteriores e, se houver mais de um membro no espaço, no mínimo duas aprovações. Em Casal, exigirá aprovação dos dois enquanto ambos ainda forem membros, independentemente da atividade recente.
+- Avisos de arquivamento, restauração, votação e exclusão serão inicialmente exibidos apenas dentro do aplicativo, sem envio de e-mail.
+- A seção permanecerá no Perfil. O espaço ativo terá destaque **Espaço atual**; os demais terão ação **Trocar para este espaço**.
+- Cada card mostrará nome, tipo, participantes, quantidade de títulos, última atividade, prévia numérica e indicação de administrador.
