@@ -2,7 +2,7 @@
 import { requireSession, getCurrentProfile, getUserId } from '../auth.js';
 import { atualizarTitulo, salvarAvaliacao, getTituloComAvaliacoes } from '../titulos.js';
 import { normalizarModoAtivo, aplicarTema } from '../themes.js?v=20260910.1';
-import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260925.1';
+import { renderNavbar, safeImageSrc, escapeHtml, showToast, concluirCarregamentoInicial } from '../ui.js?v=20260927.3';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { confirmarSessao } from '../sessoes.js';
 import { formatarNota } from '../statistics.js?v=20260919.2';

@@ -4,7 +4,6 @@
 import { formatarNota } from './statistics.js?v=20260919.2';
 import { resolveRootPath, logout } from './auth.js';
 import { nomeDoModo, notaNoModo, setModoAtivo } from './themes.js?v=20260910.1';
-import { getEspacosDoUsuario, getEspacoAtivo, setEspacoAtivo } from './espacos.js';
 
 export function renderNavbar(container, {
   activePage,
@@ -20,13 +19,6 @@ export function renderNavbar(container, {
   const avatar = perfilAtual?.avatar_url
     ? `<img src="${safeImageSrc(perfilAtual.avatar_url)}" alt="" />`
     : `<span aria-hidden="true">${escapeHtml(nomeUsuario.slice(0, 1).toUpperCase())}</span>`;
-  const opcoesModo = [
-    ...(membros.length > 1 ? [{ valor: 'geral', nome: 'Visão geral' }] : []),
-    ...membros.map(membro => ({
-      valor: `membro:${membro.usuario_id}`,
-      nome: nomeDoModo(`membro:${membro.usuario_id}`, membros, usuarioId)
-    }))
-  ];
 
   container.innerHTML = `
     <div class="navbar-inner">
@@ -40,31 +32,21 @@ export function renderNavbar(container, {
         <span>Cine Diário</span>
       </a>
 
-      <label class="space-picker" hidden>
-        <span class="sr-only">Espaço ativo</span>
-        <select data-space-picker aria-label="Espaço ativo"></select>
-      </label>
-
-      <label class="view-picker" ${opcoesModo.length <= 1 ? 'hidden' : ''}>
-        <span>Visão</span>
-        <select data-mode-select aria-label="Visão das avaliações">
-          ${opcoesModo.map(opcao => `
-            <option value="${escapeHtml(opcao.valor)}" ${opcao.valor === modoAtivo ? 'selected' : ''}>
-              ${escapeHtml(opcao.nome)}
-            </option>`).join('')}
-        </select>
-      </label>
-
       <div class="navbar-links">
         <a href="${root}pages/home.html" data-page="home">Início</a>
         <a href="${root}pages/catalog.html" data-page="catalog">Catálogo</a>
-        <a href="${root}pages/profile.html" data-page="profile">Perfil e espaços</a>
       </div>
 
       <div class="navbar-user">
-        <span class="navbar-avatar">${avatar}</span>
-        <span class="navbar-user-name">${escapeHtml(nomeUsuario)}</span>
-        <button class="btn btn-secondary btn-sm" id="logout-btn" type="button">Sair</button>
+        <button class="navbar-user-trigger" data-user-trigger type="button" aria-haspopup="menu" aria-expanded="false">
+          <span class="navbar-avatar">${avatar}</span>
+          <span class="navbar-user-name">${escapeHtml(nomeUsuario)}</span>
+          <span class="navbar-user-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="navbar-user-menu" data-user-menu role="menu" hidden>
+          <a href="${root}pages/profile.html" role="menuitem">Perfil e espaços</a>
+          <button id="logout-btn" type="button" role="menuitem">Sair</button>
+        </div>
       </div>
 
       <button class="navbar-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
@@ -78,15 +60,19 @@ export function renderNavbar(container, {
     setModoAtivo(seletorModo.value);
     if (onModoChange) onModoChange(seletorModo.value);
   });
-  container.querySelector('#logout-btn').addEventListener('click', logout);
+  container.querySelector('#logout-btn').addEventListener('click', async event => {
+    const confirmarSaida = window.cineDiarioConfirmarSaida;
+    if (typeof confirmarSaida === 'function' && !(await confirmarSaida())) return;
+    logout();
+  });
   const menuToggle = container.querySelector('.navbar-menu-toggle');
   menuToggle?.addEventListener('click', () => {
     const aberto = container.classList.toggle('menu-open');
     menuToggle.setAttribute('aria-expanded', String(aberto));
     menuToggle.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
   });
+  configurarMenusNavbar(container);
   prepararNavegacaoLeve(container);
-  hidratarEspacos(container).catch(error => console.error('[espaços]', error));
 }
 
 function prepararNavegacaoLeve(container) {
@@ -106,11 +92,27 @@ function prepararNavegacaoLeve(container) {
   container.querySelectorAll('.navbar-brand, .navbar-links a').forEach(link => {
     link.addEventListener('click', event => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      sessionStorage.setItem('cine_diario_navegacao_interna', '1');
-      salvarSnapshotNavbar(container, link.href);
-      if (link.matches('.navbar-links a') && !link.classList.contains('active')) {
-        animarIndicadorNavegacao(event, link, container);
+      const continuar = () => {
+        sessionStorage.setItem('cine_diario_navegacao_interna', '1');
+        salvarSnapshotNavbar(container, link.href);
+        if (link.matches('.navbar-links a') && !link.classList.contains('active')) {
+          animarIndicadorNavegacao(event, link, container);
+        } else {
+          window.location.assign(link.href);
+        }
+      };
+      const confirmarSaida = window.cineDiarioConfirmarSaida;
+      if (typeof confirmarSaida === 'function') {
+        event.preventDefault();
+        confirmarSaida().then(ok => {
+          if (!ok) return;
+          sessionStorage.setItem('cine_diario_navegacao_interna', '1');
+          salvarSnapshotNavbar(container, link.href);
+          window.location.assign(link.href);
+        });
+        return;
       }
+      continuar();
     });
     ['pointerenter', 'focus', 'touchstart'].forEach(evento => {
       link.addEventListener(evento, () => preparar(link.href), { once: true, passive: true });
@@ -161,17 +163,20 @@ function animarIndicadorNavegacao(event, destino, container) {
   window.setTimeout(() => window.location.assign(destino.href), 190);
 }
 
-async function hidratarEspacos(container) {
-  const [espacos, ativo] = await Promise.all([getEspacosDoUsuario(), getEspacoAtivo()]);
-  const wrapper = container.querySelector('.space-picker');
-  const select = container.querySelector('[data-space-picker]');
-  select.innerHTML = espacos
-    .map(espaco => `<option value="${escapeHtml(espaco.id)}" ${espaco.id === ativo.id ? 'selected' : ''}>${escapeHtml(espaco.nome)}</option>`)
-    .join('');
-  wrapper.hidden = false;
-  select.addEventListener('change', async () => {
-    await setEspacoAtivo(select.value);
-    window.location.reload();
+function configurarMenusNavbar(container) {
+  const userTrigger = container.querySelector('[data-user-trigger]');
+  const userMenu = container.querySelector('[data-user-menu]');
+  const fechar = () => {
+    if (userMenu) { userMenu.hidden = true; userTrigger?.setAttribute('aria-expanded', 'false'); }
+  };
+  userTrigger?.addEventListener('click', event => {
+    event.stopPropagation();
+    const aberto = userMenu && !userMenu.hidden;
+    fechar();
+    if (userMenu) { userMenu.hidden = aberto; userTrigger.setAttribute('aria-expanded', String(!aberto)); }
+  });
+  document.addEventListener('click', event => {
+    if (!container.contains(event.target)) fechar();
   });
 }
 
@@ -259,24 +264,34 @@ export function showToast(message, type = 'default') {
   toastTimeout = setTimeout(() => el.classList.remove('show'), 3200);
 }
 
-export function confirmarAcao({ titulo, mensagem, textoConfirmar = 'Confirmar', destrutivo = true }) {
+export function confirmarAcao({ titulo, mensagem, textoConfirmar = 'Confirmar', textoCancelar = 'Cancelar', valorCancelar = false, destrutivo = true, textoObrigatorio = '' }) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
       <div class="modal-box">
         <h3>${escapeHtml(titulo)}</h3><p>${escapeHtml(mensagem)}</p>
+        ${textoObrigatorio ? `<label class="confirm-text-label">Digite <strong>${escapeHtml(textoObrigatorio)}</strong> para confirmar<input data-confirm-text type="text" autocomplete="off" /></label>` : ''}
         <div class="modal-actions">
-          <button class="btn btn-secondary" data-action="cancel" type="button">Cancelar</button>
+          <button class="btn btn-secondary" data-action="cancel" type="button">${escapeHtml(textoCancelar)}</button>
           <button class="btn ${destrutivo ? 'btn-danger' : 'btn-primary'}" data-action="confirm" type="button">${escapeHtml(textoConfirmar)}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', event => {
-      if (event.target === overlay || event.target.dataset.action === 'cancel') {
+      if (event.target === overlay) {
         overlay.remove(); resolve(false);
       }
+      if (event.target.dataset.action === 'cancel') {
+        overlay.remove(); resolve(valorCancelar);
+      }
       if (event.target.dataset.action === 'confirm') {
+        const campo = overlay.querySelector('[data-confirm-text]');
+        if (campo && campo.value.trim() !== textoObrigatorio) {
+          campo.setCustomValidity(`Digite exatamente: ${textoObrigatorio}`);
+          campo.reportValidity();
+          return;
+        }
         overlay.remove(); resolve(true);
       }
     });

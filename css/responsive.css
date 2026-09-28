@@ -11,13 +11,10 @@
 @media (max-width: 880px) {
   .navbar { border-radius: 28px; }
   .navbar-inner { flex-wrap: wrap; }
-  .navbar-menu-toggle { display: grid; order: 5; }
-  .navbar-links { display: none; order: 6; width: 100%; padding: 5px 2px 2px; border-top: 1px solid var(--card-border); }
-  .navbar.menu-open .navbar-links { display: flex; }
-  .navbar-links a { flex: 1; text-align: center; white-space: nowrap; }
+  .navbar-menu-toggle { display: none; }
+  .navbar-links { display: flex; order: initial; flex: 1 1 auto; width: auto; min-width: 0; padding: 0; border-top: 0; }
+  .navbar-links a { flex: 0 1 auto; text-align: center; white-space: nowrap; }
   .navbar-user { margin-left: auto; }
-  .view-picker { display: none; order: 7; width: 100%; }
-  .navbar.menu-open .view-picker { display: flex; }
   .cards-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .personal-discovery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-discovery-grid { grid-template-columns: 1fr; }
@@ -31,11 +28,10 @@
   .navbar-brand > span:last-child { display: none; }
   .navbar-brand-mark { width: 34px; height: 34px; }
   .navbar-user { gap: 7px; }
-  .navbar-user .btn { display: none; }
-  .navbar-user-name { display: none; }
-  .navbar.menu-open .navbar-user .btn { display: inline-flex; position: absolute; right: 12px; bottom: 12px; }
-  .navbar.menu-open { padding-bottom: 46px; }
-  .navbar-links { overflow-x: auto; }
+  .navbar-user-name { display: inline; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .navbar-user-chevron { display: none; }
+  .navbar-links { overflow: visible; }
+  .navbar-user-menu { right: 0; }
   .hero { padding-top: 46px; }
   .page-header,
   .catalog-page-header { margin: 28px 0 20px; }
@@ -43,6 +39,8 @@
   .details-hero-content { flex-direction: column; align-items: center; text-align: center; }
   .details-hero-info { width: 100%; }
   .details-hero-content .poster { width: 130px; }
+  .details-actions { flex-direction: column; }
+  .details-actions .btn { width: 100%; }
 
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 10px; }
@@ -54,6 +52,10 @@
   .catalog-tabs { display: flex; width: 100%; }
   .catalog-tabs button,
   .catalog-tabs a { flex: 1; padding-inline: 8px; text-align: center; }
+  .catalog-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .catalog-tabs::-webkit-scrollbar { display: none; }
+  .catalog-tabs button,
+  .catalog-tabs a { flex: 0 0 auto; min-width: max-content; }
   .catalog-primary-filters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -67,6 +69,8 @@
   .catalog-add-form { padding: 16px; }
   .catalog-add-choice-actions { grid-template-columns: 1fr; }
   .catalog-add-actions .btn { width: 100%; }
+  .edit-form-actions .btn,
+  .edit-form-actions a { flex: 1 1 140px; text-align: center; }
   .personal-discovery-heading { align-items: flex-start; flex-direction: column; }
   .discovery-modal-box {
     grid-template-columns: 1fr;

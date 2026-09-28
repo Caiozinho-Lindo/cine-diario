@@ -34,7 +34,7 @@ import {
   showCardSkeletons,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260925.1';
+} from '../ui.js?v=20260927.3';
 
 let titulos = [];
 let modoAtivo = 'geral';

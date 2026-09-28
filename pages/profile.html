@@ -7,8 +7,8 @@
 <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="../css/global.css" />
 <link rel="stylesheet" href="../css/themes.css?v=20260910.1" />
-<link rel="stylesheet" href="../css/components.css?v=20260925.3" />
-<link rel="stylesheet" href="../css/profile.css?v=20260925.2" />
+<link rel="stylesheet" href="../css/components.css?v=20260927.3" />
+<link rel="stylesheet" href="../css/profile.css?v=20260927.4" />
 <link rel="stylesheet" href="../css/responsive.css?v=20260925.1" />
 </head>
 <body class="theme-cinema app-loading" data-page="profile">
@@ -79,13 +79,41 @@
         </header>
         <div id="spaces-list" class="spaces-list"></div>
 
-        <form id="space-form" class="settings-form compact-form" hidden>
-          <div class="field">
-            <label for="space-name">Nome do espaço</label>
-            <input id="space-name" type="text" required maxlength="80" placeholder="Ex.: Cinema da família" />
+        <div id="space-create-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="space-create-title" hidden>
+          <div class="modal-box space-create-box">
+            <button class="modal-close" id="close-space-create" type="button" aria-label="Fechar criação de espaço">×</button>
+            <span class="eyebrow">Novo espaço</span>
+            <h3 id="space-create-title">Vamos criar seu espaço</h3>
+            <div class="space-create-steps" aria-label="Etapas da criação">
+              <span data-create-indicator="1" class="active">1 Nome</span><span data-create-indicator="2">2 Tipo</span><span data-create-indicator="3">3 Tema</span><span data-create-indicator="4">4 Revisão</span>
+            </div>
+            <form id="space-form" class="settings-form">
+              <section data-create-step="1">
+                <div class="field"><label for="space-name">Nome do espaço</label><input id="space-name" type="text" required maxlength="80" placeholder="Ex.: Cinema da família" /></div>
+              </section>
+              <section data-create-step="2" hidden>
+                <fieldset class="field space-type-field">
+                  <legend>Que tipo de espaço é?</legend>
+                  <p class="settings-help">Escolha o jeito que você pretende viver este diário.</p>
+                  <div class="space-type-options">
+                    <label class="space-type-option"><input type="radio" name="space-type" value="pessoal" data-type-name="Individual" checked /><span class="space-type-icon" aria-hidden="true">🧍</span><span><strong>Individual</strong><small>Seu diário pessoal de cinema.</small></span><span class="space-type-check" aria-hidden="true">✓</span></label>
+                    <label class="space-type-option"><input type="radio" name="space-type" value="casal" data-type-name="Casal" /><span class="space-type-icon" aria-hidden="true">♥</span><span><strong>Casal</strong><small>Um espaço para compartilhar a dois.</small></span><span class="space-type-check" aria-hidden="true">✓</span></label>
+                    <label class="space-type-option"><input type="radio" name="space-type" value="amigos" data-type-name="Amigos" /><span class="space-type-icon" aria-hidden="true">✊</span><span><strong>Amigos</strong><small>Filmes e opiniões para a turma.</small></span><span class="space-type-check" aria-hidden="true">✓</span></label>
+                  </div>
+                </fieldset>
+              </section>
+              <section data-create-step="3" hidden>
+                <fieldset class="field space-theme-mode-field"><legend>Como o tema será visto?</legend><p class="settings-help">Você pode manter a identidade do espaço ou deixar cada pessoa usar a sua.</p><div class="space-theme-mode-options">
+                  <label class="space-theme-mode-option"><input type="radio" name="space-theme-mode" value="pessoal" checked /><span class="space-theme-mode-icon" aria-hidden="true">◐</span><span><strong>Tema pessoal</strong><small>Cada participante vê seu próprio tema.</small></span><span class="space-theme-mode-check" aria-hidden="true">✓</span></label>
+                  <label class="space-theme-mode-option"><input type="radio" name="space-theme-mode" value="fixo" /><span class="space-theme-mode-icon" aria-hidden="true">◆</span><span><strong>Tema do espaço</strong><small>Todos visualizam o tema escolhido aqui.</small></span><span class="space-theme-mode-check" aria-hidden="true">✓</span></label>
+                </div></fieldset>
+                <fieldset class="field space-theme-field" hidden><legend>Escolha o tema do espaço</legend><p class="settings-help">Este tema será compartilhado com todos os participantes.</p><div id="space-theme-options" class="space-theme-options"></div></fieldset>
+              </section>
+              <section data-create-step="4" hidden><div id="space-create-review" class="space-create-review"></div></section>
+              <footer class="space-create-actions"><button class="btn btn-secondary" id="space-create-back" type="button" hidden>Voltar</button><span></span><button class="btn btn-primary" id="space-create-next" type="button">Continuar</button><button class="btn btn-primary" id="create-space-btn" type="submit" hidden>Criar espaço</button></footer>
+            </form>
           </div>
-          <button class="btn btn-primary" id="create-space-btn" type="submit">Criar espaço</button>
-        </form>
+        </div>
 
         <form id="join-space-form" class="settings-form compact-form" hidden>
           <div class="field">
@@ -156,6 +184,6 @@
     </div>
   </main>
   <script src="../config.js"></script>
-<script type="module" src="../js/pages/profile.js?v=20260925.1"></script>
+<script type="module" src="../js/pages/profile.js?v=20260927.3"></script>
 </body>
 </html>

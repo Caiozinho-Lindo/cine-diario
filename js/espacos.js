@@ -11,7 +11,7 @@ export async function getEspacosDoUsuario() {
 
   const { data, error } = await supabase
     .from('espacos')
-    .select('id, nome, tipo, imagem_url, criado_por, criado_em')
+    .select('id, nome, tipo, imagem_url, tema, modo_tema, criado_por, criado_em')
     .order('criado_em', { ascending: true });
 
   if (error) throw error;
@@ -91,10 +91,15 @@ export async function getResumosDosEspacos(espacos = []) {
   return resumos;
 }
 
-export async function criarEspaco({ nome }, usuarioId) {
+export async function criarEspaco({ nome, tipo = 'pessoal', tema = 'cinema', modoTema = 'pessoal' }, usuarioId) {
   if (!usuarioId) throw new Error('Autenticação obrigatória.');
   const { data: espaco, error } = await supabase
-    .rpc('criar_espaco', { nome_espaco: nome.trim() })
+    .rpc('criar_espaco', {
+      nome_espaco: nome.trim(),
+      tipo_espaco: tipo,
+      tema_espaco: tema,
+      modo_tema_espaco: modoTema
+    })
     .single();
   if (error) throw error;
 
@@ -103,14 +108,19 @@ export async function criarEspaco({ nome }, usuarioId) {
   return espaco;
 }
 
-export async function atualizarEspaco(espacoId, { nome }) {
+export async function atualizarEspaco(espacoId, { nome, tipo, tema, modoTema, imagemUrl }) {
   if (!espacoId) throw new Error('Espaço inválido.');
 
+  const atualizacao = { nome: nome.trim() };
+  if (tipo) atualizacao.tipo = tipo;
+  if (tema) atualizacao.tema = tema;
+  if (modoTema) atualizacao.modo_tema = modoTema;
+  if (imagemUrl !== undefined) atualizacao.imagem_url = imagemUrl;
   const { data, error } = await supabase
     .from('espacos')
-    .update({ nome: nome.trim() })
+    .update(atualizacao)
     .eq('id', espacoId)
-    .select('id, nome, tipo, imagem_url, criado_por, criado_em')
+    .select('id, nome, tipo, imagem_url, tema, modo_tema, criado_por, criado_em')
     .single();
 
   if (error) throw error;

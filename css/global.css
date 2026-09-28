@@ -14,6 +14,7 @@
   --shadow-card: 0 4px 18px rgba(0,0,0,0.18);
 
   --transition-theme: background-color 700ms ease, color 700ms ease, border-color 700ms ease;
+  --accent-contrast: #fff;
 }
 
 @view-transition { navigation: auto; }
@@ -67,6 +68,14 @@ button {
   color: inherit;
 }
 
+button:disabled,
+.btn:disabled { cursor: not-allowed; opacity: 0.58; }
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+}
+
 input, select, textarea {
   font-family: inherit;
   font-size: 1rem;
@@ -91,6 +100,10 @@ img { max-width: 100%; display: block; }
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
+}
+
+@media (max-width: 640px) {
+  .container { padding-inline: 16px; }
 }
 
 .visually-hidden {

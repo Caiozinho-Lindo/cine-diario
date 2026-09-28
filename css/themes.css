@@ -85,6 +85,7 @@
   --accent: #eeeeee;
   --accent-2: #ffffff;
   --accent-glow: rgba(255, 255, 255, 0.16);
+  --accent-contrast: #111111;
   --input-bg: #0a0a0a;
   --input-border: rgba(255, 255, 255, 0.25);
   --success: #c8c8c8;

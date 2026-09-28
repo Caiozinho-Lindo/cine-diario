@@ -14,7 +14,7 @@ import {
   escapeHtml,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260925.1';
+} from '../ui.js?v=20260927.3';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import { initRecommend } from './recommend.js?v=20260918.4';
@@ -254,6 +254,15 @@ function configurarRecomendadorCompacto() {
   };
   toggle.addEventListener('click', alternar);
   mobile?.addEventListener('click', abrir);
+
+  // No celular, o CTA fixo ocupa o lugar da ação quando o painel está fora da tela.
+  // Ao chegar no painel, ele desaparece suavemente para não duplicar o botão interno.
+  if (mobile && 'IntersectionObserver' in window) {
+    const observarPainel = new IntersectionObserver(([entrada]) => {
+      mobile.classList.toggle('is-hidden', entrada.isIntersecting);
+    }, { threshold: 0.16, rootMargin: '-8% 0px -18% 0px' });
+    observarPainel.observe(secao);
+  }
 }
 
 function renderParaAssistir(titulos, modo) {
@@ -283,7 +292,7 @@ function renderParaAssistir(titulos, modo) {
 function renderCatalogoRecente(titulos, modo) {
   const grid = document.getElementById('home-catalog-grid');
   if (!grid) return;
-  const recentes = [...titulos]
+  const recentes = titulos.filter(titulo => !titulo.quero_assistir)
     .sort((a, b) => new Date(b.criado_em || 0) - new Date(a.criado_em || 0))
     .slice(0, 12);
 

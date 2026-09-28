@@ -172,12 +172,15 @@
     left: 14px;
     display: block;
     min-height: 50px;
-    color: white;
+    color: var(--accent-contrast);
     background: var(--accent);
     border: 0;
     border-radius: 999px;
     box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 38%, transparent);
     font-weight: 800;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 220ms ease, transform 220ms ease;
   }
-  .home-mobile-watch-cta.is-hidden { display: none; }
+  .home-mobile-watch-cta.is-hidden { display: block; opacity: 0; pointer-events: none; transform: translateY(18px); }
 }

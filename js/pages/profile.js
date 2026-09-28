@@ -20,9 +20,9 @@ import {
   atualizarPapelMembro,
   removerMembroEspaco,
   normalizarCodigo
-} from '../espacos.js';
+} from '../espacos.js?v=20260927.1';
 import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260910.1';
-import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260925.1';
+import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260927.8';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 import { supabase } from '../supabaseClient.js';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
@@ -44,6 +44,8 @@ let arquivoAvatarPendente = null;
 let avatarTemporario = '';
 let removerAvatarPendente = false;
 let meusStreamings = [];
+let etapaCriacao = 1;
+let perfilTemAlteracoes = false;
 
 init();
 
@@ -63,6 +65,8 @@ async function init() {
     renderCabecalho();
 
     preencherPerfil(perfilAtual);
+    renderOpcoesTemaEspaco();
+    atualizarVisibilidadeTemaEspaco();
     await carregarStreamings();
     await renderEspacos();
     renderDetalhesEspaco();
@@ -110,6 +114,25 @@ function renderTemas(temaAtivo) {
       </span>
       <span class="theme-option-check" aria-hidden="true">✓</span>
     </label>`).join('');
+}
+
+function renderOpcoesTemaEspaco(temaAtivo = 'cinema') {
+  const container = document.getElementById('space-theme-options');
+  if (!container) return;
+  const temaAtual = normalizarTema(temaAtivo);
+  container.innerHTML = TEMAS_PERFIL.map(tema => `
+    <label class="space-theme-option">
+      <input type="radio" name="space-theme" value="${escapeHtml(tema.id)}" data-theme-name="${escapeHtml(tema.nome)}" ${tema.id === temaAtual ? 'checked' : ''} />
+      <span class="space-theme-preview" aria-hidden="true">${tema.cores.map(cor => `<i style="background:${escapeHtml(cor)}"></i>`).join('')}</span>
+      <span class="space-theme-copy"><strong>${escapeHtml(tema.nome)}</strong><small>${escapeHtml(tema.descricao)}</small></span>
+      <span class="space-theme-check" aria-hidden="true">✓</span>
+    </label>`).join('');
+}
+
+function atualizarVisibilidadeTemaEspaco() {
+  const campoTema = document.querySelector('.space-theme-field');
+  const modo = document.querySelector('input[name="space-theme-mode"]:checked')?.value;
+  if (campoTema) campoTema.hidden = modo !== 'fixo';
 }
 
 async function carregarStreamings() {
@@ -162,11 +185,20 @@ async function renderEspacos() {
     const restantes = Math.max(0, resumo.membros.length - nomes.length);
 
     return `
-      <article class="space-card ${ativoAgora ? 'active' : ''}">
+      <article class="space-card ${ativoAgora ? 'active' : ''}" data-space-card="${escapeHtml(espaco.id)}">
         <div class="space-card-topline">
           <span class="space-card-icon" aria-hidden="true">${iconeTipoEspaco(tipo)}</span>
           <span class="space-type">${escapeHtml(tipo)}</span>
           ${souAdmin ? '<span class="space-admin-badge">Administrador</span>' : ''}
+          <details class="space-card-menu">
+            <summary aria-label="Mais opções para ${escapeHtml(espaco.nome)}">•••</summary>
+            <div class="space-card-menu-list">
+              ${souAdmin ? '<button type="button" data-space-card-action="edit">Editar espaço</button>' : ''}
+              ${ativoAgora ? '<button type="button" data-space-card-action="manage">Gerenciar participantes</button>' : ''}
+              ${souAdmin && espacosUsuario.length > 1 ? '<button type="button" data-space-card-action="delete">Excluir espaço</button>' : ''}
+              ${!souAdmin ? '<button type="button" data-space-card-action="leave">Sair do espaço</button>' : ''}
+            </div>
+          </details>
         </div>
         <div class="space-card-heading">
           <div>
@@ -182,7 +214,7 @@ async function renderEspacos() {
         </div>
         <div class="space-card-actions">
           ${ativoAgora
-            ? '<a class="btn btn-secondary btn-sm" href="#active-space-panel">Gerenciar</a>'
+            ? '<a class="btn btn-primary btn-sm" href="catalog.html">Ver catálogo</a>'
             : `<button class="btn btn-primary btn-sm" data-activate-space="${escapeHtml(espaco.id)}" type="button">Trocar para este espaço</button>`}
         </div>
       </article>`;
@@ -236,6 +268,7 @@ function selecionarAvatar(event) {
   arquivoAvatarPendente = arquivo;
   removerAvatarPendente = false;
   avatarTemporario = URL.createObjectURL(arquivo);
+  perfilTemAlteracoes = true;
   renderPreviaPerfil();
 }
 
@@ -243,6 +276,7 @@ function removerAvatarSelecionado() {
   liberarAvatarTemporario();
   arquivoAvatarPendente = null;
   removerAvatarPendente = true;
+  perfilTemAlteracoes = true;
   renderPreviaPerfil();
 }
 
@@ -256,7 +290,6 @@ function renderDetalhesEspaco() {
   const membroAtual = membrosEspaco.find(membro => membro.usuario_id === usuarioId);
   const papelAtual = papelNormalizado(membroAtual?.papel);
   const podeAdministrar = papelAtual === 'administrador';
-  const ehCriador = espacoAtivo.criado_por === usuarioId;
 
   document.getElementById('active-space-title').textContent = espacoAtivo.nome;
   document.getElementById('current-role').textContent = papelLabel(papelAtual);
@@ -300,16 +333,8 @@ function renderDetalhesEspaco() {
     ? 'Administradores podem convidar, remover participantes e alterar papéis.'
     : 'Você participa deste espaço e mantém sua própria avaliação para cada título.';
 
-  const acoes = [];
-  if (ehCriador) {
-    acoes.push('<button class="btn btn-secondary" data-space-action="edit" type="button">Editar espaço</button>');
-  } else {
-    acoes.push('<button class="btn btn-danger" data-space-action="leave" type="button">Sair do espaço</button>');
-  }
-  if (ehCriador && espacosUsuario.length > 1) {
-    acoes.push('<button class="btn btn-danger" data-space-action="delete" type="button">Excluir espaço</button>');
-  }
-  document.getElementById('space-actions').innerHTML = acoes.join('');
+  // As ações administrativas ficam concentradas no menu de três pontos do card.
+  document.getElementById('space-actions').innerHTML = '';
 }
 
 function papelNormalizado(papel) {
@@ -322,7 +347,18 @@ function papelLabel(papel) {
 
 function ligarEventos() {
   document.getElementById('profile-form').addEventListener('submit', salvarPerfil);
-  document.getElementById('show-space-form').addEventListener('click', () => alternarFormulario('space-form', 'space-name'));
+  document.getElementById('profile-form').addEventListener('input', () => { perfilTemAlteracoes = true; });
+  document.getElementById('profile-form').addEventListener('change', () => { perfilTemAlteracoes = true; });
+  window.addEventListener('beforeunload', event => {
+    if (!perfilTemAlteracoes) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  window.cineDiarioConfirmarSaida = confirmarSaidaDoPerfil;
+  document.getElementById('show-space-form').addEventListener('click', abrirModalCriacao);
+  document.getElementById('close-space-create').addEventListener('click', fecharModalCriacao);
+  document.getElementById('space-create-next').addEventListener('click', avancarCriacao);
+  document.getElementById('space-create-back').addEventListener('click', voltarCriacao);
   document.getElementById('show-join-form').addEventListener('click', () => alternarFormulario('join-space-form', 'join-code'));
   document.getElementById('space-form').addEventListener('submit', salvarEspaco);
   document.getElementById('join-space-form').addEventListener('submit', solicitarEntradaPorCodigo);
@@ -342,9 +378,42 @@ function ligarEventos() {
   document.getElementById('profile-avatar-file').addEventListener('change', selecionarAvatar);
   document.getElementById('remove-profile-avatar').addEventListener('click', removerAvatarSelecionado);
   document.getElementById('profile-theme-options').addEventListener('change', aplicarPreviaVisual);
+  document.getElementById('space-theme-options').addEventListener('change', event => {
+    const tema = event.target.closest('input[name="space-theme"]')?.value;
+    if (tema) aplicarTema(tema, { lembrar: false });
+  });
+  document.querySelectorAll('input[name="space-theme-mode"]').forEach(input => {
+    input.addEventListener('change', atualizarVisibilidadeTemaEspaco);
+  });
   document.getElementById('open-cine-taste').addEventListener('click', abrirPreferenciasCineDiario);
   document.getElementById('join-code').addEventListener('input', event => {
     event.target.value = normalizarCodigo(event.target.value);
+  });
+  document.querySelectorAll('[data-space-card-action]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const card = button.closest('[data-space-card]');
+      const espacoId = card?.dataset.spaceCard;
+      if (!espacoId) return;
+      const acao = button.dataset.spaceCardAction;
+      if (acao === 'delete') {
+        const nome = card.querySelector('.space-card-heading h3')?.textContent?.trim() || '';
+        await confirmarExclusaoEspaco(espacoId, nome);
+        return;
+      }
+      if (espacoId !== espacoAtivo.id) {
+        await setEspacoAtivo(espacoId);
+        window.location.reload();
+        return;
+      }
+      if (acao === 'edit') {
+        document.getElementById('edit-space-form').hidden = false;
+        document.getElementById('edit-space-name').focus();
+      } else if (acao === 'manage') {
+        document.getElementById('active-space-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (acao === 'delete' || acao === 'leave') {
+        await tratarAcaoEspaco({ target: { closest: seletor => seletor.includes('data-remove-member') ? null : ({ dataset: { spaceAction: acao } }) } });
+      }
+    });
   });
 }
 
@@ -442,6 +511,7 @@ async function salvarPerfil(event) {
     const membroAtual = membrosEspaco.find(membro => membro.usuario_id === getUserId(session));
     if (membroAtual) membroAtual.perfil = { ...membroAtual.perfil, ...perfilAtual };
     aplicarTema(tema);
+    perfilTemAlteracoes = false;
     preencherPerfil(perfilAtual);
     renderCabecalho();
     renderDetalhesEspaco();
@@ -456,6 +526,27 @@ async function salvarPerfil(event) {
   } finally {
     btn.disabled = false;
   }
+}
+
+async function confirmarSaidaDoPerfil() {
+  if (!perfilTemAlteracoes) return true;
+  const salvar = await confirmarAcao({
+    titulo: 'Salvar alterações?',
+    mensagem: 'Você alterou seu perfil. Deseja salvar antes de sair?',
+    textoConfirmar: 'Salvar e sair',
+    textoCancelar: 'Não',
+    valorCancelar: 'descartar',
+    destrutivo: false
+  });
+  if (salvar === 'descartar') {
+    // A saída sem salvar foi confirmada; libera a navegação sem o alerta nativo do navegador.
+    perfilTemAlteracoes = false;
+    return true;
+  }
+  if (!salvar) return false;
+  const evento = { preventDefault() {} };
+  await salvarPerfil(evento);
+  return !perfilTemAlteracoes;
 }
 
 async function enviarAvatar(arquivo) {
@@ -492,13 +583,74 @@ async function salvarEspaco(event) {
   const btn = document.getElementById('create-space-btn');
   btn.disabled = true;
   try {
-    await criarEspaco({ nome: document.getElementById('space-name').value }, getUserId(session));
+    await criarEspaco({
+      nome: document.getElementById('space-name').value,
+      tipo: document.querySelector('input[name="space-type"]:checked')?.value || 'pessoal',
+      tema: document.querySelector('input[name="space-theme"]:checked')?.value || 'cinema',
+      modoTema: document.querySelector('input[name="space-theme-mode"]:checked')?.value || 'pessoal'
+    }, getUserId(session));
     showToast('Espaço criado.');
     window.location.reload();
   } catch (error) {
     console.error(error);
     showToast('Não foi possível criar o espaço.', 'error');
     btn.disabled = false;
+  }
+}
+
+function abrirModalCriacao() {
+  etapaCriacao = 1;
+  aplicarTema(perfilAtual?.tema || 'cinema', { lembrar: false });
+  document.getElementById('space-create-modal').hidden = false;
+  atualizarVisibilidadeTemaEspaco();
+  atualizarEtapaCriacao();
+  document.getElementById('space-name').focus();
+}
+
+function fecharModalCriacao() {
+  document.getElementById('space-create-modal').hidden = true;
+  aplicarTema(perfilAtual?.tema || 'cinema', { lembrar: false });
+}
+
+function avancarCriacao() {
+  if (etapaCriacao === 1 && !document.getElementById('space-name').value.trim()) {
+    document.getElementById('space-name').reportValidity();
+    return;
+  }
+  if (etapaCriacao < 4) etapaCriacao += 1;
+  atualizarEtapaCriacao();
+}
+
+function voltarCriacao() {
+  if (etapaCriacao > 1) etapaCriacao -= 1;
+  atualizarEtapaCriacao();
+}
+
+function atualizarEtapaCriacao() {
+  document.querySelectorAll('[data-create-step]').forEach(secao => {
+    secao.hidden = Number(secao.dataset.createStep) !== etapaCriacao;
+  });
+  document.querySelectorAll('[data-create-indicator]').forEach(indicador => {
+    const numero = Number(indicador.dataset.createIndicator);
+    indicador.classList.toggle('active', numero === etapaCriacao);
+    indicador.classList.toggle('complete', numero < etapaCriacao);
+  });
+  document.querySelector('.space-create-steps')?.style.setProperty('--create-progress', `${(etapaCriacao - 1) / 3}`);
+  const voltar = document.getElementById('space-create-back');
+  const avancar = document.getElementById('space-create-next');
+  const criar = document.getElementById('create-space-btn');
+  voltar.hidden = etapaCriacao === 1;
+  avancar.hidden = etapaCriacao === 4;
+  criar.hidden = etapaCriacao !== 4;
+  if (etapaCriacao === 4) {
+    const tipoSelecionado = document.querySelector('input[name="space-type"]:checked');
+    const temaSelecionado = document.querySelector('input[name="space-theme"]:checked');
+    const modoSelecionado = document.querySelector('input[name="space-theme-mode"]:checked');
+    document.getElementById('space-create-review').innerHTML = `
+      <div><span>Nome</span><strong>${escapeHtml(document.getElementById('space-name').value.trim())}</strong></div>
+      <div><span>Tipo</span><strong>${escapeHtml(tipoSelecionado?.dataset.typeName || 'Individual')}</strong></div>
+      <div><span>Tema</span><strong>${escapeHtml(modoSelecionado?.value === 'fixo' ? (temaSelecionado?.dataset.themeName || 'Cinema') : 'Definido por cada participante')}</strong></div>
+      <div><span>Visualização</span><strong>${modoSelecionado?.value === 'fixo' ? 'Tema do espaço' : 'Tema pessoal'}</strong></div>`;
   }
 }
 
@@ -551,12 +703,16 @@ async function tratarAcaoEspaco(event) {
   }
 
   const saindo = acao === 'leave';
+  if (acao === 'delete') {
+    await confirmarExclusaoEspaco(espacoAtivo.id, espacoAtivo.nome);
+    return;
+  }
   const confirmado = await confirmarAcao({
     titulo: saindo ? 'Sair deste espaço?' : 'Excluir este espaço?',
     mensagem: saindo
       ? 'Você deixará de acessar o catálogo e as avaliações deste espaço.'
       : 'O catálogo, as avaliações e as listas deste espaço serão excluídos definitivamente.',
-    textoConfirmar: saindo ? 'Sair' : 'Excluir'
+    textoConfirmar: 'Sair'
   });
   if (!confirmado) return;
 
@@ -567,6 +723,26 @@ async function tratarAcaoEspaco(event) {
   } catch (error) {
     console.error(error);
     showToast(saindo ? 'Não foi possível sair do espaço.' : 'Não foi possível excluir o espaço.', 'error');
+  }
+}
+
+async function confirmarExclusaoEspaco(espacoId, nome) {
+  const confirmado = await confirmarAcao({
+    titulo: 'Excluir este espaço?',
+    mensagem: 'O catálogo, as avaliações e as listas deste espaço serão excluídos definitivamente.',
+    textoConfirmar: 'Excluir espaço',
+    textoObrigatorio: nome
+  });
+  if (!confirmado) return;
+  try {
+    await excluirEspaco(espacoId);
+    showToast('Espaço excluído.');
+    window.location.reload();
+  } catch (error) {
+    console.error(error);
+    showToast(error?.code === '23503'
+      ? 'Este espaço ainda tem títulos vinculados. Aplique a atualização do banco e tente novamente.'
+      : 'Não foi possível excluir o espaço.', 'error');
   }
 }
 
