@@ -241,7 +241,7 @@
 .finalist-synopsis { flex: 1; margin: 12px 0; color: var(--text-secondary); font-size: 0.86rem; line-height: 1.5; }
 .finalist-provider { margin-bottom: 5px; color: var(--text-primary); }
 .finalist-origin { margin-bottom: 6px; }
-.finalist-watched { margin-bottom: 7px; color: #e0a83f; font-size: 0.76rem; }
+.finalist-watched { margin-bottom: 7px; color: var(--accent-2); font-size: 0.76rem; }
 .finalist-reasons { display: grid; gap: 5px; margin: 9px 0 14px; }
 .finalist-reason { display: flex; gap: 6px; color: var(--text-secondary); font-size: 0.76rem; line-height: 1.35; }
 .finalist-reason::before { flex: 0 0 auto; color: var(--accent-2); content: '✦'; }

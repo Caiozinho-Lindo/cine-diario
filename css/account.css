@@ -1,4 +1,13 @@
-.account-card { width: min(440px, calc(100vw - 32px)); }
+.account-card {
+  width: min(440px, calc(100% - 32px));
+  max-width: 100%;
+}
+
+@media (max-width: 420px) {
+  .account-card {
+    width: 100%;
+  }
+}
 
 .account-tabs {
   display: grid;
@@ -41,6 +50,9 @@
 .account-link:hover { color: var(--accent-2); }
 .account-message { margin-top: 16px; }
 .account-message.success { color: var(--success); }
+.signup-consent { align-items: flex-start; line-height: 1.45; margin: 2px 0 4px; }
+.signup-consent a, .account-legal-links a { color: var(--accent); }
+.account-legal-links { display:flex; justify-content:center; gap:14px; margin-top:18px; font-size:.8rem; }
 .field small { color: var(--text-secondary); }
 
 .remember-device {

@@ -14,7 +14,7 @@ import {
   escapeHtml,
   showToast,
   concluirCarregamentoInicial
-} from '../ui.js?v=20260927.3';
+} from '../ui.js?v=20261006.2';
 import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import { getSessaoPendente, cancelarSessao } from '../sessoes.js?v=20260906.2';
 import { initRecommend } from './recommend.js?v=20260918.4';

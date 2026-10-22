@@ -22,7 +22,7 @@ import {
   normalizarCodigo
 } from '../espacos.js?v=20260927.1';
 import { normalizarModoAtivo, aplicarTema, normalizarTema, TEMAS_PERFIL } from '../themes.js?v=20260910.1';
-import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20260927.8';
+import { renderNavbar, escapeHtml, safeImageSrc, showToast, confirmarAcao, concluirCarregamentoInicial } from '../ui.js?v=20261006.2';
 import { SERVICOS_STREAMING, getMeusStreamings, salvarMeusStreamings } from '../streamings.js';
 import { supabase } from '../supabaseClient.js';
 import { abrirMontarCineDiario } from '../cineTasteModal.js';
@@ -415,6 +415,23 @@ function ligarEventos() {
       }
     });
   });
+  document.getElementById('request-account-deletion')?.addEventListener('click', solicitarExclusaoConta);
+}
+
+async function solicitarExclusaoConta() {
+  if (!window.confirm('Enviaremos um link para o e-mail da sua conta. A exclusão será definitiva após a confirmação. Deseja continuar?')) return;
+  const button = document.getElementById('request-account-deletion');
+  button.disabled = true;
+  try {
+    const { error } = await supabase.functions.invoke('account-deletion', { body: { action: 'request' } });
+    if (error) throw error;
+    showToast('Confira o e-mail da sua conta para confirmar a exclusão.', 'success');
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível enviar o pedido agora.', 'error');
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function tipoEspaco(tipo, totalMembros) {

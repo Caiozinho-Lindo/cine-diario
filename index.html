@@ -7,9 +7,9 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="css/global.css" />
 <link rel="stylesheet" href="css/themes.css?v=20260906.1" />
-<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/components.css?v=20261006.1" />
 <link rel="stylesheet" href="css/account.css" />
-<link rel="stylesheet" href="css/responsive.css" />
+<link rel="stylesheet" href="css/responsive.css?v=20261006.1" />
 </head>
 <body class="theme-cinema" data-page="login">
   <div class="login-screen">
@@ -67,6 +67,10 @@
           <input type="password" id="signup-password" required minlength="8" autocomplete="new-password" />
           <small>Use pelo menos 8 caracteres.</small>
         </div>
+        <label class="remember-toggle signup-consent" for="signup-consent">
+          <input type="checkbox" id="signup-consent" required />
+          <span>Li e aceito os <a href="pages/termos.html" target="_blank" rel="noopener">Termos de uso</a> e a <a href="pages/privacidade.html" target="_blank" rel="noopener">Política de privacidade</a>.</span>
+        </label>
         <button type="submit" class="btn btn-primary btn-block" id="signup-btn">Criar minha conta</button>
       </form>
 
@@ -92,6 +96,7 @@
       </form>
 
       <p class="login-error account-message" id="login-error" role="status" hidden></p>
+      <footer class="account-legal-links"><a href="pages/privacidade.html">Privacidade</a><a href="pages/termos.html">Termos</a><a href="pages/contato.html">Contato</a></footer>
     </main>
   </div>
 

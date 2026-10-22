@@ -50,8 +50,14 @@ export function renderNavbar(container, {
       </div>
 
       <button class="navbar-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
-        <span></span><span></span>
+        <span></span><span></span><span></span>
       </button>
+    </div>
+    <div class="navbar-mobile-menu" data-mobile-menu role="menu" hidden>
+      <a href="${root}pages/home.html" data-page="home" role="menuitem">Início</a>
+      <a href="${root}pages/catalog.html" data-page="catalog" role="menuitem">Catálogo</a>
+      <a href="${root}pages/profile.html" role="menuitem">Perfil e espaços</a>
+      <button type="button" data-mobile-logout role="menuitem">Sair</button>
     </div>`;
 
   container.querySelectorAll(`[data-page="${activePage}"]`).forEach(a => a.classList.add('active'));
@@ -60,17 +66,13 @@ export function renderNavbar(container, {
     setModoAtivo(seletorModo.value);
     if (onModoChange) onModoChange(seletorModo.value);
   });
-  container.querySelector('#logout-btn').addEventListener('click', async event => {
+  const executarLogout = async event => {
     const confirmarSaida = window.cineDiarioConfirmarSaida;
     if (typeof confirmarSaida === 'function' && !(await confirmarSaida())) return;
     logout();
-  });
-  const menuToggle = container.querySelector('.navbar-menu-toggle');
-  menuToggle?.addEventListener('click', () => {
-    const aberto = container.classList.toggle('menu-open');
-    menuToggle.setAttribute('aria-expanded', String(aberto));
-    menuToggle.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
-  });
+  };
+  container.querySelector('#logout-btn')?.addEventListener('click', executarLogout);
+  container.querySelector('[data-mobile-logout]')?.addEventListener('click', executarLogout);
   configurarMenusNavbar(container);
   prepararNavegacaoLeve(container);
 }
@@ -166,15 +168,44 @@ function animarIndicadorNavegacao(event, destino, container) {
 function configurarMenusNavbar(container) {
   const userTrigger = container.querySelector('[data-user-trigger]');
   const userMenu = container.querySelector('[data-user-menu]');
+  const mobileMenu = container.querySelector('[data-mobile-menu]');
+  const menuToggle = container.querySelector('.navbar-menu-toggle');
+  const fecharMenuMobile = () => {
+    if (!mobileMenu) return;
+    mobileMenu.hidden = true;
+    container.classList.remove('menu-open');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+    menuToggle?.setAttribute('aria-label', 'Abrir menu');
+  };
+  const alternarMenuMobile = () => {
+    if (!mobileMenu) return;
+    if (userMenu) userMenu.hidden = true;
+    const aberto = mobileMenu.hidden;
+    mobileMenu.hidden = !aberto;
+    container.classList.toggle('menu-open', aberto);
+    menuToggle?.setAttribute('aria-expanded', String(aberto));
+    menuToggle?.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
+    userTrigger?.setAttribute('aria-expanded', 'false');
+  };
   const fechar = () => {
     if (userMenu) { userMenu.hidden = true; userTrigger?.setAttribute('aria-expanded', 'false'); }
+    fecharMenuMobile();
   };
   userTrigger?.addEventListener('click', event => {
     event.stopPropagation();
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      alternarMenuMobile();
+      return;
+    }
     const aberto = userMenu && !userMenu.hidden;
     fechar();
     if (userMenu) { userMenu.hidden = aberto; userTrigger.setAttribute('aria-expanded', String(!aberto)); }
   });
+  menuToggle?.addEventListener('click', event => {
+    event.stopPropagation();
+    alternarMenuMobile();
+  });
+  mobileMenu?.querySelectorAll('a').forEach(link => link.addEventListener('click', fecharMenuMobile));
   document.addEventListener('click', event => {
     if (!container.contains(event.target)) fechar();
   });

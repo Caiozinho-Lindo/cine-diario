@@ -67,6 +67,12 @@ async function onLogin(event) {
 
 async function onSignup(event) {
   event.preventDefault();
+  const consent = document.getElementById('signup-consent');
+  if (!consent?.checked) {
+    exibirMensagem('Aceite os Termos de uso e a Política de privacidade para criar a conta.');
+    consent?.focus();
+    return;
+  }
   const btn = document.getElementById('signup-btn');
   await executar(btn, 'Criando conta...', async () => {
     const data = await cadastrar({

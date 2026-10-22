@@ -13,7 +13,7 @@ import { getEspacoAtivo, getMembrosDoEspaco } from '../espacos.js';
 import {
   renderNavbar, safeImageSrc, escapeHtml,
   showToast, confirmarAcao, concluirCarregamentoInicial
-} from '../ui.js?v=20260927.3';
+} from '../ui.js?v=20261006.2';
 
 let titulo = null;
 let modoAtivo = 'geral';
