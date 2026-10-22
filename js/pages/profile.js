@@ -419,7 +419,14 @@ function ligarEventos() {
 }
 
 async function solicitarExclusaoConta() {
-  if (!window.confirm('Enviaremos um link para o e-mail da sua conta. A exclusão será definitiva após a confirmação. Deseja continuar?')) return;
+  const confirmado = await confirmarAcao({
+    titulo: 'Solicitar exclusão da conta',
+    mensagem: 'Enviaremos um link para o e-mail da sua conta. A exclusão será definitiva somente depois que você confirmar pelo e-mail.',
+    textoConfirmar: 'Enviar link',
+    textoCancelar: 'Não',
+    destrutivo: true,
+  });
+  if (!confirmado) return;
   const button = document.getElementById('request-account-deletion');
   button.disabled = true;
   try {
