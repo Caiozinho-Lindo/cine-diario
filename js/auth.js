@@ -77,14 +77,34 @@ export async function getSession({ permitirMigracao = true } = {}) {
 }
 
 export async function requireSession() {
-  const session = await getSession();
+  let session;
+  try {
+    // Uma sessão local pode permanecer no navegador depois que a conta foi
+    // excluída. Evita deixar qualquer página presa no estado de carregamento.
+    session = await Promise.race([
+      getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Sessão expirada.')), 12000))
+    ]);
+  } catch {
+    await encerrarSessaoLocal().catch(() => {});
+    window.location.replace(resolveRootPath('index.html'));
+    return null;
+  }
   if (!session) {
     window.location.href = resolveRootPath('index.html');
     return null;
   }
 
   if (!perfilAtual || perfilAtual.id !== session.user.id) {
-    perfilAtual = await carregarPerfil(session.user.id);
+    try {
+      perfilAtual = await carregarPerfil(session.user.id);
+    } catch {
+      // Perfil ausente normalmente indica que a conta foi excluída em outro
+      // dispositivo. Limpa a sessão antiga e volta ao login de forma segura.
+      await encerrarSessaoLocal().catch(() => {});
+      window.location.replace(resolveRootPath('index.html'));
+      return null;
+    }
   }
   return session;
 }
